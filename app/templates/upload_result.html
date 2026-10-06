@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Upload complete</h1>
+<section class="card">
+  <p><strong>{{ summary.total }}</strong> birthdays now on the calendar.</p>
+  <div class="cols">
+    <div>
+      <h2>Added ({{ summary.added|length }})</h2>
+      {% if summary.added %}<ul>{% for n in summary.added %}<li>{{ n }}</li>{% endfor %}</ul>
+      {% else %}<p class="muted">None</p>{% endif %}
+    </div>
+    <div>
+      <h2>Removed ({{ summary.removed|length }})</h2>
+      {% if summary.removed %}<ul>{% for n in summary.removed %}<li>{{ n }}</li>{% endfor %}</ul>
+      {% else %}<p class="muted">None</p>{% endif %}
+    </div>
+  </div>
+  <p><a href="/">Back to dashboard</a></p>
+</section>
+{% endblock %}

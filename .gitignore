@@ -1,0 +1,27 @@
+# --- Member data: never commit LCR exports or the database ---
+*.pdf
+*.csv
+*.xlsx
+*.xls
+*.ics
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

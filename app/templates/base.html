@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block title %}{{ ward_name }} Portal{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">{{ ward_name }}</a>
+    {% if user %}
+    <nav>
+      <a href="/">Dashboard</a>
+      <a href="/birthdays">Birthdays</a>
+      <form method="post" action="/logout"><button class="link">Sign out</button></form>
+    </nav>
+    {% endif %}
+  </header>
+  <main>
+    {% if flash %}<div class="flash {{ flash[0] }}">{{ flash[1] }}</div>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

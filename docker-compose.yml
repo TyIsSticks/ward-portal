@@ -1,0 +1,13 @@
+services:
+  portal:
+    build: .
+    container_name: ward-portal
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./data:/data
+    # Bound to localhost only; Tailscale Funnel is what makes it reachable from outside.
+    ports:
+      - "127.0.0.1:8000:8000"

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Birthdays</h1>
+
+<section class="card">
+  <h2>Upload a new Birthday List</h2>
+  <p class="muted">In LCR, open <em>Reports → Birthday List</em>, export as PDF, and upload it here.
+     The calendar is updated to match the upload exactly: move-ins are added, move-outs removed.</p>
+  <form method="post" action="/birthdays/upload" enctype="multipart/form-data" class="row">
+    <input type="file" name="file" accept="application/pdf,.pdf" required>
+    <button>Upload &amp; sync</button>
+  </form>
+  <p class="muted small">
+    {{ count }} birthdays on the calendar.
+    {% if last %}Last upload {{ last.uploaded_at }} UTC by {{ last.uploaded_by }}
+      (+{{ last.summary.added|length }} / −{{ last.summary.removed|length }}).{% endif %}
+  </p>
+</section>
+
+<section class="card">
+  <h2>Calendar feed</h2>
+  <p class="muted">In Google Calendar: <em>Other calendars → + → From URL</em>, paste this link.
+     Google re-checks it on its own schedule (usually within a day).</p>
+  <div class="row">
+    <input id="feed" value="{{ feed_url }}" readonly onclick="this.select()">
+    <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('feed').value); this.textContent='Copied'">Copy</button>
+  </div>
+  <p class="muted small">Anyone with this link can see names and birthdays. Don't share it publicly.</p>
+  {% if user.is_admin %}
+  <form method="post" action="/feed/regenerate"
+        onsubmit="return confirm('The old link will stop working. Continue?')">
+    <button class="secondary">Regenerate link</button>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

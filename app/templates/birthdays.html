@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>All birthdays <span class="muted">({{ total }})</span></h1>
+{% if not by_month %}
+<p class="muted">Nothing yet. <a href="/">Upload a Birthday List</a>.</p>
+{% endif %}
+<div class="months">
+  {% for month, people in by_month.items() %}
+  <section class="card">
+    <h2>{{ month_names[month] }}</h2>
+    <ul class="plain">
+      {% for b in people %}<li><span class="day">{{ b.day }}</span> {{ b.display_name }}</li>{% endfor %}
+    </ul>
+  </section>
+  {% endfor %}
+</div>
+{% endblock %}
