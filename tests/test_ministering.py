@@ -1,5 +1,6 @@
 """Ministering data layer and routes. Made-up names only."""
 import re
+from datetime import date
 
 import pytest
 from fastapi.testclient import TestClient
@@ -256,6 +257,64 @@ def test_lcr_check_flow_through_the_app(client, conn, monkeypatch):
     assert "Only approved" in client.post(f"/ministering/layouts/{draft}/verify").text
 
 
+# --- who ministers to whom --------------------------------------------------
+
+def test_who_ministers_combines_orgs_and_marks_changes(conn):
+    p = ids(conn)
+    conn.execute("INSERT INTO people (name, gender, birth_year, birth_month, birth_day) VALUES ('Kid, Kip', 'M', ?, 1, 1)",
+                 (date.today().year - 5,))
+    eq = m.finish_import(conn, m.match_names(conn, report_of((["Able, Al", "Baker, Bo"], ["Dunn, Di", "Eads, Em"]))),
+                         {}, "a", "eq")
+    rs = m.finish_import(conn, m.match_names(conn, report_of((["Dunn, Di", "Ford, Fay"], ["Eads, Em"]))), {}, "a", "rs")
+    rows, people = m.who_ministers(conn, {"eq": m.get_layout(conn, eq), "rs": m.get_layout(conn, rs)})
+    by_name = {r["person"]["name"]: r for r in rows}
+    assert by_name["Eads, Em"]["ministers"] == {"eq": [p["Able, Al"], p["Baker, Bo"]], "rs": [p["Dunn, Di"], p["Ford, Fay"]]}
+    assert by_name["Cole, Cy"]["ministers"] == {"eq": [], "rs": []}  # adult with no ministers
+    assert "Kid, Kip" not in by_name  # children aren't listed just for having no ministers
+    assert [r["person"]["name"] for r in rows] == sorted(by_name, key=str.lower)
+    assert not any(c for r in rows for c in r["changed"].values())  # current imports change nothing
+    assert people[p["Able, Al"]]["display"] == "Al Able"
+
+    rows, _ = m.who_ministers(conn, {"eq": m.get_layout(conn, eq)}, include_unassigned=False)
+    assert [r["person"]["name"] for r in rows] == ["Dunn, Di", "Eads, Em"]
+
+    draft = m.create_layout(conn, "eq", "Fall", "current", "a")
+    m.save_structure(conn, draft, [{"name": "North", "groups": [
+        {"ministers": [p["Able, Al"], p["Cole, Cy"]], "assigned": [p["Dunn, Di"]]}]}], 1)
+    rows, _ = m.who_ministers(conn, {"eq": m.get_layout(conn, draft)}, include_unassigned=False)
+    # Em loses her ministers in the draft: still listed so the change isn't hidden.
+    assert [(r["person"]["name"], r["changed"]["eq"]) for r in rows] == [("Dunn, Di", True), ("Eads, Em", True)]
+
+
+def test_who_ministers_page(client, conn):
+    _leader(client)
+    p = ids(conn)
+    eq = m.finish_import(conn, m.match_names(conn, report_of((["Able, Al", "Baker, Bo"], ["Dunn, Di"]))), {}, "a", "eq")
+    m.finish_import(conn, m.match_names(conn, report_of((["Dunn, Di", "Ford, Fay"], ["Eads, Em"]))), {}, "a", "rs")
+    draft = m.create_layout(conn, "eq", "Fall plan", "current", "a")
+    m.save_structure(conn, draft, [{"name": "North", "groups": [
+        {"ministers": [p["Able, Al"], p["Cole, Cy"]], "assigned": [p["Dunn, Di"]]}]}], 1)
+    m.set_tags(conn, p["Dunn, Di"], ["Needs extra care"])
+    conn.commit()
+
+    page = client.get("/ministering/assignments").text
+    assert "Who ministers to whom" in page and "For Church Use Only" in page
+    assert "Al Able &amp; Bo Baker" in page and "Di Dunn &amp; Fay Ford" in page
+    assert "No ministers" in page and "Needs extra care" not in page  # tags are opt-in
+    assert "chg-mark" not in page.split("<table")[1] and "marked New" not in page
+
+    page = client.get(f"/ministering/assignments?eq={draft}&rs=none&tags=1&assigned_only=1").text
+    assert "Fall plan (Draft)" in page and "Al Able &amp; Cy Cole" in page and "Relief Society:" not in page
+    assert "1 marked New" in page and page.split("<table")[1].count("chg-mark") == 1
+    assert "Needs extra care" in page and "No ministers</span>" not in page
+    # A layout from the other organization, or one that doesn't exist, falls back to what's in LCR.
+    for bad in (draft, 99999):
+        assert "Current in LCR" in client.get(f"/ministering/assignments?rs={bad}").text.split("<h1>")[1]
+    assert f"/ministering/assignments?eq={draft}" in client.get(f"/ministering/layouts/{draft}/changes").text
+    assert "/ministering/assignments" in client.get("/ministering/people").text
+    assert eq
+
+
 # --- routes -----------------------------------------------------------------
 
 def _leader(client):
@@ -267,7 +326,7 @@ def test_members_cannot_see_ministering(client):
     auth.create_user("member", PW)
     login(client, "member", PW)
     assert "/ministering" not in client.get("/").text
-    for path in ["/ministering", "/ministering/people", "/api/ministering/layouts/1"]:
+    for path in ["/ministering", "/ministering/people", "/ministering/assignments", "/api/ministering/layouts/1"]:
         assert client.get(path).status_code == 403
 
 

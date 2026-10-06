@@ -395,6 +395,45 @@ def org_summary(conn, org: str) -> dict:
     return out
 
 
+# --- Who ministers to whom --------------------------------------------------
+
+def ministers_of(conn, layout_id: int) -> dict[int, list[int]]:
+    """Each assigned person's ministers in a layout (ordered, no repeats)."""
+    out: dict[int, list[int]] = {}
+    for d in structure(conn, layout_id):
+        for g in d["groups"]:
+            for p in g["assigned"]:
+                out.setdefault(p, [])
+                out[p] += [x for x in g["ministers"] if x not in out[p]]
+    return out
+
+
+def who_ministers(conn, sources: dict[str, dict], include_unassigned: bool = True) -> tuple[list[dict], dict]:
+    """Alphabetical rows of {person, ministers: {org: [pid]}, changed: {org: bool}} across organizations,
+    plus the people (ministers included) by id.
+
+    `sources` maps org -> layout to show. A row's org is `changed` when the layout gives that person
+    different ministers than the current import (so a proposed layout shows what it would change).
+    With `include_unassigned`, active adults with no ministers in any source are listed too.
+    """
+    shown = {org: ministers_of(conn, l["id"]) for org, l in sources.items()}
+    current = {}
+    for org, l in sources.items():
+        cur = current_import(conn, org)
+        current[org] = shown[org] if cur is None or cur["id"] == l["id"] else ministers_of(conn, cur["id"])
+    ids = {p for m in shown.values() for p in m}
+    losing = {p for m in current.values() for p in m} - ids  # would lose all their ministers: always shown
+    everyone = people(conn, ids | losing | {x for m in shown.values() for ms in m.values() for x in ms})
+    rows = []
+    for pid, person in everyone.items():  # already alphabetical by "Last, First"
+        if pid not in ids | losing and not (include_unassigned and person["active"] and (person["age"] or 18) >= 18):
+            continue
+        ministers = {org: shown[org].get(pid, []) for org in sources}
+        rows.append({"person": person, "ministers": ministers,
+                     "changed": {org: set(ministers[org]) != set(current[org].get(pid, [])) for org in sources}})
+    return rows, everyone
+
+
 # --- History ----------------------------------------------------------------
 
 def history(conn, org: str, exclude_layout: int) -> dict:

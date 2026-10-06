@@ -1,7 +1,10 @@
 {% extends "base.html" %}
 {% block title %}People · {{ ward_name }}{% endblock %}
 {% block content %}
-<h1>People <span class="muted">({{ people|selectattr("active")|list|length }})</span></h1>
+<div class="row spread">
+  <h1 style="margin: 0">People <span class="muted">({{ people|selectattr("active")|list|length }})</span></h1>
+  {% if imported %}<a href="/ministering/assignments">Who ministers to whom (printable) →</a>{% endif %}
+</div>
 <section class="card">
   <div class="row">
     <input id="filter" type="search" placeholder="Search names…" class="grow" aria-label="Search names">

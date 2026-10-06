@@ -1,5 +1,6 @@
 """Ministering pages and the JSON API used by the drag-and-drop board. Leaders and admins only."""
 import json
+from datetime import date
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -129,6 +130,33 @@ def people_page(request: Request, user: dict = leader):
                         roles.setdefault(p, set()).add(f"{org}:assigned")
     return render(request, "ministering/people.html", user=user, people=list(people.values()),
                   roles=roles, tags=m.PRIORITY_TAGS, imported=imported, orgs=m.ORGS)
+
+
+@router.get("/ministering/assignments", response_class=HTMLResponse)
+def assignments_page(request: Request, eq: str = "current", rs: str = "current", assigned_only: str = "",
+                     tags: str = "", user: dict = leader):
+    """Who ministers to whom, alphabetically, for ward council or bishopric approval. Printable.
+
+    `eq` / `rs` pick each column's layout: "current" (what's in LCR), a layout id, or "none".
+    """
+    with db.ward_connect(user["ward"]["id"]) as conn:
+        sources, choices = {}, {}
+        for org, pick in (("eq", eq), ("rs", rs)):
+            choices[org] = [l for l in m.list_layouts(conn, org) if l["kind"] == "draft" or l["is_current"]]
+            layout = m.get_layout(conn, int(pick)) if pick.isdigit() else None
+            if layout is None or layout["org"] != org:
+                layout = m.current_import(conn, org) if pick != "none" else None
+            if layout:
+                sources[org] = layout
+        rows, people = m.who_ministers(conn, sources, include_unassigned=assigned_only != "1")
+    picked = {org: str(sources[org]["id"]) if org in sources and not sources[org]["is_current"]
+              else "current" if org in sources else "none" for org in m.ORGS}
+    return render(request, "ministering/assignments.html", user=user, rows=rows, people=people,
+                  sources=sources, choices=choices, picked=picked, orgs=m.ORGS, today=date.today(),
+                  unassigned=assigned_only != "1", show_tags=tags == "1",
+                  counts={"people": len(rows),
+                          "no_ministers": sum(not any(r["ministers"].values()) for r in rows),
+                          "changed": sum(any(r["changed"].values()) for r in rows)})
 
 
 @router.get("/ministering/import/{pending_id}", response_class=HTMLResponse)

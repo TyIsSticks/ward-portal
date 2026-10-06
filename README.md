@@ -116,6 +116,12 @@ Typical cycle (for either organization):
    **Mark done anyway** when the differences are intended. Setting the status back to Draft (or
    approving again) restarts the check. Layouts approved before this feature count as verified.
 
+**Who ministers to whom** (People → *Who ministers to whom*, or from any layout's Changes for LCR)
+is an alphabetical list of everyone with their Elders Quorum and Relief Society ministers side by
+side, made for ward council. Each column can show what's in LCR now or any layout. Pick a proposed
+layout to send for bishopric approval: people whose ministers would change are marked **New**. It
+prints cleanly (or *Save as PDF*), and *Copy link* shares the page with anyone who has a Leader account.
+
 The side lists ("Not assigned to anyone", "Not ministering") can show brothers, sisters or
 everyone. They default to what each organization does in your ward, and each leader's choice is
 remembered in their browser.

@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% set active = "people" %}
+{% block title %}Who ministers to whom · {{ ward_name }}{% endblock %}
+{% macro source_label(l) -%}
+  {%- if l.kind == "imported" -%}Current in LCR (imported {{ l.created_at[:10] }})
+  {%- else -%}{{ l.name }} ({{ "Verified in LCR" if l.verified_at else l.status|capitalize }}){%- endif -%}
+{%- endmacro %}
+{% macro names(ids) -%}
+  {%- set list = [] -%}
+  {%- for pid in ids -%}{%- set _ = list.append(people[pid].display if pid in people else "Unknown") -%}{%- endfor -%}
+  {{- list|join(" & ") -}}
+{%- endmacro %}
+{% block content %}
+<form method="get" class="card no-print stack" id="options">
+  <div class="row spread">
+    <a href="/ministering/people">← People</a>
+    <span class="row" style="margin: 0">
+      <button type="button" class="secondary" id="copy-link">Copy link</button>
+      <button type="button" onclick="window.print()">Print / Save as PDF</button>
+    </span>
+  </div>
+  <div class="row">
+    {% for org, org_name in orgs.items() %}
+    <label>{{ org_name }}
+      <select name="{{ org }}">
+        {% for l in choices[org] %}
+        <option value="{{ 'current' if l.kind == 'imported' else l.id }}"
+                {% if picked[org] == ('current' if l.kind == 'imported' else l.id|string) %}selected{% endif %}>{{ source_label(l) }}</option>
+        {% endfor %}
+        <option value="none" {% if picked[org] == "none" %}selected{% endif %}>Leave out</option>
+      </select></label>
+    {% endfor %}
+  </div>
+  <div class="row">
+    <label><input type="checkbox" name="assigned_only" value="1" {% if not unassigned %}checked{% endif %}> Only people with ministers</label>
+    <label><input type="checkbox" name="tags" value="1" {% if show_tags %}checked{% endif %}> Show tags</label>
+    <noscript><button>Update</button></noscript>
+  </div>
+  <p class="muted small">Pick a proposed layout to see what it would change: rows marked <span class="chg-mark">New</span>
+    get different ministers than they have in LCR now. Anyone you send the link to needs a Leader account to open it.</p>
+</form>
+
+<h1>Who ministers to whom</h1>
+<p class="muted">{{ ward_name }} · {{ today.strftime("%B") }} {{ today.day }}, {{ today.year }}{% for org, l in sources.items() %}
+  · <strong>{{ orgs[org] }}:</strong> {{ source_label(l) }}{% endfor %}</p>
+
+{% if not sources %}
+<section class="card"><p class="muted">Nothing to show yet. Import the Elders Quorum or Relief Society assignments from LCR first.</p></section>
+{% else %}
+<div class="table-wrap">
+<table class="who">
+  <thead><tr><th>Name</th>{% for org in sources %}<th>{{ orgs[org] }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for r in rows %}
+    {% set p = r.person %}
+    {% set has_any = r.ministers.values()|select|list %}
+    <tr class="{{ 'no-ministers' if not has_any }}">
+      <td>{{ p.name }}{% if not p.active %} <span class="badge moved">Moved out</span>{% endif %}
+        {% if not has_any %}<span class="badge moved">No ministers</span>{% endif %}
+        {% if show_tags and p.tags %}<div class="muted small">★ {{ p.tags|join(", ") }}</div>{% endif %}</td>
+      {% for org in sources %}
+      <td>{% if r.ministers[org] %}{{ names(r.ministers[org]) }}{% else %}<span class="muted">—</span>{% endif %}
+        {% if r.changed[org] %} <span class="chg-mark">New</span>{% endif %}</td>
+      {% endfor %}
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="muted small">{{ counts.people }} people{% if unassigned %} · {{ counts.no_ministers }} with no ministers{% endif %}{% if counts.changed %} · {{ counts.changed }} marked New{% endif %}</p>
+{% endif %}
+<p class="fcuo">For Church Use Only</p>
+<script>
+(() => {
+  const form = document.getElementById("options");
+  form.addEventListener("change", () => form.submit());
+  document.getElementById("copy-link").addEventListener("click", async (e) => {
+    try { await navigator.clipboard.writeText(location.href); e.target.textContent = "Link copied"; }
+    catch { prompt("Copy this link:", location.href); }
+  });
+})();
+</script>
+{% endblock %}
