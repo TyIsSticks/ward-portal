@@ -16,6 +16,33 @@ PRIORITY_TAGS = ["New move-in", "New member", "Needs extra care", "Returning", "
 NEEDS_MINISTERS_TAGS = {"New move-in", "New member", "Needs extra care", "Returning"}
 STATUSES = ("draft", "proposed", "approved")
 
+# Elders quorum and Relief Society keep separate assignments in LCR, so each has its own layouts.
+ORGS = {"eq": "Elders Quorum", "rs": "Relief Society"}
+ORG_GENDER = {"eq": "M", "rs": "F"}  # who ministers in each
+
+
+def check_org(org: str) -> str:
+    if org not in ORGS:
+        raise LayoutError("Unknown organization")
+    return org
+
+
+def infer_org(conn, payload: dict) -> str | None:
+    """Which organization a ministering report belongs to, from the ministers' gender.
+
+    LCR's PDF doesn't say. Returns None if it's not clear (no matched ministers, or a real mix).
+    """
+    pids = [e["person_id"] for d in payload["districts"] for g in d["groups"] for e in g["ministers"]
+            if e["person_id"] is not None]
+    if not pids:
+        return None
+    marks = ",".join("?" * len(set(pids)))
+    genders = [r[0] for r in conn.execute(f"SELECT gender FROM people WHERE id IN ({marks})", list(set(pids)))]
+    for org, gender in ORG_GENDER.items():
+        if genders.count(gender) >= 0.8 * len(genders):
+            return org
+    return None
+
 
 class LayoutError(ValueError):
     pass
@@ -166,7 +193,7 @@ def load_pending(conn, pending_id: int) -> dict | None:
     return json.loads(row["payload"]) if row else None
 
 
-def finish_import(conn, payload: dict, resolutions: dict[str, int | None], created_by: str) -> int:
+def finish_import(conn, payload: dict, resolutions: dict[str, int | None], created_by: str, org: str) -> int:
     """Create the imported layout. `resolutions` maps unmatched names to a person id (or None = skip)."""
     def pid(e):
         return e["person_id"] if e["person_id"] is not None else resolutions.get(e["name"])
@@ -176,22 +203,24 @@ def finish_import(conn, payload: dict, resolutions: dict[str, int | None], creat
          "assigned": [p for e in g["assigned"] if (p := pid(e))]}
         for g in d["groups"]]} for d in payload["districts"]]
 
-    conn.execute("UPDATE layouts SET is_current = 0 WHERE kind = 'imported'")
+    check_org(org)
+    conn.execute("UPDATE layouts SET is_current = 0 WHERE kind = 'imported' AND org = ?", (org,))
     today = date.today()
     layout_id = conn.execute(
-        "INSERT INTO layouts (name, kind, status, is_current, created_by) VALUES (?, 'imported', 'approved', 1, ?)",
-        (f"LCR assignments {today:%b} {today.day}, {today.year}", created_by)).lastrowid
+        "INSERT INTO layouts (name, org, kind, status, is_current, created_by) "
+        "VALUES (?, ?, 'imported', 'approved', 1, ?)",
+        (f"LCR assignments {today:%b} {today.day}, {today.year}", org, created_by)).lastrowid
     _write_structure(conn, layout_id, structure)
     return layout_id
 
 
 # --- Layouts ----------------------------------------------------------------
 
-def list_layouts(conn) -> list[dict]:
+def list_layouts(conn, org: str) -> list[dict]:
     return [dict(r) for r in conn.execute(
         "SELECT l.*, (SELECT COUNT(*) FROM companionships c JOIN districts d ON d.id = c.district_id "
         "            WHERE d.layout_id = l.id) AS groups "
-        "FROM layouts l ORDER BY l.kind = 'imported', l.updated_at DESC")]
+        "FROM layouts l WHERE l.org = ? ORDER BY l.kind = 'imported', l.updated_at DESC", (org,))]
 
 
 def get_layout(conn, layout_id: int) -> dict | None:
@@ -199,8 +228,9 @@ def get_layout(conn, layout_id: int) -> dict | None:
     return dict(row) if row else None
 
 
-def current_import(conn) -> dict | None:
-    row = conn.execute("SELECT * FROM layouts WHERE kind = 'imported' AND is_current = 1").fetchone()
+def current_import(conn, org: str) -> dict | None:
+    row = conn.execute("SELECT * FROM layouts WHERE kind = 'imported' AND is_current = 1 AND org = ?",
+                       (org,)).fetchone()
     return dict(row) if row else None
 
 
@@ -281,23 +311,24 @@ def save_structure(conn, layout_id: int, raw, expected_version: int) -> int:
     return expected_version + 1
 
 
-def create_layout(conn, name: str, start: str, created_by: str, copy_from: int | None = None) -> int:
+def create_layout(conn, org: str, name: str, start: str, created_by: str, copy_from: int | None = None) -> int:
     """start: 'scratch' (current districts, no groups), 'current' (copy of latest import) or 'copy'."""
+    check_org(org)
     source = None
     if start == "current":
-        source = current_import(conn)
+        source = current_import(conn, org)
         if source is None:
-            raise LayoutError("Import the current ministering assignments first.")
+            raise LayoutError(f"Import the current {ORGS[org]} assignments first.")
     elif start == "copy":
         source = get_layout(conn, copy_from) if copy_from else None
-        if source is None:
+        if source is None or source["org"] != org:
             raise LayoutError("Pick a layout to copy.")
-    layout_id = conn.execute("INSERT INTO layouts (name, kind, created_by) VALUES (?, 'draft', ?)",
-                             (name.strip()[:80] or "Untitled layout", created_by)).lastrowid
+    layout_id = conn.execute("INSERT INTO layouts (name, org, kind, created_by) VALUES (?, ?, 'draft', ?)",
+                             (name.strip()[:80] or "Untitled layout", org, created_by)).lastrowid
     if source:
         districts = structure(conn, source["id"])
     else:
-        base = current_import(conn)
+        base = current_import(conn, org)
         districts = [{"name": d["name"], "supervisor": d["supervisor"], "groups": []}
                      for d in (structure(conn, base["id"]) if base else [])] or \
                     [{"name": "District 1", "supervisor": "", "groups": []}]
@@ -327,7 +358,7 @@ def delete_layout(conn, layout_id: int) -> None:
 
 # --- History ----------------------------------------------------------------
 
-def history(conn, exclude_layout: int) -> dict:
+def history(conn, org: str, exclude_layout: int) -> dict:
     """Who were companions, and who ministered to whom, in past LCR imports.
 
     The current import is left out: it's the starting point, so flagging it would mark every
@@ -336,8 +367,8 @@ def history(conn, exclude_layout: int) -> dict:
     companions: dict[str, list[str]] = {}
     ministered: dict[str, list[str]] = {}
     layouts = conn.execute(
-        "SELECT id, name FROM layouts WHERE id != ? AND kind = 'imported' AND is_current = 0 "
-        "ORDER BY created_at", (exclude_layout,)).fetchall()
+        "SELECT id, name FROM layouts WHERE id != ? AND org = ? AND kind = 'imported' AND is_current = 0 "
+        "ORDER BY created_at", (exclude_layout, org)).fetchall()
     for layout in layouts:
         for d in structure(conn, layout["id"]):
             for g in d["groups"]:

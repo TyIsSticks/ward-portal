@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS person_tags (
 CREATE TABLE IF NOT EXISTS layouts (
     id          INTEGER PRIMARY KEY,
     name        TEXT NOT NULL,
+    org         TEXT NOT NULL DEFAULT 'eq' CHECK (org IN ('eq', 'rs')),  -- Elders Quorum / Relief Society
     kind        TEXT NOT NULL CHECK (kind IN ('imported', 'draft')),
     status      TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'proposed', 'approved')),
     is_current  INTEGER NOT NULL DEFAULT 0,  -- the latest import, i.e. what's in LCR now
@@ -137,6 +138,10 @@ def _migrate(conn: sqlite3.Connection) -> None:
     if bday_cols and "missing_since" not in bday_cols:
         conn.execute("ALTER TABLE birthdays ADD COLUMN missing_since TEXT")
         conn.execute("ALTER TABLE birthdays ADD COLUMN kept INTEGER NOT NULL DEFAULT 0")
+    layout_cols = {r["name"] for r in conn.execute("PRAGMA table_info(layouts)")}
+    if layout_cols and "org" not in layout_cols:
+        # Layouts made before Relief Society support were all elders quorum.
+        conn.execute("ALTER TABLE layouts ADD COLUMN org TEXT NOT NULL DEFAULT 'eq'")
     invite_cols = {r["name"] for r in conn.execute("PRAGMA table_info(invites)")}
     if invite_cols and "is_leader" not in invite_cols:
         conn.execute("ALTER TABLE invites ADD COLUMN is_leader INTEGER NOT NULL DEFAULT 0")

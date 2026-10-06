@@ -14,10 +14,10 @@
   <a href="/ministering/layouts/{{ layout.id }}">← Back to board</a>
   <button type="button" onclick="window.print()">Print</button>
 </div>
-<h1>Changes for LCR</h1>
+<h1>Changes for LCR <span class="muted">· {{ org_name }}</span></h1>
 <p class="muted">From <strong>{{ current.name }}</strong> (what’s in LCR now) to <strong>{{ layout.name }}</strong>
   {% if layout.kind == "draft" %}<span class="badge {{ layout.status }}">{{ layout.status|capitalize }}</span>{% endif %}.
-  Check items off as you enter them in LCR (<em>Ministering → Companionships</em>).</p>
+  Check items off as you enter them in LCR (<em>{{ org_name }} → Ministering → Companionships</em>).</p>
 
 {% set total = diff.removed|length + diff.changed|length + diff.created|length + diff.new_districts|length %}
 {% if total == 0 %}

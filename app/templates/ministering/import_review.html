@@ -1,11 +1,21 @@
 {% extends "base.html" %}
-{% block title %}Match names · {{ ward_name }}{% endblock %}
+{% block title %}Finish import · {{ ward_name }}{% endblock %}
 {% block content %}
-<h1>Match names</h1>
+<h1>Finish import</h1>
 <section class="card">
-  <p class="muted">These names from the ministering report don’t exactly match anyone in the ward roster.
-     Pick who each one is, or skip it (e.g. they’ve moved out). Everyone else matched automatically.</p>
   <form method="post" class="stack">
+    <label>Whose assignments are these?
+      <select name="org" required>
+        <option value="" {% if not org %}selected{% endif %} disabled>Choose…</option>
+        {% for key, name in orgs.items() %}<option value="{{ key }}" {% if key == org %}selected{% endif %}>{{ name }}</option>{% endfor %}
+      </select>
+    </label>
+    {% if not org %}<p class="muted small">LCR’s PDF doesn’t say, and the ministers in it are a mix of brothers and sisters,
+      so please pick.</p>{% endif %}
+
+    {% if unmatched %}
+    <p class="muted">These names from the report don’t exactly match anyone in the ward roster.
+       Pick who each one is, or skip it (e.g. they’ve moved out). Everyone else matched automatically.</p>
     <div class="table-wrap">
     <table>
       <thead><tr><th>In the report</th><th>Role</th><th>Match to</th></tr></thead>
@@ -34,6 +44,7 @@
       </tbody>
     </table>
     </div>
+    {% endif %}
     <button>Finish import</button>
   </form>
 </section>

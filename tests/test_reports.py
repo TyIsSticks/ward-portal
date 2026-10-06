@@ -90,3 +90,15 @@ def test_detect_rejects_non_pdf():
     from app.reports import detect
     with pytest.raises(ReportError):
         detect(b"not a pdf")
+
+
+def test_district_names_dont_need_the_word_district():
+    page = words(("Aitana's Group :)", 22, 30), ("Presidency Member: Batista, Aitana", 22, 42),
+                 *_comp(60, ["Doe, Jane", "Roe, Rae"], [("Adams, Amy", "Female", "1 Jul")]),
+                 # A page header right above a companionship's own "Presidency Member" line
+                 # (which has contact details) must not become a district.
+                 ("Layton Utah YSA Stake (1592971)", 455, 300),
+                 ("Presidency Member: Batista, Aitana 801-555-0100 | a@example.com", 22, 312))
+    districts = ministering.parse_words([page])
+    assert [(d.name, d.supervisor, len(d.companionships)) for d in districts] == [
+        ("Aitana's Group :)", "Batista, Aitana", 1)]

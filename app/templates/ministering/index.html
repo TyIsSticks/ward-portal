@@ -1,7 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Ministering · {{ ward_name }}{% endblock %}
+{% block title %}{{ org_name }} ministering · {{ ward_name }}{% endblock %}
 {% block content %}
-<h1>Ministering</h1>
+<p class="crumbs"><a href="/ministering">Ministering</a> /</p>
+<h1>{{ org_name }}</h1>
 
 <section class="card">
   <h2>Layouts</h2>
@@ -37,14 +38,14 @@
   </table>
   </div>
   {% else %}
-  <p class="muted">No layouts yet. Import the current assignments below, or start from scratch.</p>
+  <p class="muted">No layouts yet. Import the current {{ org_name }} assignments below, or start from scratch.</p>
   {% endif %}
 </section>
 
 <div class="cols">
 <section class="card">
   <h2>New layout</h2>
-  <form method="post" action="/ministering/layouts" class="stack">
+  <form method="post" action="/ministering/{{ org }}/layouts" class="stack">
     <label>Name <input name="name" placeholder="e.g. Fall 2026 changes" maxlength="80"></label>
     <fieldset class="choices">
       <legend>Start from</legend>
@@ -65,21 +66,18 @@
 </section>
 
 <section class="card">
-  <h2>Data</h2>
-  <p>
-    {% if stats.active %}<strong>{{ stats.active }}</strong> people in the ward roster{% if stats.moved_out %},
-      {{ stats.moved_out }} moved out{% endif %}. <a href="/ministering/people">View people &amp; tags</a>
-    {% else %}<span class="muted">No roster yet. Upload the Member List first.</span>{% endif %}
-  </p>
+  <h2>Import from LCR</h2>
   <p class="muted small">
-    {% if current %}Current assignments imported {{ current.created_at[:10] }}.{% else %}No assignments imported yet.{% endif %}
+    {% if current %}Current {{ org_name }} assignments imported {{ current.created_at[:10] }}.
+    {% else %}No {{ org_name }} assignments imported yet.{% endif %}
   </p>
   <form method="post" action="/upload" enctype="multipart/form-data" class="row">
+    <input type="hidden" name="org" value="{{ org }}">
     <input type="file" name="file" accept="application/pdf,.pdf" required>
     <button>Upload</button>
   </form>
-  <p class="muted small">Upload the LCR <em>Member List</em> to update the roster, or
-     <em>Ministering Assignments</em> to import what’s currently in LCR.</p>
+  <p class="muted small">In LCR, open the {{ org_name }} <em>Ministering Assignments</em> report and save it as a PDF.
+     Upload the <em>Member List</em> first so names can be matched.</p>
 </section>
 </div>
 {% endblock %}

@@ -12,7 +12,8 @@ A small self-hosted portal for working with LCR report exports.
   step-by-step phone guides on the dashboard. People missing from a new upload are **flagged, not
   deleted**. The dashboard lists them as "Possibly moved out" with *Keep* / *Remove birthday*
   buttons, and the flag clears if they show up again.
-- **Ministering** (leaders): a drag-and-drop board of districts → groups → ministers and assigned
+- **Ministering** (leaders): separate **Elders Quorum** and **Relief Society** pages (they're
+  separate in LCR). Each has a drag-and-drop board of districts → groups → ministers and assigned
   people, saved as layouts (start from the current assignments, from scratch, or from a copy).
   Includes warnings, priority tags, companion history from past imports, Draft / Proposed / Approved
   status, and a printable **Changes for LCR** checklist. See [Ministering](#ministering).
@@ -74,21 +75,31 @@ Everything lives in `./data` (SQLite DB + session key). Back up that folder.
 
 ## Ministering
 
-Typical cycle:
+Elders Quorum and Relief Society each have their own page, imports, layouts and change list.
+Any Leader can see and edit both.
+
+Typical cycle (for either organization):
 
 1. Upload the latest **Member List** so move-ins and move-outs are current. New people are tagged
    *New move-in*, and anyone who moved out is struck through wherever they appear.
-2. Upload **Ministering Assignments** to import what's in LCR now. If a name doesn't exactly match
+2. Upload **Ministering Assignments** to import what's in LCR now. LCR's PDF doesn't say which
+   organization it's from, so it's filed by the ministers: brothers → Elders Quorum, sisters →
+   Relief Society. If they're mixed, the import asks. If a name doesn't exactly match
    the roster, a review page lets you pick who it is or skip it. Each import becomes the "Current in
    LCR" snapshot. Older imports are kept as history.
 3. **New layout → Start from current assignments**, then drag names between groups. Tap a name to
    move it with a menu, set tags, or see their history. Everything autosaves.
 4. Watch the **Warnings** panel: groups with fewer than 2 or more than 3 ministers, more than 6
-   assigned, brothers and sisters as companions, someone in two groups, moved-out people,
+   assigned, brothers and sisters as companions, a sister in an Elders Quorum group (or a brother in
+   Relief Society), someone in two groups, moved-out people,
    tagged people with no ministers, and uneven districts. Warnings never block a change.
 5. Set the status to **Proposed** for the bishop (give him the Leader role) and **Approved** once
    it's final. Approved layouts are locked.
 6. Open **Changes for LCR** and work through the checklist in LCR.
+
+The side lists ("Not assigned to anyone", "Not ministering") can show brothers, sisters or
+everyone. They default to what each organization does in your ward, and each leader's choice is
+remembered in their browser.
 
 Companion history (“↺”) comes from past imports, so it appears once you've imported more than once.
 

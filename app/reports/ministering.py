@@ -64,14 +64,25 @@ def _segments(line: list[dict]) -> list[tuple[float, str]]:
     return [(s[0]["x0"], " ".join(w["text"] for w in s)) for s in segs]
 
 
+def _is_district_heading(line: list[dict], next_text: str) -> bool:
+    """A district name sits in the left column right above "Presidency Member: Last, First".
+
+    That supervisor line has no phone or email; the copies that head each companionship do,
+    so this doesn't depend on what the district is called.
+    """
+    return (line[0]["x0"] < LEFT_MAX_X and next_text.startswith("Presidency Member:")
+            and not re.search(r"[\d@|]", next_text))
+
+
 def parse_words(pages: list[list[dict]]) -> list[District]:
     districts: list[District] = []
     comp: Companionship | None = None
     pending: Assigned | None = None  # assigned name that wrapped before its gender/birthday
 
-    for words in pages:
-        for line in _lines(words):
-            text = " ".join(w["text"] for w in line)
+    lines = [line for words in pages for line in _lines(words)]
+    texts = [" ".join(w["text"] for w in line) for line in lines]
+
+    for i, (line, text) in enumerate(zip(lines, texts)):
             if text.startswith(". . ."):
                 comp = Companionship()
                 if districts:
@@ -84,7 +95,7 @@ def parse_words(pages: list[list[dict]]) -> list[District]:
                 if districts and not districts[-1].supervisor:
                     districts[-1].supervisor = text.split(":", 1)[1].strip()
                 continue
-            if line[0]["x0"] < LEFT_MAX_X and text.endswith("District") and "," not in text:
+            if _is_district_heading(line, texts[i + 1] if i + 1 < len(texts) else ""):
                 districts.append(District(name=text))
                 comp = None
                 continue

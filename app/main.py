@@ -98,12 +98,14 @@ def birthday_list(request: Request, user: dict = Depends(auth.require_user)):
 
 
 @app.post("/upload", response_class=HTMLResponse)
-async def upload(request: Request, file: UploadFile, user: dict = Depends(auth.require_user)):
+async def upload(request: Request, file: UploadFile, org: str = Form(""),
+                 user: dict = Depends(auth.require_user)):
     """Accepts any supported LCR report and routes it by its title.
 
     Uploaded files are never written to disk; only the parsed rows are kept.
     """
-    back = "/ministering" if "/ministering" in request.headers.get("referer", "") else "/"
+    org = org if org in ministering.ORGS else ""  # set when uploading from an EQ/RS page
+    back = f"/ministering/{org}" if org else "/"
     data = await file.read(config.MAX_UPLOAD_BYTES + 1)
     if len(data) > config.MAX_UPLOAD_BYTES:
         flash(request, "error", "That file is too large.")
@@ -119,7 +121,7 @@ async def upload(request: Request, file: UploadFile, user: dict = Depends(auth.r
         return RedirectResponse(back, status_code=303)
 
     if kind == "ministering":
-        return _import_ministering(request, user, parsed)
+        return _import_ministering(request, user, parsed, org or None)
 
     with db.connect() as conn:
         roster = None
@@ -140,19 +142,26 @@ async def upload(request: Request, file: UploadFile, user: dict = Depends(auth.r
     return render(request, "upload_result.html", user=user, summary=summary, kind=kind)
 
 
-def _import_ministering(request: Request, user: dict, districts) -> RedirectResponse:
+def _import_ministering(request: Request, user: dict, districts, hint: str | None) -> RedirectResponse:
+    """The PDF doesn't say whether it's elders quorum or Relief Society, so tell from the ministers.
+
+    `hint` is the page it was uploaded from; it only decides when the ministers don't.
+    """
     with db.connect() as conn:
         if not conn.execute("SELECT 1 FROM people LIMIT 1").fetchone():
             flash(request, "error", "Upload the Member List (directory) first, so names can be matched.")
-            return RedirectResponse("/ministering", status_code=303)
+            return RedirectResponse(f"/ministering/{hint}" if hint else "/ministering", status_code=303)
         payload = ministering.match_names(conn, districts)
-        if payload["unmatched"]:
+        org = ministering.infer_org(conn, payload) or hint
+        payload["org"] = org
+        if payload["unmatched"] or org is None:
             pending_id = ministering.save_pending(conn, user["username"], payload)
             return RedirectResponse(f"/ministering/import/{pending_id}", status_code=303)
-        layout_id = ministering.finish_import(conn, payload, {}, user["username"])
+        layout_id = ministering.finish_import(conn, payload, {}, user["username"], org)
         conn.execute("INSERT INTO uploads (report, uploaded_by, summary) VALUES ('ministering', ?, ?)",
-                     (user["username"], json.dumps({"layout_id": layout_id})))
-    flash(request, "ok", "Imported the current ministering assignments.")
+                     (user["username"], json.dumps({"layout_id": layout_id, "org": org})))
+    note = f" (uploaded from the {ministering.ORGS[hint]} page, but the ministers are "            f"{'brothers' if org == 'eq' else 'sisters'})" if hint and hint != org else ""
+    flash(request, "ok", f"Imported the current {ministering.ORGS[org]} assignments{note}.")
     return RedirectResponse(f"/ministering/layouts/{layout_id}", status_code=303)
 
 

@@ -8,28 +8,28 @@
     <select id="show" aria-label="Show">
       <option value="active">In the ward</option>
       <option value="tagged">Tagged</option>
-      {% if has_import %}<option value="unassigned">Not assigned to anyone</option>
-      <option value="nonminister">Not ministering</option>{% endif %}
+      {% for o in imported %}<option value="{{ o }}-unassigned">Not assigned in {{ orgs[o] }}</option>
+      <option value="{{ o }}-nonminister">Not ministering in {{ orgs[o] }}</option>{% endfor %}
       <option value="moved">Moved out</option>
     </select>
   </div>
   <p class="muted small">Tags are private to leaders and show up on ministering boards. Click a tag to toggle it.
-    {% if has_import %}Assignment columns reflect the current import from LCR.{% endif %}</p>
+    {% if imported %}The ministering columns reflect the current imports from LCR.{% endif %}</p>
   <div class="table-wrap">
   <table id="people">
-    <thead><tr><th>Name</th><th></th><th>Age</th>{% if has_import %}<th>Ministers</th><th>Assigned</th>{% endif %}<th>Tags</th></tr></thead>
+    <thead><tr><th>Name</th><th></th><th>Age</th>{% for o in imported %}<th>{{ o|upper }} ministers</th><th>{{ o|upper }} assigned</th>{% endfor %}<th>Tags</th></tr></thead>
     <tbody>
     {% for p in people %}
       {% set r = roles.get(p.id, ()) %}
       <tr data-name="{{ p.name|lower }}" data-active="{{ 1 if p.active else 0 }}" data-tagged="{{ 1 if p.tags else 0 }}"
-          data-minister="{{ 1 if 'minister' in r else 0 }}" data-assigned="{{ 1 if 'assigned' in r else 0 }}">
+          data-roles="{{ r|join(' ') }}" data-gender="{{ p.gender }}">
         <td>{{ p.display }}{% if not p.active %} <span class="badge moved">Moved out {{ (p.left_at or '')[:10] }}</span>{% endif %}</td>
         <td><span class="gender g-{{ p.gender }}">{{ p.gender }}</span></td>
         <td>{{ p.age or "" }}</td>
-        {% if has_import %}
-        <td>{{ "✓" if "minister" in r else "" }}</td>
-        <td>{{ "✓" if "assigned" in r else "" }}</td>
-        {% endif %}
+        {% for o in imported %}
+        <td>{{ "✓" if (o ~ ":minister") in r else "" }}</td>
+        <td>{{ "✓" if (o ~ ":assigned") in r else "" }}</td>
+        {% endfor %}
         <td class="tags" data-pid="{{ p.id }}">
           {% for t in tags %}<button type="button" class="tag {{ 'on' if t in p.tags }}" data-tag="{{ t }}" aria-pressed="{{ 'true' if t in p.tags else 'false' }}">{{ t }}</button>{% endfor %}
         </td>
@@ -47,8 +47,11 @@
     const q = filter.value.trim().toLowerCase(), mode = show.value;
     for (const r of rows) {
       const d = r.dataset, active = d.active === "1";
-      const ok = { active, moved: !active, tagged: active && d.tagged === "1",
-                   unassigned: active && d.assigned === "0", nonminister: active && d.minister === "0" }[mode];
+      const roles = d.roles.split(" ");
+      let ok = { active, moved: !active, tagged: active && d.tagged === "1" }[mode];
+      const m = mode.match(/^(\w+)-(unassigned|nonminister)$/);
+      if (m) ok = active && !roles.includes(`${m[1]}:${m[2] === "unassigned" ? "assigned" : "minister"}`)
+                && (m[2] === "unassigned" || d.gender === ({eq: "M", rs: "F"})[m[1]]);
       r.hidden = !ok || (q && !d.name.includes(q));
     }
   }

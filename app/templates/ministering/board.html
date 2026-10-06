@@ -3,7 +3,8 @@
 {% block head %}<link rel="stylesheet" href="/static/board.css">{% endblock %}
 {% block content %}
 <div class="board-head">
-  <a href="/ministering" class="back" aria-label="All layouts">←</a>
+  <a href="/ministering/{{ layout.org }}" class="back" aria-label="All {{ org_name }} layouts">←</a>
+  <span class="badge org">{{ org_name }}</span>
   <input id="layout-name" value="{{ layout.name }}" maxlength="80" aria-label="Layout name"
          {% if layout.kind != "draft" %}readonly{% endif %}>
   {% if layout.kind == "draft" %}
@@ -20,7 +21,7 @@
 
 <div id="readonly-note" class="flash info" hidden>
   <span id="readonly-text"></span>
-  <form method="post" action="/ministering/layouts" class="inline">
+  <form method="post" action="/ministering/{{ layout.org }}/layouts" class="inline">
     <input type="hidden" name="start" value="copy">
     <input type="hidden" name="copy_from" value="{{ layout.id }}">
     <input type="hidden" name="name" value="Draft from {{ layout.name }}">
@@ -41,10 +42,16 @@
     </details>
     <details class="panel" open>
       <summary>Not assigned to anyone <span id="n-unassigned" class="count"></span></summary>
+      <select class="scope" data-pool="assigned" aria-label="Show in Not assigned">
+        <option value="all">Everyone</option><option value="M">Brothers</option><option value="F">Sisters</option>
+      </select>
       <div id="pool-assigned" class="zone pool" data-role="assigned"></div>
     </details>
     <details class="panel">
       <summary>Not ministering <span id="n-nonminister" class="count"></span></summary>
+      <select class="scope" data-pool="minister" aria-label="Show in Not ministering">
+        <option value="all">Everyone</option><option value="M">Brothers</option><option value="F">Sisters</option>
+      </select>
       <div id="pool-minister" class="zone pool" data-role="minister"></div>
     </details>
     <p class="legend muted small">

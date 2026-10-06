@@ -6,6 +6,15 @@
   const S = JSON.parse(document.getElementById("state").textContent);
   const RULES = { minMinisters: 2, maxMinisters: 3, maxAssigned: 6 };
   const NEEDS = new Set(S.needs_ministers_tags);
+  const GENDER_WORD = { M: "brother", F: "sister" };
+
+  // Which people each side list shows: "all", "M" or "F". Defaults come from the organization
+  // (who ministers in it, and who its current import assigns); a leader's choice is remembered.
+  const scopes = { minister: S.minister_gender, assigned: S.assigned_scope };
+  for (const pool of Object.keys(scopes)) {
+    try { scopes[pool] = localStorage.getItem(`pool-scope-${S.org}-${pool}`) || scopes[pool]; } catch {}
+  }
+  const inScope = (pool, pid) => scopes[pool] === "all" || person(pid).gender === scopes[pool];
 
   let uidN = 0;
   const uid = () => "k" + (++uidN);
@@ -176,6 +185,10 @@
     if (m && a === 0) out.push("No one assigned");
     const genders = new Set(g.ministers.map(p => person(p).gender).filter(Boolean));
     if (genders.size > 1) out.push("Brothers and sisters as companions");
+    for (const p of g.ministers) {
+      const gd = person(p).gender;
+      if (gd && gd !== S.minister_gender) out.push(`${person(p).display} is a ${GENDER_WORD[gd]} in ${S.org_name}`);
+    }
     for (const p of g.ministers) if (g.assigned.includes(p)) out.push(`${person(p).display} is assigned to their own group`);
     for (const p of [...g.ministers, ...g.assigned]) if (!person(p).active) out.push(`${person(p).display} moved out`);
     return out;
@@ -229,8 +242,8 @@
 
   function renderPools() {
     const active = activeIds();
-    const unassigned = active.filter(p => !idx.assigned.has(p)).sort(byName);
-    const nonMin = active.filter(p => !idx.minister.has(p)).sort(byName);
+    const unassigned = active.filter(p => !idx.assigned.has(p) && inScope("assigned", p)).sort(byName);
+    const nonMin = active.filter(p => !idx.minister.has(p) && inScope("minister", p)).sort(byName);
     const fill = (el, ids, role, empty) => el.replaceChildren(
       ...ids.map(p => chip(p, role, null)), ids.length ? "" : h("div", { class: "zone-empty" }, empty));
     fill($("#pool-assigned"), unassigned, "assigned", "Everyone is assigned 🎉");
@@ -247,6 +260,7 @@
     for (const [p, gs] of idx.minister) if (gs.length > 1) list.push({ text: `${person(p).display} is ministering in ${gs.length} groups`, pid: p });
     for (const [p, gs] of idx.assigned) if (gs.length > 1) list.push({ text: `${person(p).display} is assigned to ${gs.length} groups`, pid: p });
     for (const p of activeIds()) {
+      if (!inScope("assigned", p)) continue;
       const t = person(p).tags.filter(x => NEEDS.has(x));
       if (t.length && !idx.assigned.has(p)) list.push({ text: `${person(p).display} (${t[0]}) isn't assigned to anyone`, pid: p });
     }
@@ -515,6 +529,16 @@
     if (dirty || saving) { clearTimeout(saveTimer); await save(); }
     patchMeta({ status: statusSel.value });
   });
+
+  for (const sel of document.querySelectorAll("select.scope")) {
+    const pool = sel.dataset.pool;
+    sel.value = scopes[pool];
+    sel.addEventListener("change", () => {
+      scopes[pool] = sel.value;
+      try { localStorage.setItem(`pool-scope-${S.org}-${pool}`, sel.value); } catch {}
+      renderPools(); renderWarnings(); applySearch();
+    });
+  }
 
   const search = $("#search");
   search.addEventListener("input", () => {

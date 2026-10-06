@@ -121,3 +121,7 @@ details.guide li { margin: .3rem 0; }
 .button-link { display: inline-block; padding: .45rem .9rem; border: 1px solid var(--accent); border-radius: 6px; text-decoration: none; }
 
 .warn-card { border-color: #e0a54b; }
+
+.crumbs { margin: 0 0 .25rem; font-size: .9rem; }
+.org-card h2 a { text-decoration: none; }
+.badge.org { background: var(--accent); color: #fff; border-color: transparent; }
