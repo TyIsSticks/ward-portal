@@ -214,7 +214,7 @@
   }
 
   function renderDistricts() {
-    const scrollLeft = elDistricts.scrollLeft;
+    const { scrollLeft, scrollTop } = elDistricts;
     elDistricts.replaceChildren(
       ...districts.map((d, di) => {
         const assigned = d.groups.reduce((n, g) => n + g.assigned.length, 0);
@@ -238,6 +238,7 @@
         changed();
       } }, "+ Add district"));
     elDistricts.scrollLeft = scrollLeft;
+    elDistricts.scrollTop = scrollTop;
   }
 
   function renderPools() {
@@ -481,6 +482,7 @@
     document.body.append(drag.ghost);
     drag.el.classList.add("dragging");
     document.body.classList.add("is-dragging", `drag-${drag.role}`);
+    showTray(drag.role, true);  // so there's somewhere to drop it back
     if (navigator.vibrate && drag.touch) navigator.vibrate(15);
     moveGhost(x, y);
   }
@@ -488,26 +490,33 @@
   let scrollRaf = null;
   function moveGhost(x, y) {
     drag.ghost.style.transform = `translate(${x + 8}px, ${y + 8}px)`;
+    moveGhostTarget(x, y);
+    autoScroll(x, y);
+  }
+
+  function moveGhostTarget(x, y) {
     const target = document.elementFromPoint(x, y)?.closest(".zone");
     const ok = target && target.dataset.role === drag.role ? target : null;
     if (drag.over && drag.over !== ok) drag.over.classList.remove("over");
     if (ok) ok.classList.add("over");
     drag.over = ok;
-    autoScroll(x, y);
   }
 
+  // Scroll the districts area (not the page) when dragging near its edges. The tray above it
+  // stays put, so a name can be carried from the tray to any group.
   function autoScroll(x, y) {
     cancelAnimationFrame(scrollRaf);
     if (!drag || !drag.active) return;
-    const edge = 50, speed = 14;
-    let dy = y < edge ? -speed : y > window.innerHeight - edge ? speed : 0;
+    const edge = 56, speed = 16;
     const r = elDistricts.getBoundingClientRect();
-    let dx = x < r.left + edge ? -speed : x > r.right - edge ? speed : 0;
+    if (y < r.top) return;  // over the tray or header
+    const dy = y < r.top + edge ? -speed : y > r.bottom - edge ? speed : 0;
+    const dx = x < r.left + edge ? -speed : x > r.right - edge ? speed : 0;
     if (!dx && !dy) return;
     scrollRaf = requestAnimationFrame(() => {
-      window.scrollBy(0, dy);
+      elDistricts.scrollTop += dy;
       elDistricts.scrollLeft += dx;
-      if (drag && drag.active) autoScroll(x, y);
+      if (drag && drag.active) { autoScroll(x, y); moveGhostTarget(x, y); }
     });
   }
 
@@ -539,6 +548,21 @@
       renderPools(); renderWarnings(); applySearch();
     });
   }
+
+  // --- tray -----------------------------------------------------------------
+  const tray = $("#tray"), trayToggle = $("#tray-toggle");
+  function showTray(name, open = false) {
+    for (const b of document.querySelectorAll("[data-tray-tab]")) b.setAttribute("aria-selected", String(b.dataset.trayTab === name));
+    for (const el of document.querySelectorAll("[data-tray]")) el.hidden = el.dataset.tray !== name;
+    if (open) setTrayOpen(true);
+  }
+  function setTrayOpen(open) {
+    tray.classList.toggle("collapsed", !open);
+    trayToggle.textContent = open ? "Hide" : "Show";
+    trayToggle.setAttribute("aria-expanded", String(open));
+  }
+  for (const b of document.querySelectorAll("[data-tray-tab]")) b.addEventListener("click", () => showTray(b.dataset.trayTab, true));
+  trayToggle.addEventListener("click", () => setTrayOpen(tray.classList.contains("collapsed")));
 
   const search = $("#search");
   search.addEventListener("input", () => {

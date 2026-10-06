@@ -1,6 +1,7 @@
 import hmac
 import json
 import secrets
+from datetime import date, timedelta
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Form, Request, UploadFile
@@ -75,26 +76,68 @@ def logout(request: Request):
 @app.get("/", response_class=HTMLResponse)
 def dashboard(request: Request, user: dict = Depends(auth.require_user)):
     with db.connect() as conn:
+        soon = birthdays.upcoming(conn, days=7)
+        bday_count = conn.execute("SELECT COUNT(*) FROM birthdays").fetchone()[0]
+        flagged = conn.execute(
+            "SELECT COUNT(*) FROM birthdays WHERE missing_since IS NOT NULL AND kept = 0").fetchone()[0]
+        people = conn.execute("SELECT COUNT(*) FROM people WHERE active = 1").fetchone()[0]
+        users_count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        last_dir = conn.execute(
+            "SELECT *, julianday('now') - julianday(uploaded_at) AS age FROM uploads "
+            "WHERE report = 'directory' ORDER BY id DESC LIMIT 1").fetchone()
+        orgs = [ministering.org_summary(conn, o) for o in ministering.ORGS] if user["leads"] else []
+
+    moved_in = len(json.loads(last_dir["summary"]).get("roster", {}).get("moved_in", [])) if last_dir else 0
+    todo = []
+    if flagged:
+        todo.append({"text": f"{flagged} birthday{'s' if flagged > 1 else ''} may have moved out",
+                     "cta": "Review", "href": "/birthdays#flagged"})
+    for o in orgs:
+        for l in o["proposed"]:
+            todo.append({"text": f"Approve “{l['name']}” for {o['name']}", "cta": "Open",
+                         "href": f"/ministering/layouts/{l['id']}"})
+        if o["current"] is None:
+            todo.append({"text": f"Import the {o['name']} assignments from LCR", "cta": "Import",
+                         "href": f"/ministering/{o['key']}#import"})
+    if last_dir is None:
+        todo.append({"text": "Upload the Member List from LCR", "cta": "Upload", "href": "/upload"})
+    elif last_dir["age"] > 21:
+        todo.append({"text": f"Member List is {int(last_dir['age'] // 7)} weeks old", "cta": "Upload",
+                     "href": "/upload"})
+    return render(request, "dashboard.html", user=user, soon=soon, bday_count=bday_count, orgs=orgs,
+                  todo=todo, people=people, moved_in=moved_in, users_count=users_count)
+
+
+@app.get("/birthdays", response_class=HTMLResponse)
+def birthday_page(request: Request, month: str = "", user: dict = Depends(auth.require_user)):
+    today = date.today()
+    try:
+        year, mon = (int(x) for x in month.split("-")) if month else (today.year, today.month)
+        first = date(year, mon, 1)
+    except ValueError:
+        first = date(today.year, today.month, 1)
+    prev = (first - timedelta(days=1)).replace(day=1)
+    nxt = (first + timedelta(days=32)).replace(day=1)
+    with db.connect() as conn:
         token = db.get_setting(conn, "feed_token")
+        weeks = birthdays.month_grid(conn, first.year, first.month)
+        soon = birthdays.upcoming(conn, days=30)
         count = conn.execute("SELECT COUNT(*) FROM birthdays").fetchone()[0]
         flagged = [dict(r) | {"display": birthdays.display_name(r["name"])} for r in conn.execute(
             "SELECT id, name, missing_since FROM birthdays WHERE missing_since IS NOT NULL AND kept = 0 "
             "ORDER BY name COLLATE NOCASE")]
         last = conn.execute(
-            "SELECT * FROM uploads WHERE report IN ('birthdays', 'directory') ORDER BY id DESC LIMIT 1").fetchone()
-    return render(request, "dashboard.html", user=user, count=count, flagged=flagged,
-                   last=dict(last) | {"summary": json.loads(last["summary"])} if last else None,
-                   feed_url=_feed_url(request, token))
+            "SELECT uploaded_at FROM uploads WHERE report IN ('birthdays', 'directory') ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+    return render(request, "birthdays.html", user=user, weeks=weeks, first=first, today=today,
+                  prev=f"{prev:%Y-%m}", next=f"{nxt:%Y-%m}", soon=soon[:8], count=count,
+                  in_month=sum(len(c["names"]) for w in weeks for c in w), flagged=flagged,
+                  last=last["uploaded_at"] if last else None, feed_url=_feed_url(request, token))
 
 
-@app.get("/birthdays", response_class=HTMLResponse)
-def birthday_list(request: Request, user: dict = Depends(auth.require_user)):
-    with db.connect() as conn:
-        rows = birthdays.load(conn)
-    by_month: dict[int, list] = {}
-    for b in rows:
-        by_month.setdefault(b.month, []).append(b)
-    return render(request, "birthdays.html", user=user, by_month=by_month, total=len(rows))
+@app.get("/upload", response_class=HTMLResponse)
+def upload_page(request: Request, user: dict = Depends(auth.require_user)):
+    return render(request, "upload.html", user=user)
 
 
 @app.post("/upload", response_class=HTMLResponse)
@@ -105,7 +148,7 @@ async def upload(request: Request, file: UploadFile, org: str = Form(""),
     Uploaded files are never written to disk; only the parsed rows are kept.
     """
     org = org if org in ministering.ORGS else ""  # set when uploading from an EQ/RS page
-    back = f"/ministering/{org}" if org else "/"
+    back = f"/ministering/{org}" if org else "/upload"
     data = await file.read(config.MAX_UPLOAD_BYTES + 1)
     if len(data) > config.MAX_UPLOAD_BYTES:
         flash(request, "error", "That file is too large.")
@@ -172,7 +215,7 @@ def resolve_missing(birthday_id: int, request: Request, action: str = Form(...),
         return RedirectResponse("/", status_code=303)
     with db.connect() as conn:
         birthdays.resolve_missing(conn, birthday_id, action)
-    return RedirectResponse("/#flagged", status_code=303)
+    return RedirectResponse("/birthdays#flagged", status_code=303)
 
 
 @app.post("/birthdays/remove-missing")
@@ -180,15 +223,15 @@ def remove_all_missing(request: Request, user: dict = Depends(auth.require_user)
     with db.connect() as conn:
         n = conn.execute("DELETE FROM birthdays WHERE missing_since IS NOT NULL AND kept = 0").rowcount
     flash(request, "ok", f"Removed {n} birthday(s) from the calendar.")
-    return RedirectResponse("/", status_code=303)
+    return RedirectResponse("/birthdays", status_code=303)
 
 
 @app.post("/feed/regenerate")
 def regenerate_feed(request: Request, user: dict = Depends(auth.require_admin)):
     with db.connect() as conn:
         db.set_setting(conn, "feed_token", secrets.token_urlsafe(32))
-    flash(request, "ok", "New feed URL created. Re-subscribe in Google Calendar with the new link.")
-    return RedirectResponse("/", status_code=303)
+    flash(request, "ok", "New calendar link created. Everyone needs to subscribe again with the new link.")
+    return RedirectResponse("/birthdays#subscribe", status_code=303)
 
 
 # --- Public -----------------------------------------------------------------

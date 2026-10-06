@@ -14,7 +14,7 @@ def test_login_and_dashboard(client):
     r = client.post("/login", data={"username": "admin", "password": "wrong"})
     assert "Invalid" in r.text
     r = client.post("/login", data={"username": "admin", "password": "correct horse battery"})
-    assert r.status_code == 200 and "Calendar feed" in r.text
+    assert r.status_code == 200 and "At a glance" in r.text
 
 
 def test_feed_requires_correct_token(client):
@@ -38,9 +38,23 @@ def test_flagged_birthdays_on_dashboard(client):
         sync(conn, [Birthday(2, 2, "Here, Hal")])
         gary = conn.execute("SELECT id FROM birthdays WHERE name = 'Gone, Gary'").fetchone()[0]
     client.post("/login", data={"username": "admin", "password": "correct horse battery"})
-    page = client.get("/").text
+    assert "1 birthday may have moved out" in client.get("/").text  # dashboard to-do
+    page = client.get("/birthdays").text
     assert "Possibly moved out (1)" in page and "Gary Gone" in page
     assert "Gary Gone" in client.get(_feed_path(client)).text  # still on the calendar
     client.post(f"/birthdays/{gary}/resolve", data={"action": "remove"})
-    assert "Possibly moved out" not in client.get("/").text
+    assert "Possibly moved out" not in client.get("/birthdays").text
     assert "Gary Gone" not in client.get(_feed_path(client)).text
+
+
+def test_birthday_page_month_calendar(client):
+    from app import db
+    from app.reports.birthdays import Birthday, sync
+    with db.connect() as conn:
+        sync(conn, [Birthday(2, 29, "Leap, Lou"), Birthday(3, 1, "March, May")])
+    client.post("/login", data={"username": "admin", "password": "correct horse battery"})
+    page = client.get("/birthdays?month=2027-02").text   # not a leap year: Feb 29 shows on the 28th
+    assert "February" in page and "2027" in page and "Lou Leap" in page and "May March" not in page
+    assert "Lou Leap" in client.get("/birthdays?month=2028-02").text
+    assert client.get("/birthdays?month=nonsense").status_code == 200
+    assert "Upload an LCR report" in client.get("/upload").text

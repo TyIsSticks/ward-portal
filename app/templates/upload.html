@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Upload · {{ ward_name }}{% endblock %}
+{% block main_class %}narrow-page{% endblock %}
+{% block content %}
+<div class="page-head"><div class="grow"><h1>Upload an LCR report</h1>
+  <div class="sub">Save the report as a PDF in LCR, then choose it here. The portal recognizes which report it is.</div></div></div>
+<section class="card">
+  <form method="post" action="/upload" enctype="multipart/form-data" class="stack">
+    <label>PDF file <input type="file" name="file" accept="application/pdf,.pdf" required></label>
+    <div><button>{{ icon("upload") }} Upload &amp; sync</button></div>
+  </form>
+</section>
+<section class="card">
+  <h2>What you can upload</h2>
+  <ul class="plain">
+    <li><strong>Member List</strong>: updates the ward roster and the birthday calendar. People who moved
+        out are flagged for you to review, never deleted automatically.</li>
+    {% if user.leads %}
+    <li><strong>Ministering Assignments</strong>: imports what’s in LCR now. It’s filed under Elders Quorum or
+        Relief Society automatically, by whether the ministers are brothers or sisters.</li>
+    {% endif %}
+    <li><strong>Birthday List</strong>: still works, but the Member List does the same and more.</li>
+  </ul>
+  <p class="muted small">Files are read and then discarded. Only names, gender and birth dates are kept.</p>
+</section>
+{% endblock %}

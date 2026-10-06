@@ -1,70 +1,72 @@
 {% extends "base.html" %}
-{% block title %}{{ layout.name }} · Ministering{% endblock %}
-{% block head %}<link rel="stylesheet" href="/static/board.css">{% endblock %}
+{% set active = layout.org %}
+{% set compact = true %}
+{% set app_screen = true %}
+{% block title %}{{ layout.name }} · {{ org_name }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/board.css?v={{ asset_v }}">{% endblock %}
 {% block content %}
-<div class="board-head">
-  <a href="/ministering/{{ layout.org }}" class="back" aria-label="All {{ org_name }} layouts">←</a>
-  <span class="badge org">{{ org_name }}</span>
-  <input id="layout-name" value="{{ layout.name }}" maxlength="80" aria-label="Layout name"
-         {% if layout.kind != "draft" %}readonly{% endif %}>
-  {% if layout.kind == "draft" %}
-    <select id="status" aria-label="Status">
-      {% for s in statuses %}<option value="{{ s }}" {% if s == layout.status %}selected{% endif %}>{{ s|capitalize }}</option>{% endfor %}
-    </select>
-  {% else %}
-    <span class="badge {{ 'current' if layout.is_current }}">{{ "Current in LCR" if layout.is_current else "Past import" }}</span>
-  {% endif %}
-  <span id="save-state" class="muted small" aria-live="polite"></span>
-  <span class="spacer"></span>
-  {% if not layout.is_current %}<a href="/ministering/layouts/{{ layout.id }}/changes" class="button-link">Changes for LCR</a>{% endif %}
-</div>
-
-<div id="readonly-note" class="flash info" hidden>
-  <span id="readonly-text"></span>
-  <form method="post" action="/ministering/{{ layout.org }}/layouts" class="inline">
-    <input type="hidden" name="start" value="copy">
-    <input type="hidden" name="copy_from" value="{{ layout.id }}">
-    <input type="hidden" name="name" value="Draft from {{ layout.name }}">
-    <button class="link">Make an editable copy</button>
-  </form>
-</div>
-<div id="conflict" class="flash error" hidden>
-  This layout was changed somewhere else, so your last change wasn't saved.
-  <button type="button" class="link" onclick="location.reload()">Reload</button>
-</div>
-
-<div class="board">
-  <aside class="side">
-    <input id="search" type="search" placeholder="Find a person…" aria-label="Find a person">
-    <details class="panel" open>
-      <summary>Warnings <span id="warn-count" class="count"></span></summary>
-      <ul id="warnings" class="warnings"></ul>
-    </details>
-    <details class="panel" open>
-      <summary>Not assigned to anyone <span id="n-unassigned" class="count"></span></summary>
-      <select class="scope" data-pool="assigned" aria-label="Show in Not assigned">
-        <option value="all">Everyone</option><option value="M">Brothers</option><option value="F">Sisters</option>
+<div class="board-app">
+  <div class="board-head">
+    <a href="/ministering/{{ layout.org }}" class="back" aria-label="All {{ org_name }} layouts">←</a>
+    <span class="badge org">{{ org_name }}</span>
+    <input id="layout-name" value="{{ layout.name }}" maxlength="80" aria-label="Layout name"
+           {% if layout.kind != "draft" %}readonly{% endif %}>
+    {% if layout.kind == "draft" %}
+      <select id="status" aria-label="Status">
+        {% for s in statuses %}<option value="{{ s }}" {% if s == layout.status %}selected{% endif %}>{{ s|capitalize }}</option>{% endfor %}
       </select>
-      <div id="pool-assigned" class="zone pool" data-role="assigned"></div>
-    </details>
-    <details class="panel">
-      <summary>Not ministering <span id="n-nonminister" class="count"></span></summary>
-      <select class="scope" data-pool="minister" aria-label="Show in Not ministering">
-        <option value="all">Everyone</option><option value="M">Brothers</option><option value="F">Sisters</option>
-      </select>
-      <div id="pool-minister" class="zone pool" data-role="minister"></div>
-    </details>
-    <p class="legend muted small">
-      <span class="chip-demo g-M">Brother</span> <span class="chip-demo g-F">Sister</span>
-      ★ tagged · ↺ history · <s>moved out</s><br>
-      Drag names between groups, or tap a name for options.
-    </p>
-  </aside>
+    {% else %}
+      <span class="badge {{ 'current' if layout.is_current }}">{{ "Current in LCR" if layout.is_current else "Past import" }}</span>
+    {% endif %}
+    <span id="save-state" class="muted small" aria-live="polite"></span>
+    <span class="spacer"></span>
+    {% if not layout.is_current %}<a href="/ministering/layouts/{{ layout.id }}/changes" class="btn-cta">Changes for LCR</a>{% endif %}
+  </div>
+
+  <div id="readonly-note" class="flash info" hidden>
+    <span id="readonly-text"></span>
+    <form method="post" action="/ministering/{{ layout.org }}/layouts" class="inline">
+      <input type="hidden" name="start" value="copy">
+      <input type="hidden" name="copy_from" value="{{ layout.id }}">
+      <input type="hidden" name="name" value="Draft from {{ layout.name }}">
+      <button class="link">Make an editable copy</button>
+    </form>
+  </div>
+  <div id="conflict" class="flash error" hidden>
+    This layout was changed somewhere else, so your last change wasn't saved.
+    <button type="button" class="link" onclick="location.reload()">Reload</button>
+  </div>
+
+  <section class="tray" id="tray" aria-label="People not in a group yet">
+    <div class="tray-bar">
+      <div class="tray-tabs" role="tablist">
+        <button type="button" role="tab" data-tray-tab="assigned" aria-selected="true">Not assigned <span id="n-unassigned" class="count"></span></button>
+        <button type="button" role="tab" data-tray-tab="minister" aria-selected="false">Not ministering <span id="n-nonminister" class="count"></span></button>
+        <button type="button" role="tab" data-tray-tab="warnings" aria-selected="false">Warnings <span id="warn-count" class="count warn"></span></button>
+      </div>
+      <label class="scope-wrap" data-tray="assigned">Show
+        <select class="scope" data-pool="assigned"><option value="all">Everyone</option><option value="M">Brothers</option><option value="F">Sisters</option></select></label>
+      <label class="scope-wrap" data-tray="minister" hidden>Show
+        <select class="scope" data-pool="minister"><option value="all">Everyone</option><option value="M">Brothers</option><option value="F">Sisters</option></select></label>
+      <input id="search" type="search" placeholder="Find a person…" aria-label="Find a person">
+      <button type="button" id="tray-toggle" class="link small" aria-expanded="true" aria-controls="tray-body">Hide</button>
+    </div>
+    <div class="tray-body" id="tray-body">
+      <div id="pool-assigned" class="zone pool" data-role="assigned" data-tray="assigned"></div>
+      <div id="pool-minister" class="zone pool" data-role="minister" data-tray="minister" hidden></div>
+      <ul id="warnings" class="warnings" data-tray="warnings" hidden></ul>
+    </div>
+  </section>
+
   <div id="districts" class="districts"></div>
+  <p class="legend muted small">
+    <span class="chip-demo g-M">Brother</span> <span class="chip-demo g-F">Sister</span>
+    ★ tagged · ↺ history · <s>moved out</s> · Drag names between the tray and groups, or tap a name for options.
+  </p>
 </div>
 
 <div id="popover" class="popover" role="dialog" aria-modal="false" hidden></div>
 
 <script type="application/json" id="state">{{ state|tojson }}</script>
-<script src="/static/board.js"></script>
+<script src="/static/board.js?v={{ asset_v }}"></script>
 {% endblock %}

@@ -18,6 +18,10 @@ A small self-hosted portal for working with LCR report exports.
   Includes warnings, priority tags, companion history from past imports, Draft / Proposed / Approved
   status, and a printable **Changes for LCR** checklist. See [Ministering](#ministering).
 
+**Layout:** the dashboard is a hub with a tile per area (Birthdays, Elders Quorum, Relief Society)
+and a to-do list. Uploads live behind the **Upload report** button in the header. Each person can
+pick a **System / Light / Dark** theme from the account menu (top right). System follows their device.
+
 Stack: FastAPI · SQLite · Jinja templates · Docker Compose · exposed via Tailscale Funnel.
 
 ## Privacy
@@ -87,7 +91,9 @@ Typical cycle (for either organization):
    Relief Society. If they're mixed, the import asks. If a name doesn't exactly match
    the roster, a review page lets you pick who it is or skip it. Each import becomes the "Current in
    LCR" snapshot. Older imports are kept as history.
-3. **New layout → Start from current assignments**, then drag names between groups. Tap a name to
+3. **New layout → Start from current assignments**, then drag names between groups. The tray at the
+   top (Not assigned / Not ministering / Warnings) and the districts below it scroll separately,
+   so you can scroll to any group and drag straight from the tray. Tap a name to
    move it with a menu, set tags, or see their history. Everything autosaves.
 4. Watch the **Warnings** panel: groups with fewer than 2 or more than 3 ministers, more than 6
    assigned, brothers and sisters as companions, a sister in an Elders Quorum group (or a brother in

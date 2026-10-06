@@ -1,49 +1,57 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% set active = org %}
+{% set hero = true %}
 {% block title %}{{ org_name }} ministering · {{ ward_name }}{% endblock %}
-{% block content %}
-<p class="crumbs"><a href="/ministering">Ministering</a> /</p>
-<h1>{{ org_name }}</h1>
-
-<section class="card">
-  <h2>Layouts</h2>
-  {% if layouts %}
-  <div class="table-wrap">
-  <table>
-    <thead><tr><th>Name</th><th>Status</th><th>Groups</th><th>Updated</th><th></th></tr></thead>
-    <tbody>
-    {% for l in layouts %}
-      <tr>
-        <td><a href="/ministering/layouts/{{ l.id }}">{{ l.name }}</a></td>
-        <td>
-          {% if l.kind == "imported" %}
-            <span class="badge {{ 'current' if l.is_current else '' }}">{{ "Current in LCR" if l.is_current else "Past import" }}</span>
-          {% else %}
-            <span class="badge {{ l.status }}">{{ l.status|capitalize }}</span>
-          {% endif %}
-        </td>
-        <td>{{ l.groups }}</td>
-        <td class="muted">{{ l.updated_at[:10] }} · {{ l.created_by }}</td>
-        <td class="actions">
-          {% if l.kind == "draft" %}
-          <a href="/ministering/layouts/{{ l.id }}/changes">Changes for LCR</a>
-          <form method="post" action="/ministering/layouts/{{ l.id }}/delete" data-name="{{ l.name }}"
-                onsubmit="return confirm('Delete “' + this.dataset.name + '”? This can’t be undone.')">
-            <button class="link danger">Delete</button>
-          </form>
-          {% endif %}
-        </td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
+{% block hero %}
+<div class="brand-row" style="align-items: flex-end; margin-top: 8px">
+  <div class="grow" style="flex: 1 1 300px">
+    <h1 class="hero-title" style="margin: 0">{{ org_name }}</h1>
+    <div class="hero-sub">
+      {% if current %}{{ summary.groups }} groups in LCR · {{ summary.unassigned }} people not assigned ·
+        {{ summary.nonminister }} {{ "brothers" if org == "eq" else "sisters" }} not ministering
+      {% else %}Nothing imported from LCR yet{% endif %}
+    </div>
   </div>
-  {% else %}
-  <p class="muted">No layouts yet. Import the current {{ org_name }} assignments below, or start from scratch.</p>
-  {% endif %}
-</section>
+  <div class="actions">
+    <a class="secondary" href="#import">Import from LCR</a>
+    <a class="btn-cta" href="#new">{{ icon("plus") }}New layout</a>
+  </div>
+</div>
+{% endblock %}
+{% block main_class %}pull{% endblock %}
+{% block content %}
+{% if layouts %}
+<div class="lay-grid" style="margin-bottom: 28px">
+  {% for l in layouts %}
+  <article class="lay">
+    {% if l.kind == "imported" %}
+      <span><span class="badge {{ 'current' if l.is_current }}">{{ "Current in LCR" if l.is_current else "Past import" }}</span></span>
+    {% else %}
+      <span><span class="badge {{ l.status }}">{{ l.status|capitalize }}</span></span>
+    {% endif %}
+    <a class="l-name" href="/ministering/layouts/{{ l.id }}">{{ l.name }}</a>
+    <div class="muted">{{ l.groups }} groups · {{ "imported" if l.kind == "imported" else "edited" }} {{ l.updated_at[:10] }} by {{ l.created_by }}</div>
+    <div class="l-actions">
+      {% if l.kind == "draft" %}
+      <a href="/ministering/layouts/{{ l.id }}/changes">Changes for LCR</a>
+      <form method="post" action="/ministering/layouts/{{ l.id }}/delete" data-name="{{ l.name }}" class="inline"
+            onsubmit="return confirm('Delete “' + this.dataset.name + '”? This can’t be undone.')">
+        <button class="link danger">Delete</button>
+      </form>
+      {% else %}
+      <span class="muted">Read-only</span>
+      {% endif %}
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<section class="card"><p class="muted">No layouts yet. Import the current {{ org_name }} assignments below, or start one from scratch.</p></section>
+{% endif %}
 
 <div class="cols">
-<section class="card">
+<section class="card" id="new">
   <h2>New layout</h2>
   <form method="post" action="/ministering/{{ org }}/layouts" class="stack">
     <label>Name <input name="name" placeholder="e.g. Fall 2026 changes" maxlength="80"></label>
@@ -61,20 +69,20 @@
         </select></label>
       {% endif %}
     </fieldset>
-    <button>Create layout</button>
+    <div><button>Create layout</button></div>
   </form>
 </section>
 
-<section class="card">
+<section class="card" id="import">
   <h2>Import from LCR</h2>
   <p class="muted small">
     {% if current %}Current {{ org_name }} assignments imported {{ current.created_at[:10] }}.
     {% else %}No {{ org_name }} assignments imported yet.{% endif %}
   </p>
-  <form method="post" action="/upload" enctype="multipart/form-data" class="row">
+  <form method="post" action="/upload" enctype="multipart/form-data" class="stack">
     <input type="hidden" name="org" value="{{ org }}">
-    <input type="file" name="file" accept="application/pdf,.pdf" required>
-    <button>Upload</button>
+    <label>Ministering Assignments PDF <input type="file" name="file" accept="application/pdf,.pdf" required></label>
+    <div><button>{{ icon("upload") }} Upload</button></div>
   </form>
   <p class="muted small">In LCR, open the {{ org_name }} <em>Ministering Assignments</em> report and save it as a PDF.
      Upload the <em>Member List</em> first so names can be matched.</p>

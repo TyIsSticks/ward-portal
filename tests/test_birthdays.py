@@ -88,3 +88,16 @@ def test_ics_is_yearly_and_stable():
     assert events[0]["rrule"]["FREQ"] == ["YEARLY"]
     assert events[1]["rrule"]["BYMONTHDAY"] == [-1]  # Feb 29 -> last day of Feb
     assert [e["uid"] for e in events] == [e["uid"] for e in second.walk("VEVENT")]
+
+
+def test_upcoming_wraps_the_year_and_handles_feb_29():
+    from datetime import date
+    from app.reports.birthdays import month_grid, upcoming
+    conn = _mem_db()
+    sync(conn, [Birthday(1, 2, "New, Year"), Birthday(12, 30, "Old, Year"), Birthday(2, 29, "Leap, Lou")])
+    soon = upcoming(conn, days=7, today=date(2026, 12, 28))
+    assert [(b["name"], b["date"]) for b in soon] == [("Year Old", date(2026, 12, 30)), ("Year New", date(2027, 1, 2))]
+    feb = upcoming(conn, days=3, today=date(2027, 2, 27))
+    assert [(b["name"], b["date"]) for b in feb] == [("Lou Leap", date(2027, 2, 28))]
+    weeks = month_grid(conn, 2027, 2)
+    assert {c["day"]: c["names"] for w in weeks for c in w if c["names"]} == {28: ["Lou Leap"]}

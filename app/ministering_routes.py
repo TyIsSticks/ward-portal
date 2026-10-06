@@ -18,18 +18,6 @@ def _layout_or_404(conn, layout_id: int) -> dict:
     return layout
 
 
-def _assigned_scope(conn, org: str) -> str:
-    """Who this organization usually ministers to: 'M', 'F' or 'all' (from its current import)."""
-    current = m.current_import(conn, org)
-    if current:
-        ids = {p for d in m.structure(conn, current["id"]) for g in d["groups"] for p in g["assigned"]}
-        if ids:
-            marks = ",".join("?" * len(ids))
-            genders = {r[0] for r in conn.execute(f"SELECT gender FROM people WHERE id IN ({marks})", list(ids))}
-            return genders.pop() if len(genders) == 1 else "all"
-    return m.ORG_GENDER[org] if org == "rs" else "all"
-
-
 def board_state(conn, layout: dict) -> dict:
     org = layout["org"]
     districts = m.structure(conn, layout["id"])
@@ -42,7 +30,7 @@ def board_state(conn, layout: dict) -> dict:
         "org": org,
         "org_name": m.ORGS[org],
         "minister_gender": m.ORG_GENDER[org],
-        "assigned_scope": _assigned_scope(conn, org),
+        "assigned_scope": m.assigned_scope(conn, org),
         "districts": districts,
         "people": m.people(conn, in_layout),
         "history": m.history(conn, org, layout["id"]),
@@ -74,16 +62,10 @@ def _org_or_404(org: str) -> str:
     return org
 
 
-@router.get("/ministering", response_class=HTMLResponse)
-def landing(request: Request, user: dict = leader):
-    with db.connect() as conn:
-        orgs = []
-        for org, name in m.ORGS.items():
-            layouts = m.list_layouts(conn, org)
-            orgs.append({"key": org, "name": name, "current": m.current_import(conn, org),
-                         "drafts": [l for l in layouts if l["kind"] == "draft"]})
-        stats = conn.execute("SELECT SUM(active) AS active, SUM(1 - active) AS moved_out FROM people").fetchone()
-    return render(request, "ministering/landing.html", user=user, orgs=orgs, stats=dict(stats))
+@router.get("/ministering")
+def landing(user: dict = leader):
+    # The dashboard's Elders Quorum and Relief Society tiles replaced this page.
+    return RedirectResponse("/", status_code=303)
 
 
 @router.post("/ministering/layouts/{layout_id}/delete")
@@ -193,9 +175,9 @@ def org_index(org: str, request: Request, user: dict = leader):
     _org_or_404(org)
     with db.connect() as conn:
         layouts = m.list_layouts(conn, org)
-        current = m.current_import(conn, org)
-    return render(request, "ministering/index.html", user=user, layouts=layouts, current=current,
-                  org=org, org_name=m.ORGS[org])
+        summary = m.org_summary(conn, org)
+    return render(request, "ministering/index.html", user=user, layouts=layouts, current=summary["current"],
+                  summary=summary, org=org, org_name=m.ORGS[org])
 
 
 @router.post("/ministering/{org}/layouts")

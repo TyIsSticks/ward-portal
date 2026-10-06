@@ -1,30 +1,87 @@
+{%- from "_icons.html" import icon -%}
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="robots" content="noindex, nofollow">
-  <title>{% block title %}{{ ward_name }} Portal{% endblock %}</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <meta name="theme-color" content="#1E4D3B">
+  <script>
+    // Apply the saved theme before first paint. "system" (or nothing saved) follows the device.
+    try { const t = localStorage.getItem("theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
+  <title>{% block title %}{{ ward_name }}{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Nunito+Sans:wght@400;600;700;800&display=swap">
+  <link rel="stylesheet" href="/static/style.css?v={{ asset_v }}">
   {% block head %}{% endblock %}
 </head>
-<body>
-  <header class="topbar">
-    <a class="brand" href="/">{{ ward_name }}</a>
-    {% if user %}
-    <nav>
-      <a href="/">Dashboard</a>
-      <a href="/birthdays">Birthdays</a>
-      {% if user.leads %}<a href="/ministering">Ministering</a>{% endif %}
-      {% if user.is_admin %}<a href="/admin/users">Users</a>{% endif %}
-      <a href="/account">Account</a>
-      <form method="post" action="/logout"><button class="link">Sign out</button></form>
-    </nav>
-    {% endif %}
+<body{% if app_screen %} class="app-screen"{% endif %}>
+  <header class="band{% if hero %} hero{% endif %}{% if compact %} compact{% endif %}">
+    <div class="band-inner">
+      <div class="brand-row">
+        <a class="brand" href="/"><span class="mark">{{ ward_initials }}</span>{% if not compact %}<span>{{ ward_name }}</span>{% endif %}</a>
+        {% if compact and user %}{{ self.tabs() }}{% endif %}
+        <span class="spacer"></span>
+        {% if user %}
+        {% if not compact %}<a class="btn-cta" href="/upload">{{ icon("upload") }}<span class="label">Upload report</span></a>{% endif %}
+        <details class="menu">
+          <summary aria-label="Account menu">{{ user.username[:2]|upper }}</summary>
+          <div class="menu-pop">
+            <div class="who"><strong>{{ user.username }}</strong><br><span class="muted small">{{ user.role|capitalize }}</span></div>
+            <div class="theme-pick" role="group" aria-label="Theme">
+              <span class="small muted">Theme</span>
+              <div class="seg">
+                <button type="button" data-theme-choice="system">System</button><button type="button" data-theme-choice="light">Light</button><button type="button" data-theme-choice="dark">Dark</button>
+              </div>
+            </div>
+            <a href="/account">Account &amp; password</a>
+            {% if user.is_admin %}<a href="/admin/users">Users</a>{% endif %}
+            <form method="post" action="/logout"><button type="submit">Sign out</button></form>
+          </div>
+        </details>
+        {% endif %}
+      </div>
+      {% if user and not compact %}{% block tabs %}
+      <nav class="tabs" aria-label="Main">
+        <a class="tab{% if active == 'home' %} on{% endif %}" href="/"{% if active == 'home' %} aria-current="page"{% endif %}>{{ icon("home") }}Home</a>
+        <a class="tab{% if active == 'birthdays' %} on{% endif %}" href="/birthdays"{% if active == 'birthdays' %} aria-current="page"{% endif %}>{{ icon("cake") }}Birthdays</a>
+        {% if user.leads %}
+        <a class="tab{% if active == 'eq' %} on{% endif %}" href="/ministering/eq"{% if active == 'eq' %} aria-current="page"{% endif %}>{{ icon("group") }}Elders Quorum</a>
+        <a class="tab{% if active == 'rs' %} on{% endif %}" href="/ministering/rs"{% if active == 'rs' %} aria-current="page"{% endif %}>{{ icon("group") }}Relief Society</a>
+        <a class="tab{% if active == 'people' %} on{% endif %}" href="/ministering/people"{% if active == 'people' %} aria-current="page"{% endif %}>{{ icon("list") }}People</a>
+        {% endif %}
+        {% if user.is_admin %}
+        <a class="tab{% if active == 'users' %} on{% endif %}" href="/admin/users"{% if active == 'users' %} aria-current="page"{% endif %}>{{ icon("user") }}Users</a>
+        {% endif %}
+      </nav>
+      {% endblock %}{% endif %}
+      {% block hero %}{% endblock %}
+    </div>
   </header>
-  <main{% if wide %} class="wide"{% endif %}>
-    {% if flash %}<div class="flash {{ flash[0] }}">{{ flash[1] }}</div>{% endif %}
+  <main class="{% block main_class %}{% endblock %}">
+    {% if flash %}<div class="flash {{ flash[0] }}" role="status">{{ flash[1] }}</div>{% endif %}
     {% block content %}{% endblock %}
   </main>
+  <script>
+    // Theme picker: System follows the device; Light/Dark override it on this device.
+    (() => {
+      const buttons = document.querySelectorAll("[data-theme-choice]");
+      const current = () => document.documentElement.dataset.theme || "system";
+      const mark = () => buttons.forEach(b => b.setAttribute("aria-pressed", String(b.dataset.themeChoice === current())));
+      buttons.forEach(b => b.addEventListener("click", () => {
+        const t = b.dataset.themeChoice;
+        if (t === "system") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+        try { t === "system" ? localStorage.removeItem("theme") : localStorage.setItem("theme", t); } catch (e) {}
+        mark();
+      }));
+      mark();
+    })();
+    // Close the account menu when clicking elsewhere.
+    document.addEventListener("click", (e) => {
+      for (const d of document.querySelectorAll("details.menu[open]")) if (!d.contains(e.target)) d.open = false;
+    });
+  </script>
 </body>
 </html>

@@ -3,6 +3,7 @@
 The export is a table with columns Birthday ("3 Jan"), Name ("Last, First Middle"), Age,
 Phone Number and Street Address. Only name and month/day are kept.
 """
+import calendar
 import hashlib
 import io
 import sqlite3
@@ -138,6 +139,41 @@ def resolve_missing(conn: sqlite3.Connection, birthday_id: int, action: str) -> 
         conn.execute("UPDATE birthdays SET kept = 1 WHERE id = ?", (birthday_id,))
     else:
         raise ValueError(action)
+
+
+def _on(year: int, month: int, day: int) -> date:
+    """The date a birthday falls on in `year` (Feb 29 is celebrated Feb 28 in other years, as in the feed)."""
+    if (month, day) == (2, 29) and not calendar.isleap(year):
+        return date(year, 2, 28)
+    return date(year, month, day)
+
+
+def upcoming(conn: sqlite3.Connection, days: int = 30, today: date | None = None) -> list[dict]:
+    """Birthdays in the next `days` days (today included), soonest first, with the age they turn if known."""
+    today = today or date.today()
+    years = {r["name"]: r["birth_year"] for r in conn.execute(
+        "SELECT name, birth_year FROM people WHERE birth_year IS NOT NULL")}
+    out = []
+    for b in load(conn):
+        when = _on(today.year, b.month, b.day)
+        if when < today:
+            when = _on(today.year + 1, b.month, b.day)
+        if (when - today).days <= days:
+            born = years.get(b.name)
+            out.append({"name": b.display_name, "date": when, "days": (when - today).days,
+                        "turns": when.year - born if born else None})
+    return sorted(out, key=lambda x: (x["date"], x["name"]))
+
+
+def month_grid(conn: sqlite3.Connection, year: int, month: int) -> list[list[dict]]:
+    """Weeks (Sunday first) of {day, names} cells for a month calendar; day 0 pads the edges."""
+    by_day: dict[int, list[str]] = {}
+    for b in load(conn):
+        when = _on(year, b.month, b.day)
+        if when.month == month:
+            by_day.setdefault(when.day, []).append(b.display_name)
+    weeks = calendar.Calendar(firstweekday=6).monthdayscalendar(year, month)
+    return [[{"day": d, "names": sorted(by_day.get(d, []))} for d in week] for week in weeks]
 
 
 def build_ics(birthdays: list[Birthday], calendar_name: str) -> bytes:

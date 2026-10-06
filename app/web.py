@@ -12,6 +12,10 @@ BASE = Path(__file__).resolve().parent
 
 templates = Jinja2Templates(directory=BASE / "templates")
 templates.env.globals["ward_name"] = config.WARD_NAME
+# Cache-buster for /static links, so browsers pick up new CSS/JS right after an update.
+templates.env.globals["asset_v"] = str(int(max(f.stat().st_mtime for f in (BASE / "static").iterdir())))
+# Logo mark: initials of the first two words ("Kays Creek YSA Ward" -> "KC").
+templates.env.globals["ward_initials"] = "".join(w[0] for w in config.WARD_NAME.split()[:2]).upper() or "W"
 templates.env.globals["month_names"] = [
     "", "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"]

@@ -39,7 +39,7 @@ def test_invite_flow(client):
     assert "Create your account" in guest.get(link).text
     r = _redeem(guest, link)
     assert r.url.path == "/" and "Welcome" in r.text
-    assert "Calendar feed" in guest.get("/").text  # signed in as the new member
+    assert "At a glance" in guest.get("/").text  # signed in as the new member
     assert "/admin/users" not in guest.get("/").text
 
     # Single use.

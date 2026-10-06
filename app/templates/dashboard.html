@@ -1,102 +1,56 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% set active = "home" %}
+{% set hero = true %}
+{% block hero %}
+<h1 class="hero-title">Hi {{ user.username|capitalize }}, here’s the ward this week.</h1>
+{% endblock %}
+{% block main_class %}pull{% endblock %}
 {% block content %}
-<h1>Dashboard</h1>
+<div class="tiles">
+  <a class="tile bday" href="/birthdays">
+    {{ icon("cake", "") }}
+    <span class="t-title">Birthdays</span>
+    <span class="t-body">
+      {% for b in soon[:3] %}{{ "Today" if b.days == 0 else b.date.strftime("%a") }} · {{ b.name }}<br>{% else %}No birthdays in the next week.{% endfor %}
+    </span>
+    <span class="t-cta">{{ bday_count }} on the calendar →</span>
+  </a>
+  {% for o in orgs %}
+  <a class="tile {{ o.key }}" href="/ministering/{{ o.key }}">
+    {{ icon("group", "") }}
+    <span class="t-title">{{ o.name }}</span>
+    <span class="t-body">
+      {% if o.current %}{{ o.groups }} groups · {{ o.unassigned }} not assigned<br>
+      {% else %}Not imported from LCR yet<br>{% endif %}
+      {% if o.proposed %}“{{ o.proposed[0].name }}” awaiting approval
+      {% elif o.drafts %}{{ o.drafts|length }} draft{{ "s" if o.drafts|length > 1 }}
+      {% else %}No drafts yet{% endif %}
+    </span>
+    <span class="t-cta">Open {{ o.name }} →</span>
+  </a>
+  {% endfor %}
+</div>
 
-<section class="card">
-  <h2>Upload an LCR report</h2>
-  <p class="muted">In LCR, open <em>Reports → Member List</em>, print/export it as PDF, and upload it here.
-     The ward roster and birthday calendar are updated to match: move-ins are added, move-outs removed.
-     {% if user.leads %}You can also upload <em>Ministering Assignments</em> here.{% endif %}</p>
-  <form method="post" action="/upload" enctype="multipart/form-data" class="row">
-    <input type="file" name="file" accept="application/pdf,.pdf" required>
-    <button>Upload &amp; sync</button>
-  </form>
-  <p class="muted small">
-    {{ count }} birthdays on the calendar.
-    {% if last %}Last upload {{ last.uploaded_at }} UTC by {{ last.uploaded_by }}
-      (+{{ last.summary.added|length }} added{% if last.summary.missing %}, {{ last.summary.missing|length }} not in it{% endif %}).{% endif %}
-  </p>
-</section>
-
-{% if flagged %}
-<section class="card warn-card" id="flagged">
-  <h2>⚠ Possibly moved out ({{ flagged|length }})</h2>
-  <p class="muted">These people weren’t in the latest upload, so they may have moved out of the ward.
-     Their birthdays are still on the calendar until you decide.</p>
-  <div class="table-wrap">
-  <table>
-    <tbody>
-    {% for b in flagged %}
-      <tr>
-        <td>{{ b.display }}</td>
-        <td class="muted">missing since {{ b.missing_since[:10] }}</td>
-        <td class="actions">
-          <form method="post" action="/birthdays/{{ b.id }}/resolve"><input type="hidden" name="action" value="keep"><button class="link">Keep</button></form>
-          <form method="post" action="/birthdays/{{ b.id }}/resolve"><input type="hidden" name="action" value="remove"><button class="link danger">Remove birthday</button></form>
-        </td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-  </div>
-  {% if flagged|length > 1 %}
-  <form method="post" action="/birthdays/remove-missing" onsubmit="return confirm('Remove all {{ flagged|length }} of these birthdays from the calendar?')">
-    <button class="secondary">Remove all {{ flagged|length }}</button>
-  </form>
-  {% endif %}
-</section>
-{% endif %}
-
-<section class="card">
-  <h2>Calendar feed</h2>
-  <p class="muted">In Google Calendar: <em>Other calendars → + → From URL</em>, paste this link.
-     Google re-checks it on its own schedule (usually within a day).</p>
-  <div class="row">
-    <input id="feed" value="{{ feed_url }}" readonly onclick="this.select()">
-    <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('feed').value); this.textContent='Copied'">Copy</button>
-  </div>
-  <p class="muted small">Anyone with this link can see names and birthdays. Don't share it publicly.</p>
-
-  {% set webcal = "webcal://" ~ feed_url.split("://", 1)[1] %}
-  <details class="guide">
-    <summary>How to add it on an iPhone</summary>
-    <p><strong>Easiest:</strong> on your iPhone, tap this button, then tap <em>Subscribe</em>, then <em>Add</em>.</p>
-    <p><a class="button-link" href="{{ webcal }}">Subscribe on iPhone</a></p>
-    <p class="muted small">If the button doesn’t work, do it by hand:</p>
-    <ol>
-      <li>Tap <strong>Copy</strong> above to copy the calendar link.</li>
-      <li>Open the <strong>Settings</strong> app. Tap <strong>Apps</strong>, then <strong>Calendar</strong>.
-          <span class="muted">(On older iPhones, just tap <strong>Calendar</strong>.)</span></li>
-      <li>Tap <strong>Calendar Accounts</strong> → <strong>Add Account</strong> → <strong>Other</strong>.</li>
-      <li>Tap <strong>Add Subscribed Calendar</strong>, paste the link into the <em>Server</em> box, and tap <strong>Next</strong>.</li>
-      <li>Tap <strong>Save</strong>. The birthdays now show up in the Calendar app.</li>
-    </ol>
-    <p class="muted small">Use the Google Calendar app on your iPhone instead? Follow the Android steps.</p>
-  </details>
-  <details class="guide">
-    <summary>How to add it on Android (Google Calendar)</summary>
-    <p>The Google Calendar app can’t add a calendar link by itself, so you do it once on the Google Calendar
-       website. It then appears in the app automatically.</p>
-    <p><strong>Easiest:</strong> tap this button, sign in to Google if asked, and tap <em>Add</em>.</p>
-    <p><a class="button-link" href="https://calendar.google.com/calendar/r?cid={{ feed_url|urlencode|replace('/', '%2F') }}" target="_blank" rel="noopener">Add to Google Calendar</a></p>
-    <p class="muted small">If that opens the app instead, or doesn’t work, do it by hand:</p>
-    <ol>
-      <li>Tap <strong>Copy</strong> above to copy the calendar link.</li>
-      <li>Open <strong>Chrome</strong> and go to <strong>calendar.google.com</strong>.
-          If it says to use the app, tap the <strong>⋮</strong> menu and check <strong>Desktop site</strong>.</li>
-      <li>On the left, next to <strong>Other calendars</strong>, tap <strong>+</strong>, then <strong>From URL</strong>.</li>
-      <li>Paste the link and tap <strong>Add calendar</strong>. Leave “Make the calendar publicly accessible” <strong>unchecked</strong>.</li>
-      <li>Open the <strong>Google Calendar</strong> app. Tap <strong>☰</strong> → <strong>Settings</strong>, tap the
-          new birthday calendar, and turn on <strong>Sync</strong>.</li>
-    </ol>
-    <p class="muted small">New birthdays can take up to a day to show up. That’s Google’s schedule, not yours.</p>
-  </details>
-
-  {% if user.is_admin %}
-  <form method="post" action="/feed/regenerate"
-        onsubmit="return confirm('The old link will stop working. Continue?')">
-    <button class="secondary">Regenerate link</button>
-  </form>
-  {% endif %}
-</section>
+<div class="cols">
+  <section class="card{% if todo %} gold{% endif %}">
+    <h2>To do</h2>
+    {% if todo %}
+    <div class="todo">
+      {% for t in todo %}<a href="{{ t.href }}"><span class="dot"></span><span>{{ t.text }}</span><span class="cta">{{ t.cta }}</span></a>{% endfor %}
+    </div>
+    {% else %}
+    <p class="muted">You’re all caught up.</p>
+    {% endif %}
+  </section>
+  <section class="card">
+    <h2>At a glance</h2>
+    <div class="stats">
+      <div class="stat"><b>{{ people or bday_count }}</b><span>{{ "people" if people else "birthdays" }}</span></div>
+      <div class="stat"><b>{{ "+" if moved_in }}{{ moved_in }}</b><span>moved in</span></div>
+      {% if user.is_admin %}<div class="stat"><b>{{ users_count }}</b><span>users</span></div>
+      {% else %}<div class="stat"><b>{{ soon|length }}</b><span>this week</span></div>{% endif %}
+    </div>
+  </section>
+</div>
 {% endblock %}

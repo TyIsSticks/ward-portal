@@ -356,6 +356,39 @@ def delete_layout(conn, layout_id: int) -> None:
     conn.execute("DELETE FROM layouts WHERE id = ?", (layout_id,))
 
 
+# --- Summaries --------------------------------------------------------------
+
+def assigned_scope(conn, org: str) -> str:
+    """Who this organization usually ministers to: 'M', 'F' or 'all' (from its current import)."""
+    current = current_import(conn, org)
+    if current:
+        ids = {p for d in structure(conn, current["id"]) for g in d["groups"] for p in g["assigned"]}
+        if ids:
+            marks = ",".join("?" * len(ids))
+            genders = {r[0] for r in conn.execute(f"SELECT gender FROM people WHERE id IN ({marks})", list(ids))}
+            return genders.pop() if len(genders) == 1 else "all"
+    return ORG_GENDER[org] if org == "rs" else "all"
+
+
+def org_summary(conn, org: str) -> dict:
+    """Headline numbers for an organization, from what's in LCR now (its current import)."""
+    current = current_import(conn, org)
+    drafts = [l for l in list_layouts(conn, org) if l["kind"] == "draft"]
+    out = {"key": org, "name": ORGS[org], "current": current, "drafts": drafts,
+           "proposed": [l for l in drafts if l["status"] == "proposed"],
+           "groups": 0, "unassigned": None, "nonminister": None}
+    if current:
+        groups = [g for d in structure(conn, current["id"]) for g in d["groups"]]
+        ministers = {p for g in groups for p in g["ministers"]}
+        assigned = {p for g in groups for p in g["assigned"]}
+        scope = assigned_scope(conn, org)
+        active = conn.execute("SELECT id, gender FROM people WHERE active = 1").fetchall()
+        out["groups"] = len(groups)
+        out["unassigned"] = sum(1 for r in active if r["id"] not in assigned and scope in ("all", r["gender"]))
+        out["nonminister"] = sum(1 for r in active if r["id"] not in ministers and r["gender"] == ORG_GENDER[org])
+    return out
+
+
 # --- History ----------------------------------------------------------------
 
 def history(conn, org: str, exclude_layout: int) -> dict:
