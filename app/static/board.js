@@ -139,6 +139,12 @@
     const out = await res.json();
     S.layout.readonly = out.readonly;
     S.layout.status = out.status;
+    const check = $("#lcr-check");
+    if (check) {  // approving (again) always starts a fresh LCR check
+      check.hidden = out.status !== "approved";
+      check.textContent = out.verified ? "Verified in LCR" : "Needs LCR check";
+      check.className = `badge ${out.verified ? "verified" : "proposed"}`;
+    }
     elSave.textContent = "All changes saved";
     render();
     return out;

@@ -97,6 +97,8 @@ CREATE TABLE IF NOT EXISTS layouts (
     status      TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'proposed', 'approved')),
     is_current  INTEGER NOT NULL DEFAULT 0,  -- the latest import, i.e. what's in LCR now
     version     INTEGER NOT NULL DEFAULT 1,  -- bumped on every save, for edit conflicts
+    approved_at TEXT,                         -- when it was last set to Approved
+    verified_at TEXT,                         -- when a later LCR import was found to match it
     created_by  TEXT NOT NULL,
     created_at  TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
@@ -215,6 +217,12 @@ def _migrate_columns(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE birthdays ADD COLUMN kept INTEGER NOT NULL DEFAULT 0")
     # Layouts made before Relief Society support were all elders quorum.
     add("layouts", "org", "TEXT NOT NULL DEFAULT 'eq'")
+    if _columns(conn, "layouts") and "approved_at" not in _columns(conn, "layouts"):
+        conn.execute("ALTER TABLE layouts ADD COLUMN approved_at TEXT")
+        conn.execute("ALTER TABLE layouts ADD COLUMN verified_at TEXT")
+        # Layouts approved before the LCR check existed count as done, so the upgrade doesn't nag.
+        conn.execute("UPDATE layouts SET approved_at = updated_at, verified_at = updated_at "
+                     "WHERE kind = 'draft' AND status = 'approved'")
 
 
 def init() -> None:

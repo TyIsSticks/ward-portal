@@ -164,6 +164,98 @@ def test_changes_lists_removed_groups():
     assert [c["ministers"] for c in diff["removed"]] == [{1, 2}]
 
 
+# --- checking an approved layout in LCR -------------------------------------
+
+def _backdate_imports(conn):
+    # Imports and approvals in a test land in the same second; push imports into the past.
+    conn.execute("UPDATE layouts SET created_at = datetime('now', '-1 hour') WHERE kind = 'imported'")
+
+
+def test_approved_layout_is_checked_by_the_next_import(conn):
+    p = ids(conn)
+    m.finish_import(conn, m.match_names(conn, report_of((["Able, Al", "Baker, Bo"], ["Dunn, Di"]))), {}, "a", "eq")
+    _backdate_imports(conn)
+    layout_id = m.create_layout(conn, "eq", "Fall", "current", "a")
+    target = [{"name": "North", "supervisor": "", "groups": [
+        {"ministers": [p["Able, Al"], p["Baker, Bo"]], "assigned": [p["Dunn, Di"], p["Eads, Em"]]}]}]
+    m.save_structure(conn, layout_id, target, 1)
+    assert m.lcr_check(conn, m.get_layout(conn, layout_id)) is None  # not approved yet
+    m.update_meta(conn, layout_id, status="approved")
+    assert m.lcr_check(conn, m.get_layout(conn, layout_id)) == {"state": "waiting"}
+    assert [l["id"] for l in m.org_summary(conn, "eq")["to_check"]] == [layout_id]
+
+    # LCR only got half of it.
+    partial = m.finish_import(conn, m.match_names(conn, report_of((["Able, Al", "Baker, Bo"], []))), {}, "a", "eq")
+    assert m.check_approved(conn, "eq", partial) == [{"id": layout_id, "name": "Fall", "differences": 1}]
+    check = m.lcr_check(conn, m.get_layout(conn, layout_id))
+    assert check["state"] == "mismatch" and check["differences"] == 1
+
+    # Now it all made it in.
+    full = m.finish_import(conn, m.match_names(conn, report_of(
+        (["Able, Al", "Baker, Bo"], ["Dunn, Di", "Eads, Em"]))), {}, "a", "eq")
+    assert m.check_approved(conn, "eq", full) == [{"id": layout_id, "name": "Fall", "differences": 0}]
+    assert m.lcr_check(conn, m.get_layout(conn, layout_id))["state"] == "verified"
+    assert m.org_summary(conn, "eq")["to_check"] == []
+    assert m.check_approved(conn, "eq", full) == []  # verified layouts aren't checked again
+    assert m.check_approved(conn, "rs", full) == []  # nor are the other organization's
+
+    # Leaving Approved clears the check; approving again starts a new one.
+    m.update_meta(conn, layout_id, status="draft")
+    assert m.get_layout(conn, layout_id)["verified_at"] is None
+    m.update_meta(conn, layout_id, status="approved")
+    assert not m.get_layout(conn, layout_id)["verified_at"]
+    m.update_meta(conn, layout_id, status="approved")  # unchanged status keeps the check as is
+    m.mark_verified(conn, layout_id)
+    assert m.lcr_check(conn, m.get_layout(conn, layout_id))["state"] == "verified"
+    m.update_meta(conn, layout_id, status="approved")
+    assert m.get_layout(conn, layout_id)["verified_at"]
+
+
+def test_only_approved_layouts_can_be_marked_done(conn):
+    layout_id = m.create_layout(conn, "eq", "Draft", "scratch", "a")
+    with pytest.raises(m.LayoutError):
+        m.mark_verified(conn, layout_id)
+
+
+def test_lcr_check_flow_through_the_app(client, conn, monkeypatch):
+    import app.main as main
+    _leader(client)
+    p = ids(conn)
+    m.finish_import(conn, m.match_names(conn, report_of((["Able, Al", "Baker, Bo"], ["Dunn, Di"]))), {}, "a", "eq")
+    _backdate_imports(conn)
+    conn.commit()
+    r = client.post("/ministering/eq/layouts", data={"name": "Fall", "start": "current"})
+    layout_id = int(re.search(r"/ministering/layouts/(\d+)$", str(r.url)).group(1))
+    state = client.get(f"/api/ministering/layouts/{layout_id}").json()
+    state["districts"][0]["groups"][0]["assigned"].append(p["Eads, Em"])
+    client.put(f"/api/ministering/layouts/{layout_id}/structure",
+               json={"version": state["layout"]["version"], "districts": state["districts"]})
+    client.patch(f"/api/ministering/layouts/{layout_id}", json={"status": "approved"})
+
+    assert "Enter “Fall” in LCR, then re-import" in client.get("/").text
+    assert "Upload and check" in client.get(f"/ministering/layouts/{layout_id}/changes").text
+    assert "needs LCR check" in client.get("/ministering/eq").text
+
+    monkeypatch.setattr(main, "detect", lambda data: "ministering")
+    monkeypatch.setattr(main.ministering_report, "parse_pdf",
+                        lambda data: report_of((["Able, Al", "Baker, Bo"], ["Dunn, Di"])))
+    r = client.post("/upload", data={"org": "eq"}, files={"file": ("m.pdf", b"%PDF", "application/pdf")})
+    assert str(r.url).endswith(f"/ministering/layouts/{layout_id}/changes")
+    assert "doesn’t match LCR yet: 1 difference left" in r.text and "Assign <strong>Em Eads</strong>" in r.text
+    assert "doesn’t match LCR yet (1 difference)" in client.get("/").text
+
+    monkeypatch.setattr(main.ministering_report, "parse_pdf",
+                        lambda data: report_of((["Able, Al", "Baker, Bo"], ["Dunn, Di", "Eads, Em"])))
+    r = client.post("/upload", data={"org": "eq"}, files={"file": ("m.pdf", b"%PDF", "application/pdf")})
+    assert "“Fall” is verified" in r.text and "Verified in LCR on" in r.text
+    assert "match LCR yet" not in client.get("/").text and "Enter “Fall”" not in client.get("/").text
+    assert "Verified in LCR" in client.get("/ministering/eq").text
+
+    draft = m.create_layout(conn, "eq", "Other", "scratch", "a")
+    conn.commit()
+    assert "Only approved" in client.post(f"/ministering/layouts/{draft}/verify").text
+
+
 # --- routes -----------------------------------------------------------------
 
 def _leader(client):
@@ -204,7 +296,7 @@ def test_board_flow(client, conn):
     assert "Assign <strong>Em Eads</strong>" in changes
 
     r = client.patch(f"/api/ministering/layouts/{layout_id}", json={"status": "approved"})
-    assert r.json() == {"name": "Fall", "status": "approved", "readonly": True}
+    assert r.json() == {"name": "Fall", "status": "approved", "readonly": True, "verified": False}
     r = client.put(url, json={"version": r.json() and 2, "districts": districts})
     assert r.status_code == 400
 
@@ -326,6 +418,7 @@ def test_migrates_layouts_to_elders_quorum(tmp_path, monkeypatch):
             version INTEGER NOT NULL DEFAULT 1, created_by TEXT NOT NULL,
             created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')));
         INSERT INTO layouts (name, kind, is_current, created_by) VALUES ('Old import', 'imported', 1, 'ty');
+        INSERT INTO layouts (name, kind, status, created_by) VALUES ('Old plan', 'draft', 'approved', 'ty');
     """)
     old.commit()
     old.close()
@@ -333,3 +426,6 @@ def test_migrates_layouts_to_elders_quorum(tmp_path, monkeypatch):
     with db.ward_connect(1) as c:
         assert m.current_import(c, "eq")["name"] == "Old import"
         assert m.current_import(c, "rs") is None
+        # Approved before the LCR check existed: counts as done, so the upgrade doesn't nag.
+        assert m.org_summary(c, "eq")["to_check"] == []
+        assert m.get_layout(c, 2)["verified_at"]

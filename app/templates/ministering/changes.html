@@ -19,6 +19,32 @@
   {% if layout.kind == "draft" %}<span class="badge {{ layout.status }}">{{ layout.status|capitalize }}</span>{% endif %}.
   Check items off as you enter them in LCR (<em>{{ org_name }} → Ministering → Companionships</em>).</p>
 
+{% if check and check.state == "verified" %}
+<div class="flash ok">Verified in LCR on {{ check.at[:10] }}. Nothing left to do for this layout.</div>
+{% elif check %}
+<section class="card gold no-print" id="check">
+  <h2>Check it in LCR</h2>
+  {% if check.state == "mismatch" %}
+  <p>LCR was re-imported on {{ check.imported_at[:10] }}, and <strong>{{ check.differences }}
+    item{{ "s" if check.differences != 1 }}</strong> below still {{ "don’t" if check.differences != 1 else "doesn’t" }} match this layout.
+    Fix {{ "them" if check.differences != 1 else "it" }} in LCR, then upload the report again.</p>
+  {% else %}
+  <p>This layout is approved. Once you’ve entered the changes below in LCR, upload a fresh
+    <em>Ministering Assignments</em> report. It’s compared with this layout so nothing gets missed.</p>
+  {% endif %}
+  <form method="post" action="/upload" enctype="multipart/form-data" class="row">
+    <input type="hidden" name="org" value="{{ layout.org }}">
+    <input type="file" name="file" accept="application/pdf,.pdf" required aria-label="Ministering Assignments PDF">
+    <button>Upload and check</button>
+  </form>
+  <form method="post" action="/ministering/layouts/{{ layout.id }}/verify" class="inline"
+        onsubmit="return confirm('Mark this layout as done in LCR without a matching import?')">
+    <button class="link small">Mark done anyway</button>
+    <span class="muted small">(if the differences are intended)</span>
+  </form>
+</section>
+{% endif %}
+
 {% set total = diff.removed|length + diff.changed|length + diff.created|length + diff.new_districts|length %}
 {% if total == 0 %}
 <section class="card"><p>No changes: this layout matches the current assignments.</p></section>

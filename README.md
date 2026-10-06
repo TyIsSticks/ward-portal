@@ -106,8 +106,15 @@ Typical cycle (for either organization):
    Relief Society), someone in two groups, moved-out people,
    tagged people with no ministers, and uneven districts. Warnings never block a change.
 5. Set the status to **Proposed** for the bishop (give him the Leader role) and **Approved** once
-   it's final. Approved layouts are locked.
+   it's final. Approved layouts are locked. Draft and Proposed work the same; Proposed only adds
+   an "Approve" item to the dashboard's to-do list.
 6. Open **Changes for LCR** and work through the checklist in LCR.
+7. **Check it in LCR.** Approving a layout adds a to-do: once the changes are entered, upload a fresh
+   Ministering Assignments report (there's an upload box on the Changes for LCR page). The import is
+   compared with every approved layout still waiting on its check. If LCR matches, the layout is
+   marked **Verified in LCR**. If not, Changes for LCR lists exactly what's still different. Use
+   **Mark done anyway** when the differences are intended. Setting the status back to Draft (or
+   approving again) restarts the check. Layouts approved before this feature count as verified.
 
 The side lists ("Not assigned to anyone", "Not ministering") can show brothers, sisters or
 everyone. They default to what each organization does in your ward, and each leader's choice is

@@ -343,7 +343,11 @@ def update_meta(conn, layout_id: int, name: str | None = None, status: str | Non
     if status is not None:
         if status not in STATUSES:
             raise LayoutError("Unknown status")
-        conn.execute("UPDATE layouts SET status = ?, updated_at = datetime('now') WHERE id = ?", (status, layout_id))
+        if status != layout["status"]:
+            # Approving starts a fresh LCR check; leaving Approved cancels it.
+            stamp = "datetime('now')" if status == "approved" else "NULL"
+            conn.execute(f"UPDATE layouts SET status = ?, approved_at = {stamp}, verified_at = NULL, "
+                         "updated_at = datetime('now') WHERE id = ?", (status, layout_id))
     if name is not None:
         conn.execute("UPDATE layouts SET name = ?, updated_at = datetime('now') WHERE id = ?",
                      (name.strip()[:80] or layout["name"], layout_id))
@@ -376,6 +380,8 @@ def org_summary(conn, org: str) -> dict:
     drafts = [l for l in list_layouts(conn, org) if l["kind"] == "draft"]
     out = {"key": org, "name": ORGS[org], "current": current, "drafts": drafts,
            "proposed": [l for l in drafts if l["status"] == "proposed"],
+           "to_check": [l | {"check": lcr_check(conn, l)} for l in drafts
+                        if l["status"] == "approved" and not l["verified_at"]],
            "groups": 0, "unassigned": None, "nonminister": None}
     if current:
         groups = [g for d in structure(conn, current["id"]) for g in d["groups"]]
@@ -464,3 +470,62 @@ def changes(base: list[dict], target: list[dict]) -> dict:
     result["new_districts"] = [d for d in target if d["name"] not in old_districts and d["groups"]]
     result["was_assigned_to"] = was_assigned_to
     return result
+
+
+def count_changes(diff: dict) -> int:
+    return sum(len(diff[k]) for k in ("removed", "changed", "created", "new_districts"))
+
+
+# --- Checking an approved layout made it into LCR ---------------------------
+# After a layout is approved and entered in LCR, the next LCR import is compared against it.
+# If they match, the layout is marked verified; if not, Changes for LCR shows what's left.
+
+def lcr_check(conn, layout: dict) -> dict | None:
+    """Where an approved layout is in the LCR check: 'verified', 'waiting' (no import since it
+    was approved) or 'mismatch' (imported since, but LCR doesn't match yet). None if not approved."""
+    if layout["kind"] != "draft" or layout["status"] != "approved":
+        return None
+    if layout["verified_at"]:
+        return {"state": "verified", "at": layout["verified_at"]}
+    current = current_import(conn, layout["org"])
+    if current is None or not layout["approved_at"] or current["created_at"] < layout["approved_at"]:
+        return {"state": "waiting"}
+    n = count_changes(changes(structure(conn, current["id"]), structure(conn, layout["id"])))
+    return {"state": "mismatch", "differences": n, "imported_at": current["created_at"]}
+
+
+def check_approved(conn, org: str, import_id: int) -> list[dict]:
+    """Compare a fresh import with every approved layout still waiting on its LCR check.
+
+    Marks the matching ones verified. Returns [{id, name, differences}] for each one checked.
+    """
+    imported = structure(conn, import_id)
+    results = []
+    for l in conn.execute("SELECT id, name FROM layouts WHERE org = ? AND kind = 'draft' AND status = 'approved' "
+                          "AND verified_at IS NULL ORDER BY approved_at", (org,)).fetchall():
+        n = count_changes(changes(imported, structure(conn, l["id"])))
+        if n == 0:
+            conn.execute("UPDATE layouts SET verified_at = datetime('now') WHERE id = ?", (l["id"],))
+        results.append({"id": l["id"], "name": l["name"], "differences": n})
+    return results
+
+
+def check_note(results: list[dict]) -> str:
+    """A sentence for the import message about each approved layout that was checked."""
+    notes = []
+    for r in results:
+        if r["differences"]:
+            notes.append(f"“{r['name']}” doesn’t match LCR yet: {r['differences']} "
+                         f"difference{'s' if r['differences'] > 1 else ''} left.")
+        else:
+            notes.append(f"“{r['name']}” is verified: LCR matches it.")
+    return " ".join(notes)
+
+
+def mark_verified(conn, layout_id: int) -> None:
+    """Accept an approved layout as done without a matching import (e.g. the differences are intended)."""
+    layout = get_layout(conn, layout_id)
+    if layout is None or layout["kind"] != "draft" or layout["status"] != "approved":
+        raise LayoutError("Only approved layouts can be marked done.")
+    conn.execute("UPDATE layouts SET verified_at = datetime('now') WHERE id = ? AND verified_at IS NULL",
+                 (layout_id,))

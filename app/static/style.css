@@ -175,6 +175,8 @@ td.tags { display: flex; flex-wrap: wrap; gap: .3rem; }
 .badge.current { background: var(--accent); color: var(--accent-ink); }
 .badge.approved { background: var(--ok); color: var(--ink); }
 .badge.proposed { background: var(--bday-bg); color: var(--bday); }
+.badge.verified { background: var(--accent); color: var(--accent-ink); }
+a.badge { text-decoration: none; }
 .badge.moved { background: var(--err); color: var(--err-ink); }
 .badge.org { background: var(--band); color: #fff; }
 

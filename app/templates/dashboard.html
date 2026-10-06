@@ -24,6 +24,7 @@
       {% if o.current %}{{ o.groups }} groups · {{ o.unassigned }} not assigned<br>
       {% else %}Not imported from LCR yet<br>{% endif %}
       {% if o.proposed %}“{{ o.proposed[0].name }}” awaiting approval
+      {% elif o.to_check %}“{{ o.to_check[0].name }}” needs an LCR check
       {% elif o.drafts %}{{ o.drafts|length }} draft{{ "s" if o.drafts|length > 1 }}
       {% else %}No drafts yet{% endif %}
     </span>

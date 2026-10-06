@@ -93,6 +93,14 @@ def dashboard(request: Request, user: dict = Depends(auth.require_user)):
         for l in o["proposed"]:
             todo.append({"text": f"Approve “{l['name']}” for {o['name']}", "cta": "Open",
                          "href": f"/ministering/layouts/{l['id']}"})
+        for l in o["to_check"]:
+            if l["check"]["state"] == "mismatch":
+                n = l["check"]["differences"]
+                todo.append({"text": f"“{l['name']}” doesn’t match LCR yet ({n} difference{'s' if n != 1 else ''})",
+                             "cta": "Review", "href": f"/ministering/layouts/{l['id']}/changes"})
+            else:
+                todo.append({"text": f"Enter “{l['name']}” in LCR, then re-import the {o['name']} report "
+                                     "to check it", "cta": "Check", "href": f"/ministering/layouts/{l['id']}/changes"})
         if o["current"] is None:
             todo.append({"text": f"Import the {o['name']} assignments from LCR", "cta": "Import",
                          "href": f"/ministering/{o['key']}#import"})
@@ -198,12 +206,14 @@ def _import_ministering(request: Request, user: dict, districts, hint: str | Non
             pending_id = ministering.save_pending(conn, user["username"], payload)
             return RedirectResponse(f"/ministering/import/{pending_id}", status_code=303)
         layout_id = ministering.finish_import(conn, payload, {}, user["username"], org)
+        checked = ministering.check_approved(conn, org, layout_id)
         conn.execute("INSERT INTO uploads (report, uploaded_by, summary) VALUES ('ministering', ?, ?)",
                      (user["username"], json.dumps({"layout_id": layout_id, "org": org})))
     note = (f" (uploaded from the {ministering.ORGS[hint]} page, but the ministers are "
             f"{'brothers' if org == 'eq' else 'sisters'})") if hint and hint != org else ""
-    flash(request, "ok", f"Imported the current {ministering.ORGS[org]} assignments{note}.")
-    return RedirectResponse(f"/ministering/layouts/{layout_id}", status_code=303)
+    flash(request, "ok", f"Imported the current {ministering.ORGS[org]} assignments{note}."
+          + (" " + ministering.check_note(checked) if checked else ""))
+    return RedirectResponse(ministering_routes.after_import(layout_id, checked), status_code=303)
 
 
 @app.post("/birthdays/{birthday_id}/resolve")

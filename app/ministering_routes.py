@@ -24,7 +24,7 @@ def board_state(conn, layout: dict) -> dict:
     in_layout = {p for d in districts for g in d["groups"] for p in g["ministers"] + g["assigned"]}
     current = m.current_import(conn, org)
     return {
-        "layout": {k: layout[k] for k in ("id", "name", "kind", "status", "version", "updated_at")}
+        "layout": {k: layout[k] for k in ("id", "name", "kind", "status", "version", "updated_at", "verified_at")}
                   | {"readonly": m.is_readonly(layout),
                      "is_current": bool(layout["is_current"])},
         "org": org,
@@ -104,8 +104,9 @@ def changes(layout_id: int, request: Request, user: dict = leader):
                for key in ("ministers", "assigned", "add_ministers", "remove_ministers",
                            "add_assigned", "remove_assigned") for p in item.get(key, ())}
         people = m.people(conn, ids)
+        check = m.lcr_check(conn, layout)
     return render(request, "ministering/changes.html", user=user, layout=layout, current=current,
-                  diff=diff, people=people, org_name=org_name)
+                  diff=diff, people=people, org_name=org_name, check=check)
 
 
 @router.get("/ministering/people", response_class=HTMLResponse)
@@ -161,13 +162,32 @@ async def import_confirm(pending_id: int, request: Request, user: dict = leader)
             choice = form.get(f"match_{i}", "")
             resolutions[u["name"]] = int(choice) if choice.isdigit() and int(choice) in valid else None
         layout_id = m.finish_import(conn, payload, resolutions, user["username"], org)
+        checked = m.check_approved(conn, org, layout_id)
         conn.execute("DELETE FROM pending_imports WHERE id = ?", (pending_id,))
         conn.execute("INSERT INTO uploads (report, uploaded_by, summary) VALUES ('ministering', ?, ?)",
                      (user["username"], json.dumps({"layout_id": layout_id, "org": org})))
     skipped = sum(v is None for v in resolutions.values())
     flash(request, "ok", f"Imported the current {m.ORGS[org]} assignments."
-          + (f" {skipped} unmatched name(s) were skipped." if skipped else ""))
-    return RedirectResponse(f"/ministering/layouts/{layout_id}", status_code=303)
+          + (f" {skipped} unmatched name(s) were skipped." if skipped else "")
+          + (" " + m.check_note(checked) if checked else ""))
+    return RedirectResponse(after_import(layout_id, checked), status_code=303)
+
+
+def after_import(import_id: int, checked: list[dict]) -> str:
+    """Where to go after an import: the checked layout's change list if it was checking one."""
+    return f"/ministering/layouts/{checked[0]['id']}/changes" if checked else f"/ministering/layouts/{import_id}"
+
+
+@router.post("/ministering/layouts/{layout_id}/verify")
+def verify_layout(layout_id: int, request: Request, user: dict = leader):
+    try:
+        with db.ward_connect(user["ward"]["id"]) as conn:
+            _layout_or_404(conn, layout_id)
+            m.mark_verified(conn, layout_id)
+        flash(request, "ok", "Marked as done in LCR.")
+    except m.LayoutError as exc:
+        flash(request, "error", str(exc))
+    return RedirectResponse(f"/ministering/layouts/{layout_id}/changes", status_code=303)
 
 
 @router.get("/ministering/{org}", response_class=HTMLResponse)
@@ -223,7 +243,8 @@ async def api_meta(layout_id: int, request: Request, user: dict = leader):
             layout = _layout_or_404(conn, layout_id)
     except m.LayoutError as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
-    return {"name": layout["name"], "status": layout["status"], "readonly": m.is_readonly(layout)}
+    return {"name": layout["name"], "status": layout["status"], "readonly": m.is_readonly(layout),
+            "verified": bool(layout["verified_at"])}
 
 
 @router.put("/api/ministering/people/{person_id}/tags")

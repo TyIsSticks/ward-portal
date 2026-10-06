@@ -15,6 +15,9 @@
       <select id="status" aria-label="Status">
         {% for s in statuses %}<option value="{{ s }}" {% if s == layout.status %}selected{% endif %}>{{ s|capitalize }}</option>{% endfor %}
       </select>
+      <a id="lcr-check" href="/ministering/layouts/{{ layout.id }}/changes#check"
+         class="badge {{ 'verified' if layout.verified_at else 'proposed' }}" {% if layout.status != "approved" %}hidden{% endif %}>
+        {{ "Verified in LCR" if layout.verified_at else "Needs LCR check" }}</a>
     {% else %}
       <span class="badge {{ 'current' if layout.is_current }}">{{ "Current in LCR" if layout.is_current else "Past import" }}</span>
     {% endif %}

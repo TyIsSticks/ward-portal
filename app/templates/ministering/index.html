@@ -27,6 +27,10 @@
   <article class="lay">
     {% if l.kind == "imported" %}
       <span><span class="badge {{ 'current' if l.is_current }}">{{ "Current in LCR" if l.is_current else "Past import" }}</span></span>
+    {% elif l.status == "approved" and l.verified_at %}
+      <span><span class="badge verified">Verified in LCR</span></span>
+    {% elif l.status == "approved" %}
+      <span><span class="badge approved">Approved</span> <span class="muted small">· needs LCR check</span></span>
     {% else %}
       <span><span class="badge {{ l.status }}">{{ l.status|capitalize }}</span></span>
     {% endif %}
