@@ -31,7 +31,7 @@ def report_of(*groups, district="North"):
 
 @pytest.fixture
 def conn(client):
-    with db.connect() as c:
+    with db.ward_connect(1) as c:
         m.sync_people(c, ROSTER)
         c.commit()  # don't hold a write lock while the app's own connections run
         yield c
@@ -40,7 +40,7 @@ def conn(client):
 # --- roster -----------------------------------------------------------------
 
 def test_sync_people_tracks_moves_and_tags_move_ins(client):
-    with db.connect() as conn:
+    with db.ward_connect(1) as conn:
         first = m.sync_people(conn, ROSTER)
         assert first["first_import"] and first["moved_in"] == []  # first upload isn't "moving in"
 
@@ -220,7 +220,7 @@ def test_upload_routes_reports_by_type(client, monkeypatch):
     monkeypatch.setattr(main.directory, "parse_pdf", lambda data: ROSTER)
     r = client.post("/upload", files={"file": ("d.pdf", b"%PDF", "application/pdf")})
     assert "Ward roster" in r.text and "first directory upload" in r.text
-    with db.connect() as c:
+    with db.ward_connect(1) as c:
         assert c.execute("SELECT COUNT(*) FROM birthdays").fetchone()[0] == len(ROSTER)
 
     monkeypatch.setattr(main, "detect", lambda data: "ministering")
@@ -292,7 +292,7 @@ def test_ministering_pages_per_org(client, conn):
 def test_upload_files_report_under_the_right_org(client, monkeypatch):
     import app.main as main
     _leader(client)
-    with db.connect() as c:
+    with db.ward_connect(1) as c:
         m.sync_people(c, ROSTER)
     monkeypatch.setattr(main, "detect", lambda data: "ministering")
 
@@ -310,7 +310,7 @@ def test_upload_files_report_under_the_right_org(client, monkeypatch):
     assert "Pick whether" in client.post(str(r.url), data={}).text
     r = client.post(str(r.url), data={"org": "eq"})
     assert "Imported the current Elders Quorum assignments" in r.text
-    with db.connect() as c:
+    with db.ward_connect(1) as c:
         assert m.current_import(c, "eq") and m.current_import(c, "rs")
 
 
@@ -330,6 +330,6 @@ def test_migrates_layouts_to_elders_quorum(tmp_path, monkeypatch):
     old.commit()
     old.close()
     db.init()
-    with db.connect() as c:
+    with db.ward_connect(1) as c:
         assert m.current_import(c, "eq")["name"] == "Old import"
         assert m.current_import(c, "rs") is None

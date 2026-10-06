@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Wards · {{ ward_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="grow">
+    <h1>Wards</h1>
+    <div class="sub">Each ward has its own members, birthdays, calendar link, and Elders Quorum and Relief Society
+      ministering. Ward admins and everyone they invite only see their own ward.</div>
+  </div>
+</div>
+
+{% if new_link %}
+<section class="card highlight">
+  <h2>Invite link for {{ new_link.for }}</h2>
+  <p class="muted">Send this privately. It works once and expires in {{ ttl_days }} days. They pick their own
+     username and password, then can invite the rest of their ward from the Users page.
+     <strong>It won’t be shown again.</strong></p>
+  <div class="row">
+    <input id="newlink" value="{{ new_link.url }}" readonly onclick="this.select()">
+    <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('newlink').value); this.textContent='Copied'">Copy</button>
+  </div>
+</section>
+{% endif %}
+
+<div class="cols">
+  {% for w in wards %}
+  <section class="card ward-card" id="ward-{{ w.id }}">
+    <div class="row spread" style="margin: 0">
+      <h2 style="margin: 0">{{ w.name }}</h2>
+      {% if w.id == user.ward.id %}<span class="badge current">You’re here</span>{% endif %}
+    </div>
+    <div class="meta"><span>{{ w.people }} people</span><span>{{ w.users }} user{{ "s" if w.users != 1 }}</span>
+      <span>created {{ w.created_at[:10] }}</span></div>
+    {% if w.id != user.ward.id %}
+    <form method="post" action="/admin/wards/{{ w.id }}/switch"><button class="secondary">Switch to this ward</button></form>
+    {% endif %}
+    <details class="guide">
+      <summary>Invite a ward admin</summary>
+      <form method="post" action="/admin/wards/{{ w.id }}/invite" class="stack" style="margin-top: .6rem">
+        <label>Who is it for? <input name="note" maxlength="100" placeholder="e.g. Brother Smith (bishopric)"></label>
+        <div><button>Create invite link</button></div>
+      </form>
+    </details>
+    <details class="guide">
+      <summary>Rename</summary>
+      <form method="post" action="/admin/wards/{{ w.id }}/rename" class="row">
+        <input name="name" value="{{ w.name }}" maxlength="80" required aria-label="Ward name" class="grow">
+        <button>Save</button>
+      </form>
+    </details>
+  </section>
+  {% endfor %}
+
+  <section class="card">
+    <h2>Add a ward</h2>
+    <form method="post" action="/admin/wards" class="stack">
+      <label>Ward name <input name="name" maxlength="80" required placeholder="e.g. Maple Creek 3rd Ward"></label>
+      <div><button>{{ icon("plus") }} Add ward</button></div>
+    </form>
+    <p class="muted small">Then invite its ward admin. They upload their own Member List and ministering reports.</p>
+  </section>
+</div>
+{% endblock %}

@@ -49,32 +49,45 @@ def verify_password(password: str, stored: str) -> bool:
     return hmac.compare_digest(digest.hex(), digest_hex)
 
 
-ROLES = ("member", "leader", "admin")
+# Everything but "admin" is scoped to the user's own ward. Admins are site-wide.
+ROLES = ("member", "leader", "ward_admin", "admin")
+ROLE_LABELS = {"member": "Member", "leader": "Leader", "ward_admin": "Ward admin", "admin": "Admin (all wards)"}
 
 
-def role_flags(role: str) -> tuple[int, int]:
-    """(is_admin, is_leader) for a role name."""
+def role_flags(role: str) -> tuple[int, int, int]:
+    """(is_admin, is_ward_admin, is_leader) for a role name."""
     if role not in ROLES:
         raise ValueError(f"Unknown role {role!r}")
-    return int(role == "admin"), int(role == "leader")
+    return int(role == "admin"), int(role == "ward_admin"), int(role == "leader")
 
 
 def role_of(row) -> str:
-    return "admin" if row["is_admin"] else "leader" if row["is_leader"] else "member"
+    if row["is_admin"]:
+        return "admin"
+    if row["is_ward_admin"]:
+        return "ward_admin"
+    return "leader" if row["is_leader"] else "member"
 
 
-def insert_user(conn, username: str, password: str, role: str = "member") -> int:
-    is_admin, is_leader = role_flags(role)
+def default_ward_id(conn) -> int:
+    return conn.execute("SELECT MIN(id) FROM wards").fetchone()[0]
+
+
+def insert_user(conn, username: str, password: str, role: str = "member", ward_id: int | None = None) -> int:
+    is_admin, is_ward_admin, is_leader = role_flags(role)
     cur = conn.execute(
-        "INSERT INTO users (username, password_hash, is_admin, is_leader) VALUES (?, ?, ?, ?)",
-        (validate_username(username), hash_password(password), is_admin, is_leader),
+        "INSERT INTO users (username, password_hash, ward_id, is_admin, is_ward_admin, is_leader) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (validate_username(username), hash_password(password), ward_id or default_ward_id(conn),
+         is_admin, is_ward_admin, is_leader),
     )
     return cur.lastrowid
 
 
-def create_user(username: str, password: str, is_admin: bool = False, role: str | None = None) -> int:
+def create_user(username: str, password: str, is_admin: bool = False, role: str | None = None,
+                ward_id: int | None = None) -> int:
     with db.connect() as conn:
-        return insert_user(conn, username, password, role or ("admin" if is_admin else "member"))
+        return insert_user(conn, username, password, role or ("admin" if is_admin else "member"), ward_id)
 
 
 def update_password(conn, user_id: int, password: str) -> None:
@@ -120,18 +133,29 @@ def log_in(request: Request, user_id: int) -> None:
 
 
 def current_user(request: Request) -> dict | None:
+    """The signed-in user, with the ward they're working in as user["ward"].
+
+    Everyone works in their own ward, except admins, who can switch (kept in the session).
+    """
     user_id = request.session.get("user_id")
     if user_id is None:
         return None
     with db.connect() as conn:
         row = conn.execute(
-            "SELECT id, username, is_admin, is_leader, session_version FROM users WHERE id = ?",
-            (user_id,)).fetchone()
-    if not row or row["session_version"] != request.session.get("sv"):
-        return None
+            "SELECT id, username, ward_id, is_admin, is_ward_admin, is_leader, session_version "
+            "FROM users WHERE id = ?", (user_id,)).fetchone()
+        if not row or row["session_version"] != request.session.get("sv"):
+            return None
+        ward_id = row["ward_id"]
+        if row["is_admin"] and request.session.get("ward_id"):
+            ward_id = request.session["ward_id"]
+        ward = conn.execute("SELECT * FROM wards WHERE id = ?", (ward_id,)).fetchone()             or conn.execute("SELECT * FROM wards ORDER BY id LIMIT 1").fetchone()
     user = dict(row)
     user["role"] = role_of(row)
-    user["leads"] = user["role"] in ("leader", "admin")
+    user["role_label"] = ROLE_LABELS[user["role"]]
+    user["leads"] = user["role"] in ("leader", "ward_admin", "admin")
+    user["manages"] = user["role"] in ("ward_admin", "admin")  # can manage accounts in the ward
+    user["ward"] = dict(ward)
     return user
 
 
@@ -150,6 +174,14 @@ def require_leader(request: Request) -> dict:
     user = require_user(request)
     if not user["leads"]:
         raise HTTPException(status_code=403, detail="Leaders only")
+    return user
+
+
+def require_manager(request: Request) -> dict:
+    """Ward admins (their own ward) and admins (any ward)."""
+    user = require_user(request)
+    if not user["manages"]:
+        raise HTTPException(status_code=403, detail="Ward admins only")
     return user
 
 

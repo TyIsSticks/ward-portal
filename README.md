@@ -18,6 +18,11 @@ A small self-hosted portal for working with LCR report exports.
   Includes warnings, priority tags, companion history from past imports, Draft / Proposed / Approved
   status, and a printable **Changes for LCR** checklist. See [Ministering](#ministering).
 
+**Multiple wards:** each ward has its own members, birthdays, calendar link, and Elders Quorum and
+Relief Society ministering, stored in its own database file (`data/wards/ward-<id>.db`). Accounts
+belong to one ward and only see that ward. Admins see every ward: they switch wards from the ward
+name in the header and add wards on the **Wards** page.
+
 **Layout:** the dashboard is a hub with a tile per area (Birthdays, Elders Quorum, Relief Society)
 and a to-do list. Uploads live behind the **Upload report** button in the header. Each person can
 pick a **System / Light / Dark** theme from the account menu (top right). System follows their device.
@@ -75,7 +80,8 @@ git pull && docker compose up -d --build
 
 ### Backups
 
-Everything lives in `./data` (SQLite DB + session key). Back up that folder.
+Everything lives in `./data`: `portal.db` (accounts and wards), `wards/` (one database per ward)
+and the session key. Back up the whole folder.
 
 ## Ministering
 
@@ -109,6 +115,20 @@ remembered in their browser.
 
 Companion history (“↺”) comes from past imports, so it appears once you've imported more than once.
 
+## Wards
+
+On an existing install, the first start after upgrading moves the existing data into the first ward
+(named from `WARD_NAME`) and keeps a backup as `data/portal.pre-wards-<time>.db.bak`. The calendar
+link keeps working.
+
+To add a ward: **Wards → Add a ward**, then **Invite a ward admin** and send them the link. They sign
+up, upload their own Member List and ministering reports, and invite their ward from **Users**.
+
+```bash
+docker compose exec portal python -m app.cli create-ward "Maple Creek 3rd Ward"
+docker compose exec portal python -m app.cli list-wards
+```
+
 ## Users
 
 Admins manage people from the **Users** page:
@@ -122,13 +142,19 @@ Admins manage people from the **Users** page:
 
 Everyone can change their own password on the **Account** page, which signs out their other devices.
 
-Roles: **Members** can upload the directory and see the calendar link. **Leaders** can also use
-Ministering. **Admins** can also manage users and regenerate the calendar link.
+Roles (all but Admin are limited to the user's own ward):
+
+| Role | Can |
+|---|---|
+| Member | see birthdays, upload the Member List |
+| Leader | also Elders Quorum and Relief Society ministering |
+| Ward admin | also manage the ward's accounts and calendar link |
+| Admin | everything, in every ward; add wards |
 
 The first admin (or a lost-access recovery) is created from the server:
 
 ```bash
-docker compose exec portal python -m app.cli create-user <name> [--admin | --leader]
+docker compose exec portal python -m app.cli create-user <name> [--admin | --ward-admin | --leader] [--ward ID]
 docker compose exec portal python -m app.cli set-password <name>
 docker compose exec portal python -m app.cli list-users
 ```

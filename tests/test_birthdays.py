@@ -47,7 +47,7 @@ def test_display_name():
 def _mem_db():
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
-    conn.executescript(db.SCHEMA)
+    conn.executescript(db.WARD_SCHEMA)
     return conn
 
 

@@ -1,6 +1,4 @@
-import hmac
 import json
-import secrets
 from datetime import date, timedelta
 from contextlib import asynccontextmanager
 
@@ -9,7 +7,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import admin, auth, config, db, ministering, ministering_routes
+from . import admin, auth, config, db, ministering, ministering_routes, wards
 from .reports import birthdays, detect, directory
 from .reports import ministering as ministering_report
 from .web import BASE, absolute_url, flash, render
@@ -18,9 +16,6 @@ from .web import BASE, absolute_url, flash, render
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     db.init()
-    with db.connect() as conn:
-        if not db.get_setting(conn, "feed_token"):
-            db.set_setting(conn, "feed_token", secrets.token_urlsafe(32))
     yield
 
 
@@ -76,12 +71,14 @@ def logout(request: Request):
 @app.get("/", response_class=HTMLResponse)
 def dashboard(request: Request, user: dict = Depends(auth.require_user)):
     with db.connect() as conn:
+        users_count = conn.execute("SELECT COUNT(*) FROM users WHERE ward_id = ?",
+                                   (user["ward"]["id"],)).fetchone()[0]
+    with db.ward_connect(user["ward"]["id"]) as conn:
         soon = birthdays.upcoming(conn, days=7)
         bday_count = conn.execute("SELECT COUNT(*) FROM birthdays").fetchone()[0]
         flagged = conn.execute(
             "SELECT COUNT(*) FROM birthdays WHERE missing_since IS NOT NULL AND kept = 0").fetchone()[0]
         people = conn.execute("SELECT COUNT(*) FROM people WHERE active = 1").fetchone()[0]
-        users_count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
         last_dir = conn.execute(
             "SELECT *, julianday('now') - julianday(uploaded_at) AS age FROM uploads "
             "WHERE report = 'directory' ORDER BY id DESC LIMIT 1").fetchone()
@@ -118,8 +115,8 @@ def birthday_page(request: Request, month: str = "", user: dict = Depends(auth.r
         first = date(today.year, today.month, 1)
     prev = (first - timedelta(days=1)).replace(day=1)
     nxt = (first + timedelta(days=32)).replace(day=1)
-    with db.connect() as conn:
-        token = db.get_setting(conn, "feed_token")
+    token = user["ward"]["feed_token"]
+    with db.ward_connect(user["ward"]["id"]) as conn:
         weeks = birthdays.month_grid(conn, first.year, first.month)
         soon = birthdays.upcoming(conn, days=30)
         count = conn.execute("SELECT COUNT(*) FROM birthdays").fetchone()[0]
@@ -166,7 +163,7 @@ async def upload(request: Request, file: UploadFile, org: str = Form(""),
     if kind == "ministering":
         return _import_ministering(request, user, parsed, org or None)
 
-    with db.connect() as conn:
+    with db.ward_connect(user["ward"]["id"]) as conn:
         roster = None
         if kind == "directory":
             roster = ministering.sync_people(conn, parsed)
@@ -190,7 +187,7 @@ def _import_ministering(request: Request, user: dict, districts, hint: str | Non
 
     `hint` is the page it was uploaded from; it only decides when the ministers don't.
     """
-    with db.connect() as conn:
+    with db.ward_connect(user["ward"]["id"]) as conn:
         if not conn.execute("SELECT 1 FROM people LIMIT 1").fetchone():
             flash(request, "error", "Upload the Member List (directory) first, so names can be matched.")
             return RedirectResponse(f"/ministering/{hint}" if hint else "/ministering", status_code=303)
@@ -203,7 +200,8 @@ def _import_ministering(request: Request, user: dict, districts, hint: str | Non
         layout_id = ministering.finish_import(conn, payload, {}, user["username"], org)
         conn.execute("INSERT INTO uploads (report, uploaded_by, summary) VALUES ('ministering', ?, ?)",
                      (user["username"], json.dumps({"layout_id": layout_id, "org": org})))
-    note = f" (uploaded from the {ministering.ORGS[hint]} page, but the ministers are "            f"{'brothers' if org == 'eq' else 'sisters'})" if hint and hint != org else ""
+    note = (f" (uploaded from the {ministering.ORGS[hint]} page, but the ministers are "
+            f"{'brothers' if org == 'eq' else 'sisters'})") if hint and hint != org else ""
     flash(request, "ok", f"Imported the current {ministering.ORGS[org]} assignments{note}.")
     return RedirectResponse(f"/ministering/layouts/{layout_id}", status_code=303)
 
@@ -213,23 +211,23 @@ def resolve_missing(birthday_id: int, request: Request, action: str = Form(...),
                     user: dict = Depends(auth.require_user)):
     if action not in ("remove", "keep"):
         return RedirectResponse("/", status_code=303)
-    with db.connect() as conn:
+    with db.ward_connect(user["ward"]["id"]) as conn:
         birthdays.resolve_missing(conn, birthday_id, action)
     return RedirectResponse("/birthdays#flagged", status_code=303)
 
 
 @app.post("/birthdays/remove-missing")
 def remove_all_missing(request: Request, user: dict = Depends(auth.require_user)):
-    with db.connect() as conn:
+    with db.ward_connect(user["ward"]["id"]) as conn:
         n = conn.execute("DELETE FROM birthdays WHERE missing_since IS NOT NULL AND kept = 0").rowcount
     flash(request, "ok", f"Removed {n} birthday(s) from the calendar.")
     return RedirectResponse("/birthdays", status_code=303)
 
 
 @app.post("/feed/regenerate")
-def regenerate_feed(request: Request, user: dict = Depends(auth.require_admin)):
+def regenerate_feed(request: Request, user: dict = Depends(auth.require_manager)):
     with db.connect() as conn:
-        db.set_setting(conn, "feed_token", secrets.token_urlsafe(32))
+        wards.new_feed_token(conn, user["ward"]["id"])
     flash(request, "ok", "New calendar link created. Everyone needs to subscribe again with the new link.")
     return RedirectResponse("/birthdays#subscribe", status_code=303)
 
@@ -239,11 +237,12 @@ def regenerate_feed(request: Request, user: dict = Depends(auth.require_admin)):
 @app.get("/feed/{token}/birthdays.ics")
 def birthday_feed(token: str):
     with db.connect() as conn:
-        expected = db.get_setting(conn, "feed_token") or ""
-        if not hmac.compare_digest(token, expected):
-            return Response(status_code=404)
+        ward = wards.by_feed_token(conn, token)
+    if ward is None:
+        return Response(status_code=404)
+    with db.ward_connect(ward["id"]) as conn:
         rows = birthdays.load(conn)
-    body = birthdays.build_ics(rows, f"{config.WARD_NAME} Birthdays")
+    body = birthdays.build_ics(rows, f"{ward['name']} Birthdays")
     return Response(body, media_type="text/calendar; charset=utf-8",
                     headers={"Cache-Control": "no-cache", "X-Robots-Tag": "noindex"})
 

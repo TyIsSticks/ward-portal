@@ -21,7 +21,21 @@
   <header class="band{% if hero %} hero{% endif %}{% if compact %} compact{% endif %}">
     <div class="band-inner">
       <div class="brand-row">
-        <a class="brand" href="/"><span class="mark">{{ ward_initials }}</span>{% if not compact %}<span>{{ ward_name }}</span>{% endif %}</a>
+        <a class="brand" href="/"><span class="mark">{{ ward_initials }}</span>{% if not compact and not all_wards %}<span>{{ ward_name }}</span>{% endif %}</a>
+        {% if all_wards and not compact %}
+        <details class="menu ward-switch">
+          <summary aria-label="Switch ward">{{ ward_name }} <span aria-hidden="true">▾</span></summary>
+          <div class="menu-pop left">
+            <div class="who small muted">Working in</div>
+            {% for w in all_wards %}
+            <form method="post" action="/admin/wards/{{ w.id }}/switch">
+              <button type="submit"{% if w.id == user.ward.id %} aria-current="true"{% endif %}>{{ "✓ " if w.id == user.ward.id }}{{ w.name }}</button>
+            </form>
+            {% endfor %}
+            <a href="/admin/wards">Manage wards…</a>
+          </div>
+        </details>
+        {% endif %}
         {% if compact and user %}{{ self.tabs() }}{% endif %}
         <span class="spacer"></span>
         {% if user %}
@@ -29,7 +43,7 @@
         <details class="menu">
           <summary aria-label="Account menu">{{ user.username[:2]|upper }}</summary>
           <div class="menu-pop">
-            <div class="who"><strong>{{ user.username }}</strong><br><span class="muted small">{{ user.role|capitalize }}</span></div>
+            <div class="who"><strong>{{ user.username }}</strong><br><span class="muted small">{{ user.role_label }}{% if not user.is_admin %} · {{ user.ward.name }}{% endif %}</span></div>
             <div class="theme-pick" role="group" aria-label="Theme">
               <span class="small muted">Theme</span>
               <div class="seg">
@@ -37,7 +51,8 @@
               </div>
             </div>
             <a href="/account">Account &amp; password</a>
-            {% if user.is_admin %}<a href="/admin/users">Users</a>{% endif %}
+            {% if user.manages %}<a href="/admin/users">Users</a>{% endif %}
+            {% if user.is_admin %}<a href="/admin/wards">Wards</a>{% endif %}
             <form method="post" action="/logout"><button type="submit">Sign out</button></form>
           </div>
         </details>
@@ -52,7 +67,7 @@
         <a class="tab{% if active == 'rs' %} on{% endif %}" href="/ministering/rs"{% if active == 'rs' %} aria-current="page"{% endif %}>{{ icon("group") }}Relief Society</a>
         <a class="tab{% if active == 'people' %} on{% endif %}" href="/ministering/people"{% if active == 'people' %} aria-current="page"{% endif %}>{{ icon("list") }}People</a>
         {% endif %}
-        {% if user.is_admin %}
+        {% if user.manages %}
         <a class="tab{% if active == 'users' %} on{% endif %}" href="/admin/users"{% if active == 'users' %} aria-current="page"{% endif %}>{{ icon("user") }}Users</a>
         {% endif %}
       </nav>

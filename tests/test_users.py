@@ -152,12 +152,21 @@ def test_migrates_database_from_first_version(tmp_path, monkeypatch):
     """)
     old.execute("INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, 1)",
                 ("ty", auth.hash_password(PW)))
+    old.execute("CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+    old.execute("INSERT INTO settings VALUES ('feed_token', 'old-calendar-token')")
     old.commit()
     old.close()
 
     db.init()
     with db.connect() as conn:
-        assert conn.execute("SELECT session_version FROM users").fetchone()[0] == 0
-        assert conn.execute("SELECT COUNT(*) FROM birthdays").fetchone()[0] == 1
+        assert conn.execute("SELECT session_version, ward_id FROM users").fetchone()[:] == (0, 1)
+        assert conn.execute("SELECT feed_token FROM wards WHERE id = 1").fetchone()[0] == "old-calendar-token"
+        assert not conn.execute("SELECT 1 FROM sqlite_master WHERE name = 'birthdays'").fetchone()
         assert conn.execute("SELECT COUNT(*) FROM invites").fetchone()[0] == 0
+    with db.ward_connect(1) as conn:
+        assert conn.execute("SELECT name FROM birthdays").fetchone()[0] == "Doe, Jane"
+    assert list(tmp_path.glob("portal.pre-wards-*.db.bak")), "backup made before migrating"
     assert auth.authenticate("ty", PW)
+    db.init()  # running again is a no-op
+    with db.ward_connect(1) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM birthdays").fetchone()[0] == 1

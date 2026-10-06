@@ -48,7 +48,7 @@
     <div class="stats">
       <div class="stat"><b>{{ people or bday_count }}</b><span>{{ "people" if people else "birthdays" }}</span></div>
       <div class="stat"><b>{{ "+" if moved_in }}{{ moved_in }}</b><span>moved in</span></div>
-      {% if user.is_admin %}<div class="stat"><b>{{ users_count }}</b><span>users</span></div>
+      {% if user.manages %}<div class="stat"><b>{{ users_count }}</b><span>users</span></div>
       {% else %}<div class="stat"><b>{{ soon|length }}</b><span>this week</span></div>{% endif %}
     </div>
   </section>

@@ -122,7 +122,7 @@
         <input id="feed" value="{{ feed_url }}" readonly onclick="this.select()">
         <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('feed').value); this.textContent='Copied'">Copy</button>
       </div>
-      {% if user.is_admin %}
+      {% if user.manages %}
       <form method="post" action="/feed/regenerate" onsubmit="return confirm('The old link stops working for everyone. Continue?')">
         <button class="link small">Make a new link (if it leaked)</button>
       </form>

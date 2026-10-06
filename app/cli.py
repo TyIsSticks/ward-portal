@@ -1,15 +1,17 @@
-"""User management from the command line.
+"""Accounts and wards from the command line.
 
-    python -m app.cli create-user <username> [--admin | --leader]
+    python -m app.cli create-user <username> [--admin | --ward-admin | --leader] [--ward ID]
     python -m app.cli set-password <username>
     python -m app.cli list-users
+    python -m app.cli create-ward "<name>"
+    python -m app.cli list-wards
 """
 import argparse
 import getpass
 import sqlite3
 import sys
 
-from . import auth, db
+from . import auth, db, wards
 
 
 def _prompt_password() -> str:
@@ -25,11 +27,17 @@ def main() -> int:
     sub = parser.add_subparsers(dest="cmd", required=True)
     create = sub.add_parser("create-user")
     create.add_argument("username")
-    create.add_argument("--admin", action="store_true")
-    create.add_argument("--leader", action="store_true")
+    roles = create.add_mutually_exclusive_group()
+    roles.add_argument("--admin", action="store_true", help="admin of every ward")
+    roles.add_argument("--ward-admin", action="store_true", help="manages accounts in their ward")
+    roles.add_argument("--leader", action="store_true")
+    create.add_argument("--ward", type=int, help="ward id (see list-wards); defaults to the first ward")
     setpw = sub.add_parser("set-password")
     setpw.add_argument("username")
     sub.add_parser("list-users")
+    cw = sub.add_parser("create-ward")
+    cw.add_argument("name")
+    sub.add_parser("list-wards")
     args = parser.parse_args()
 
     db.init()
@@ -40,13 +48,19 @@ def main() -> int:
         except ValueError as exc:
             print(exc)
             return 1
+        if args.ward:
+            with db.connect() as conn:
+                if not wards.get(conn, args.ward):
+                    print(f"No ward with id {args.ward}. See: python -m app.cli list-wards")
+                    return 1
+        role = ("admin" if args.admin else "ward_admin" if args.ward_admin
+                else "leader" if args.leader else "member")
         try:
-            role = "admin" if args.admin else "leader" if args.leader else "member"
-            auth.create_user(args.username, _prompt_password(), role=role)
+            auth.create_user(args.username, _prompt_password(), role=role, ward_id=args.ward)
         except sqlite3.IntegrityError:
             print(f"User '{args.username}' already exists.")
             return 1
-        print(f"Created {role} '{args.username}'.")
+        print(f"Created {auth.ROLE_LABELS[role].lower()} '{args.username}'.")
     elif args.cmd == "set-password":
         if not auth.set_password(args.username, _prompt_password()):
             print(f"No user '{args.username}'.")
@@ -54,8 +68,18 @@ def main() -> int:
         print("Password updated.")
     elif args.cmd == "list-users":
         with db.connect() as conn:
-            for row in conn.execute("SELECT username, is_admin, is_leader, created_at FROM users ORDER BY username"):
-                print(f"{row['username']:<20} {auth.role_of(row):<7} {row['created_at']}")
+            for row in conn.execute(
+                    "SELECT u.*, w.name AS ward FROM users u LEFT JOIN wards w ON w.id = u.ward_id "
+                    "ORDER BY w.name, u.username"):
+                print(f"{row['username']:<20} {auth.role_of(row):<11} {row['ward'] or '-':<30} {row['created_at']}")
+    elif args.cmd == "create-ward":
+        with db.connect() as conn:
+            ward_id = wards.create(conn, args.name)
+        print(f"Created ward {ward_id}: {args.name}")
+    elif args.cmd == "list-wards":
+        with db.connect() as conn:
+            for w in wards.list_wards(conn):
+                print(f"{w['id']:>3}  {w['name']:<40} {w['users']} users")
     return 0
 
 

@@ -72,7 +72,7 @@ def landing(user: dict = leader):
 def delete_layout(layout_id: int, request: Request, user: dict = leader):
     org = "eq"
     try:
-        with db.connect() as conn:
+        with db.ward_connect(user["ward"]["id"]) as conn:
             org = _layout_or_404(conn, layout_id)["org"]
             m.delete_layout(conn, layout_id)
         flash(request, "ok", "Layout deleted.")
@@ -83,7 +83,7 @@ def delete_layout(layout_id: int, request: Request, user: dict = leader):
 
 @router.get("/ministering/layouts/{layout_id}", response_class=HTMLResponse)
 def board(layout_id: int, request: Request, user: dict = leader):
-    with db.connect() as conn:
+    with db.ward_connect(user["ward"]["id"]) as conn:
         layout = _layout_or_404(conn, layout_id)
         state = board_state(conn, layout)
     return render(request, "ministering/board.html", user=user, layout=layout, state=state,
@@ -92,7 +92,7 @@ def board(layout_id: int, request: Request, user: dict = leader):
 
 @router.get("/ministering/layouts/{layout_id}/changes", response_class=HTMLResponse)
 def changes(layout_id: int, request: Request, user: dict = leader):
-    with db.connect() as conn:
+    with db.ward_connect(user["ward"]["id"]) as conn:
         layout = _layout_or_404(conn, layout_id)
         org_name = m.ORGS[layout["org"]]
         current = m.current_import(conn, layout["org"])
@@ -110,7 +110,7 @@ def changes(layout_id: int, request: Request, user: dict = leader):
 
 @router.get("/ministering/people", response_class=HTMLResponse)
 def people_page(request: Request, user: dict = leader):
-    with db.connect() as conn:
+    with db.ward_connect(user["ward"]["id"]) as conn:
         all_ids = {r[0] for r in conn.execute("SELECT id FROM people")}
         people = m.people(conn, all_ids)
         roles: dict[int, set] = {}   # pid -> {"eq:minister", "rs:assigned", ...}
@@ -132,7 +132,7 @@ def people_page(request: Request, user: dict = leader):
 
 @router.get("/ministering/import/{pending_id}", response_class=HTMLResponse)
 def import_review(pending_id: int, request: Request, user: dict = leader):
-    with db.connect() as conn:
+    with db.ward_connect(user["ward"]["id"]) as conn:
         payload = m.load_pending(conn, pending_id)
         everyone = m.people(conn)
     if payload is None:
@@ -150,7 +150,7 @@ async def import_confirm(pending_id: int, request: Request, user: dict = leader)
     if org not in m.ORGS:
         flash(request, "error", "Pick whether this is the Elders Quorum or Relief Society report.")
         return RedirectResponse(f"/ministering/import/{pending_id}", status_code=303)
-    with db.connect() as conn:
+    with db.ward_connect(user["ward"]["id"]) as conn:
         payload = m.load_pending(conn, pending_id)
         if payload is None:
             flash(request, "error", "That import has expired. Upload the report again.")
@@ -173,7 +173,7 @@ async def import_confirm(pending_id: int, request: Request, user: dict = leader)
 @router.get("/ministering/{org}", response_class=HTMLResponse)
 def org_index(org: str, request: Request, user: dict = leader):
     _org_or_404(org)
-    with db.connect() as conn:
+    with db.ward_connect(user["ward"]["id"]) as conn:
         layouts = m.list_layouts(conn, org)
         summary = m.org_summary(conn, org)
     return render(request, "ministering/index.html", user=user, layouts=layouts, current=summary["current"],
@@ -185,7 +185,7 @@ def create_layout(org: str, request: Request, name: str = Form(""), start: str =
                   copy_from: int | None = Form(None), user: dict = leader):
     _org_or_404(org)
     try:
-        with db.connect() as conn:
+        with db.ward_connect(user["ward"]["id"]) as conn:
             layout_id = m.create_layout(conn, org, name, start, user["username"], copy_from)
     except m.LayoutError as exc:
         flash(request, "error", str(exc))
@@ -197,7 +197,7 @@ def create_layout(org: str, request: Request, name: str = Form(""), start: str =
 
 @router.get("/api/ministering/layouts/{layout_id}")
 def api_state(layout_id: int, user: dict = leader):
-    with db.connect() as conn:
+    with db.ward_connect(user["ward"]["id"]) as conn:
         return board_state(conn, _layout_or_404(conn, layout_id))
 
 
@@ -205,7 +205,7 @@ def api_state(layout_id: int, user: dict = leader):
 async def api_save(layout_id: int, request: Request, user: dict = leader):
     body = await _json(request)
     try:
-        with db.connect() as conn:
+        with db.ward_connect(user["ward"]["id"]) as conn:
             version = m.save_structure(conn, layout_id, body.get("districts"), int(body.get("version", 0)))
     except m.VersionConflict:
         return JSONResponse({"error": "conflict"}, status_code=409)
@@ -218,7 +218,7 @@ async def api_save(layout_id: int, request: Request, user: dict = leader):
 async def api_meta(layout_id: int, request: Request, user: dict = leader):
     body = await _json(request)
     try:
-        with db.connect() as conn:
+        with db.ward_connect(user["ward"]["id"]) as conn:
             m.update_meta(conn, layout_id, name=body.get("name"), status=body.get("status"))
             layout = _layout_or_404(conn, layout_id)
     except m.LayoutError as exc:
@@ -233,7 +233,7 @@ async def api_tags(person_id: int, request: Request, user: dict = leader):
     if not isinstance(tags, list):
         return JSONResponse({"error": "tags must be a list"}, status_code=400)
     try:
-        with db.connect() as conn:
+        with db.ward_connect(user["ward"]["id"]) as conn:
             return {"tags": m.set_tags(conn, person_id, [str(t) for t in tags])}
     except m.LayoutError as exc:
         return JSONResponse({"error": str(exc)}, status_code=404)

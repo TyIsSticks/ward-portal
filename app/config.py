@@ -5,7 +5,10 @@ from pathlib import Path
 DATA_DIR = Path(os.environ.get("DATA_DIR", Path(__file__).resolve().parent.parent / "data"))
 DB_PATH = DATA_DIR / "portal.db"
 
+# Name for the first ward (existing installs keep theirs). More wards are added in the app.
 WARD_NAME = os.environ.get("WARD_NAME", "My Ward")
+# Shown before anyone signs in, when there's no ward yet.
+SITE_NAME = os.environ.get("SITE_NAME", "Ward Portal")
 COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "false").lower() == "true"
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024

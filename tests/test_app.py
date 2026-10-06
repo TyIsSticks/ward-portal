@@ -1,7 +1,8 @@
 def _feed_path(client):
     from app import db
     with db.connect() as conn:
-        return f"/feed/{db.get_setting(conn, 'feed_token')}/birthdays.ics"
+        token = conn.execute("SELECT feed_token FROM wards WHERE id = 1").fetchone()[0]
+    return f"/feed/{token}/birthdays.ics"
 
 
 def test_pages_require_login(client):
@@ -33,7 +34,7 @@ def test_upload_rejects_non_pdf(client):
 def test_flagged_birthdays_on_dashboard(client):
     from app import db
     from app.reports.birthdays import Birthday, sync
-    with db.connect() as conn:
+    with db.ward_connect(1) as conn:
         sync(conn, [Birthday(1, 1, "Gone, Gary"), Birthday(2, 2, "Here, Hal")])
         sync(conn, [Birthday(2, 2, "Here, Hal")])
         gary = conn.execute("SELECT id FROM birthdays WHERE name = 'Gone, Gary'").fetchone()[0]
@@ -50,7 +51,7 @@ def test_flagged_birthdays_on_dashboard(client):
 def test_birthday_page_month_calendar(client):
     from app import db
     from app.reports.birthdays import Birthday, sync
-    with db.connect() as conn:
+    with db.ward_connect(1) as conn:
         sync(conn, [Birthday(2, 29, "Leap, Lou"), Birthday(3, 1, "March, May")])
     client.post("/login", data={"username": "admin", "password": "correct horse battery"})
     page = client.get("/birthdays?month=2027-02").text   # not a leap year: Feb 29 shows on the 28th
