@@ -59,3 +59,20 @@ def test_birthday_page_month_calendar(client):
     assert "Lou Leap" in client.get("/birthdays?month=2028-02").text
     assert client.get("/birthdays?month=nonsense").status_code == 200
     assert "Upload an LCR report" in client.get("/upload").text
+
+
+def test_todays_birthdays_on_dashboard_todo(client):
+    from datetime import date, timedelta
+    from app import db
+    from app.reports.birthdays import Birthday, sync
+    today, tomorrow = date.today(), date.today() + timedelta(days=1)
+    with db.ward_connect(1) as conn:
+        sync(conn, [Birthday(today.month, today.day, "Today, Tia"), Birthday(today.month, today.day, "Aged, Abe"),
+                    Birthday(tomorrow.month, tomorrow.day, "Later, Lin")])
+        conn.execute("INSERT INTO people (name, gender, birth_year, birth_month, birth_day) VALUES (?, 'M', ?, ?, ?)",
+                     ("Aged, Abe", today.year - 40, today.month, today.day))
+    client.post("/login", data={"username": "admin", "password": "correct horse battery"})
+    page = client.get("/").text
+    assert "Tell Tia Today happy birthday!" in page
+    assert "Tell Abe Aged happy birthday! They turn 40." in page
+    assert "Tell Lin Later" not in page

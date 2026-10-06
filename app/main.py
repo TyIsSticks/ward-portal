@@ -85,7 +85,8 @@ def dashboard(request: Request, user: dict = Depends(auth.require_user)):
         orgs = [ministering.org_summary(conn, o) for o in ministering.ORGS] if user["leads"] else []
 
     moved_in = len(json.loads(last_dir["summary"]).get("roster", {}).get("moved_in", [])) if last_dir else 0
-    todo = []
+    todo = [{"text": f"Tell {b['name']} happy birthday!" + (f" They turn {b['turns']}." if b["turns"] else ""),
+             "cta": "Birthdays", "href": "/birthdays"} for b in soon if b["days"] == 0]
     if flagged:
         todo.append({"text": f"{flagged} birthday{'s' if flagged > 1 else ''} may have moved out",
                      "cta": "Review", "href": "/birthdays#flagged"})
