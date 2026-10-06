@@ -5,8 +5,8 @@ import pytest
 from icalendar import Calendar
 
 from app import db
-from app.reports.birthdays import (Birthday, ReportError, build_ics, display_name,
-                                   parse_rows, sync)
+from app.reports.birthdays import (Birthday, ReportError, build_ics, display_name, load,
+                                   missing, parse_rows, resolve_missing, sync)
 
 HEADER = ["Birthday", "Name", "Age", "Phone Number", "Street Address"]
 
@@ -44,15 +44,38 @@ def test_display_name():
     assert display_name("Cher") == "Cher"
 
 
-def test_sync_adds_and_removes():
+def _mem_db():
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
     conn.executescript(db.SCHEMA)
+    return conn
+
+
+def test_sync_adds_and_flags_but_never_deletes():
+    conn = _mem_db()
     a, b, c = Birthday(1, 1, "A, A"), Birthday(2, 2, "B, B"), Birthday(3, 3, "C, C")
 
     assert sync(conn, [a, b]) == ([a, b], [])
-    assert sync(conn, [b, c]) == ([c], [a])
-    assert sync(conn, [b, c]) == ([], [])
+    assert sync(conn, [b, c]) == ([c], [a])        # a is flagged, not removed
+    assert load(conn) == [a, b, c]
+    assert missing(conn) == [a]
+    assert sync(conn, [b, c]) == ([], [])          # already flagged: not reported again
+    assert sync(conn, [a, b, c]) == ([], [])       # a is back: flag clears
+    assert missing(conn) == []
+
+
+def test_resolve_missing_keep_and_remove():
+    conn = _mem_db()
+    a, b, c = Birthday(1, 1, "A, A"), Birthday(2, 2, "B, B"), Birthday(3, 3, "C, C")
+    sync(conn, [a, b, c])
+    sync(conn, [c])
+    ids = {r["name"]: r["id"] for r in conn.execute("SELECT id, name FROM birthdays")}
+    resolve_missing(conn, ids["A, A"], "keep")
+    resolve_missing(conn, ids["B, B"], "remove")
+    resolve_missing(conn, ids["C, C"], "remove")   # not flagged, so nothing happens
+    assert load(conn) == [a, c] and missing(conn) == []
+    sync(conn, [c])
+    assert missing(conn) == []                      # kept people aren't re-flagged
 
 
 def test_ics_is_yearly_and_stable():

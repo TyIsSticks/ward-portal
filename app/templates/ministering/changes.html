@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Changes for LCR · {{ layout.name }}{% endblock %}
+{% macro names(ids) -%}
+  {%- set list = [] -%}
+  {%- for pid in ids -%}{%- set _ = list.append(people[pid].display if pid in people else "Unknown") -%}{%- endfor -%}
+  {{- list|sort|join(", ") -}}
+{%- endmacro %}
+{% macro moved_from(pid) -%}
+  {%- set src = diff.was_assigned_to.get(pid) -%}
+  {%- if src %} <span class="muted">(from {{ names(src.ministers) or "a group with no ministers" }})</span>{% endif -%}
+{%- endmacro %}
+{% block content %}
+<div class="no-print row spread">
+  <a href="/ministering/layouts/{{ layout.id }}">← Back to board</a>
+  <button type="button" onclick="window.print()">Print</button>
+</div>
+<h1>Changes for LCR</h1>
+<p class="muted">From <strong>{{ current.name }}</strong> (what’s in LCR now) to <strong>{{ layout.name }}</strong>
+  {% if layout.kind == "draft" %}<span class="badge {{ layout.status }}">{{ layout.status|capitalize }}</span>{% endif %}.
+  Check items off as you enter them in LCR (<em>Ministering → Companionships</em>).</p>
+
+{% set total = diff.removed|length + diff.changed|length + diff.created|length + diff.new_districts|length %}
+{% if total == 0 %}
+<section class="card"><p>No changes: this layout matches the current assignments.</p></section>
+{% endif %}
+
+<div id="checklist" data-layout="{{ layout.id }}">
+{% if diff.new_districts %}
+<section class="card">
+  <h2>1. New districts</h2>
+  <ul class="checks">
+  {% for d in diff.new_districts %}
+    <li><label><input type="checkbox"> Create district <strong>{{ d.name }}</strong>{% if d.supervisor %}, supervised by {{ d.supervisor }}{% endif %}</label></li>
+  {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if diff.removed %}
+<section class="card">
+  <h2>{{ 2 if diff.new_districts else 1 }}. Remove companionships</h2>
+  <ul class="checks">
+  {% for c in diff.removed %}
+    <li><label><input type="checkbox"> Remove the companionship of <strong>{{ names(c.ministers) or "(no ministers)" }}</strong>
+      <span class="muted">· {{ c.district }}</span></label></li>
+  {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if diff.changed %}
+<section class="card">
+  <h2>Update companionships</h2>
+  {% for c in diff.changed %}
+  <div class="change">
+    <h3>{{ names(c.ministers) or "(no ministers)" }} <span class="muted small">· {{ c.district }}</span></h3>
+    <ul class="checks">
+      {% if c.new_district %}<li><label><input type="checkbox"> Move to district <strong>{{ c.new_district }}</strong></label></li>{% endif %}
+      {% for p in c.remove_ministers %}<li><label><input type="checkbox"> Remove companion <strong>{{ names([p]) }}</strong></label></li>{% endfor %}
+      {% for p in c.add_ministers %}<li><label><input type="checkbox"> Add companion <strong>{{ names([p]) }}</strong></label></li>{% endfor %}
+      {% for p in c.remove_assigned %}<li><label><input type="checkbox"> Unassign <strong>{{ names([p]) }}</strong></label></li>{% endfor %}
+      {% for p in c.add_assigned %}<li><label><input type="checkbox"> Assign <strong>{{ names([p]) }}</strong>{{ moved_from(p) }}</label></li>{% endfor %}
+    </ul>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if diff.created %}
+<section class="card">
+  <h2>New companionships</h2>
+  {% for c in diff.created %}
+  <div class="change">
+    <h3>{{ names(c.ministers) or "(no ministers yet)" }} <span class="muted small">· {{ c.district }}</span></h3>
+    <ul class="checks">
+      <li><label><input type="checkbox"> Create companionship: <strong>{{ names(c.ministers) or "—" }}</strong></label></li>
+      {% for p in c.assigned %}<li><label><input type="checkbox"> Assign <strong>{{ names([p]) }}</strong>{{ moved_from(p) }}</label></li>{% endfor %}
+    </ul>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+</div>
+<p class="muted small no-print">Check marks are saved in this browser only.</p>
+<script>
+(() => {
+  const box = document.getElementById("checklist");
+  const key = "lcr-checks-" + box.dataset.layout;
+  const inputs = [...box.querySelectorAll("input[type=checkbox]")];
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem(key) || "[]"); } catch {}
+  inputs.forEach((el, i) => { el.checked = saved.includes(i); });
+  box.addEventListener("change", () => {
+    try { localStorage.setItem(key, JSON.stringify(inputs.flatMap((el, i) => el.checked ? [i] : []))); } catch {}
+  });
+})();
+</script>
+{% endblock %}

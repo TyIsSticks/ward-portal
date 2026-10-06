@@ -12,6 +12,10 @@ def _back() -> RedirectResponse:
     return RedirectResponse("/admin/users", status_code=303)
 
 
+def _role(role: str) -> str:
+    return role if role in auth.ROLES else "member"
+
+
 def _not_self(user: dict, user_id: int, request: Request) -> bool:
     if user["id"] == user_id:
         flash(request, "error", "You can't do that to your own account.")
@@ -28,14 +32,14 @@ def users_page(request: Request, user: dict = Depends(auth.require_admin)):
         invites = users.pending_invites(conn)
     new_link = request.session.pop("new_link", None)
     return render(request, "users.html", user=user, people=people, invites=invites,
-                  new_link=new_link, ttl_days=users.LINK_TTL_DAYS)
+                  new_link=new_link, ttl_days=users.LINK_TTL_DAYS, roles=auth.ROLES)
 
 
 @router.post("/admin/invites")
 def create_invite(request: Request, note: str = Form(""), role: str = Form("member"),
                   user: dict = Depends(auth.require_admin)):
     with db.connect() as conn:
-        token = users.create_invite(conn, user["username"], is_admin=role == "admin", note=note)
+        token = users.create_invite(conn, user["username"], role=_role(role), note=note)
     request.session["new_link"] = {
         "kind": "invite", "for": note.strip() or "a new user",
         "url": absolute_url(request, f"/invite/{token}")}
@@ -68,7 +72,7 @@ def set_role(user_id: int, request: Request, role: str = Form(...),
              user: dict = Depends(auth.require_admin)):
     if _not_self(user, user_id, request):
         with db.connect() as conn:
-            users.set_admin(conn, user_id, role == "admin")
+            users.set_role(conn, user_id, _role(role))
         flash(request, "ok", "Role updated.")
     return _back()
 

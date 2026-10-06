@@ -18,12 +18,13 @@ def _hash(token: str) -> str:
 
 def list_users(conn: sqlite3.Connection) -> list[dict]:
     rows = conn.execute(
-        "SELECT id, username, is_admin, created_at FROM users ORDER BY username COLLATE NOCASE")
-    return [dict(r) for r in rows]
+        "SELECT id, username, is_admin, is_leader, created_at FROM users ORDER BY username COLLATE NOCASE")
+    return [dict(r) | {"role": auth.role_of(r)} for r in rows]
 
 
-def set_admin(conn: sqlite3.Connection, user_id: int, is_admin: bool) -> None:
-    conn.execute("UPDATE users SET is_admin = ? WHERE id = ?", (int(is_admin), user_id))
+def set_role(conn: sqlite3.Connection, user_id: int, role: str) -> None:
+    is_admin, is_leader = auth.role_flags(role)
+    conn.execute("UPDATE users SET is_admin = ?, is_leader = ? WHERE id = ?", (is_admin, is_leader, user_id))
 
 
 def delete_user(conn: sqlite3.Connection, user_id: int) -> None:
@@ -32,21 +33,22 @@ def delete_user(conn: sqlite3.Connection, user_id: int) -> None:
 
 # --- Links ------------------------------------------------------------------
 
-def _create_link(conn, kind: str, created_by: str, *, user_id=None, is_admin=False, note="") -> str:
+def _create_link(conn, kind: str, created_by: str, *, user_id=None, role="member", note="") -> str:
+    is_admin, is_leader = auth.role_flags(role)
     token = secrets.token_urlsafe(24)
     if kind == "reset":
         # Only the newest reset link for a user should work.
         conn.execute("DELETE FROM invites WHERE kind = 'reset' AND user_id = ? AND used_at IS NULL", (user_id,))
     conn.execute(
-        "INSERT INTO invites (token_hash, kind, user_id, is_admin, note, created_by, expires_at) "
-        f"VALUES (?, ?, ?, ?, ?, ?, datetime('now', '+{LINK_TTL_DAYS} days'))",
-        (_hash(token), kind, user_id, int(is_admin), note.strip()[:100], created_by),
+        "INSERT INTO invites (token_hash, kind, user_id, is_admin, is_leader, note, created_by, expires_at) "
+        f"VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now', '+{LINK_TTL_DAYS} days'))",
+        (_hash(token), kind, user_id, is_admin, is_leader, note.strip()[:100], created_by),
     )
     return token
 
 
-def create_invite(conn, created_by: str, is_admin: bool = False, note: str = "") -> str:
-    return _create_link(conn, "invite", created_by, is_admin=is_admin, note=note)
+def create_invite(conn, created_by: str, role: str = "member", note: str = "") -> str:
+    return _create_link(conn, "invite", created_by, role=role, note=note)
 
 
 def create_reset(conn, created_by: str, user_id: int) -> str:
@@ -55,9 +57,9 @@ def create_reset(conn, created_by: str, user_id: int) -> str:
 
 def pending_invites(conn) -> list[dict]:
     rows = conn.execute(
-        "SELECT id, is_admin, note, created_by, created_at, expires_at FROM invites "
+        "SELECT id, is_admin, is_leader, note, created_by, created_at, expires_at FROM invites "
         "WHERE kind = 'invite' AND used_at IS NULL AND expires_at > datetime('now') ORDER BY id DESC")
-    return [dict(r) for r in rows]
+    return [dict(r) | {"role": auth.role_of(r)} for r in rows]
 
 
 def revoke(conn, invite_id: int) -> None:
@@ -89,7 +91,7 @@ def redeem(conn, token: str, password: str, username: str | None = None) -> int:
     _consume(conn, link["id"])
     if link["kind"] == "invite":
         try:
-            return auth.insert_user(conn, username or "", password, is_admin=bool(link["is_admin"]))
+            return auth.insert_user(conn, username or "", password, role=auth.role_of(link))
         except sqlite3.IntegrityError:
             raise LinkError("That username is taken. Pick another.") from None
     auth.update_password(conn, link["user_id"], password)

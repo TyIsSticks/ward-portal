@@ -20,13 +20,13 @@
   <form method="post" action="/admin/invites" class="row">
     <input name="note" placeholder="Who is it for? (e.g. Sister Smith)" maxlength="100" class="grow">
     <select name="role">
-      <option value="member">Member</option>
-      <option value="admin">Admin</option>
+      {% for r in roles %}<option value="{{ r }}">{{ r|capitalize }}</option>{% endfor %}
     </select>
     <button>Create invite link</button>
   </form>
-  <p class="muted small">Members can upload reports and see the calendar link. Admins can also manage users
-     and regenerate the calendar link.</p>
+  <p class="muted small"><strong>Members</strong> can upload the directory and see the calendar link.
+     <strong>Leaders</strong> can also use Ministering. <strong>Admins</strong> can also manage users and
+     regenerate the calendar link.</p>
 </section>
 
 {% if invites %}
@@ -39,7 +39,7 @@
     {% for i in invites %}
       <tr>
         <td>{{ i.note or "—" }}</td>
-        <td>{{ "Admin" if i.is_admin else "Member" }}</td>
+        <td>{{ i.role|capitalize }}</td>
         <td class="muted">{{ i.created_at[:10] }} by {{ i.created_by }}</td>
         <td class="muted">{{ i.expires_at[:10] }}</td>
         <td class="actions">
@@ -62,15 +62,20 @@
     {% for p in people %}
       <tr>
         <td>{{ p.username }}{% if p.id == user.id %} <span class="muted">(you)</span>{% endif %}</td>
-        <td>{{ "Admin" if p.is_admin else "Member" }}</td>
+        <td>
+          {% if p.id == user.id %}{{ p.role|capitalize }}{% else %}
+          <form method="post" action="/admin/users/{{ p.id }}/role" class="inline">
+            <select name="role" onchange="this.form.submit()" aria-label="Role for {{ p.username }}">
+              {% for r in roles %}<option value="{{ r }}" {% if r == p.role %}selected{% endif %}>{{ r|capitalize }}</option>{% endfor %}
+            </select>
+            <noscript><button class="link">Save</button></noscript>
+          </form>
+          {% endif %}
+        </td>
         <td class="muted">{{ p.created_at[:10] }}</td>
         <td class="actions">
           {% if p.id != user.id %}
           <form method="post" action="/admin/users/{{ p.id }}/reset"><button class="link">Reset password</button></form>
-          <form method="post" action="/admin/users/{{ p.id }}/role">
-            <input type="hidden" name="role" value="{{ 'member' if p.is_admin else 'admin' }}">
-            <button class="link">{{ "Make member" if p.is_admin else "Make admin" }}</button>
-          </form>
           <form method="post" action="/admin/users/{{ p.id }}/delete"
                 onsubmit="return confirm('Remove {{ p.username }}? They will be signed out immediately.')">
             <button class="link danger">Remove</button>

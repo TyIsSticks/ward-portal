@@ -1,6 +1,6 @@
 """User management from the command line.
 
-    python -m app.cli create-user <username> [--admin]
+    python -m app.cli create-user <username> [--admin | --leader]
     python -m app.cli set-password <username>
     python -m app.cli list-users
 """
@@ -26,6 +26,7 @@ def main() -> int:
     create = sub.add_parser("create-user")
     create.add_argument("username")
     create.add_argument("--admin", action="store_true")
+    create.add_argument("--leader", action="store_true")
     setpw = sub.add_parser("set-password")
     setpw.add_argument("username")
     sub.add_parser("list-users")
@@ -40,11 +41,12 @@ def main() -> int:
             print(exc)
             return 1
         try:
-            auth.create_user(args.username, _prompt_password(), is_admin=args.admin)
+            role = "admin" if args.admin else "leader" if args.leader else "member"
+            auth.create_user(args.username, _prompt_password(), role=role)
         except sqlite3.IntegrityError:
             print(f"User '{args.username}' already exists.")
             return 1
-        print(f"Created {'admin ' if args.admin else ''}user '{args.username}'.")
+        print(f"Created {role} '{args.username}'.")
     elif args.cmd == "set-password":
         if not auth.set_password(args.username, _prompt_password()):
             print(f"No user '{args.username}'.")
@@ -52,8 +54,8 @@ def main() -> int:
         print("Password updated.")
     elif args.cmd == "list-users":
         with db.connect() as conn:
-            for row in conn.execute("SELECT username, is_admin, created_at FROM users ORDER BY username"):
-                print(f"{row['username']:<20} {'admin' if row['is_admin'] else 'user':<6} {row['created_at']}")
+            for row in conn.execute("SELECT username, is_admin, is_leader, created_at FROM users ORDER BY username"):
+                print(f"{row['username']:<20} {auth.role_of(row):<7} {row['created_at']}")
     return 0
 
 

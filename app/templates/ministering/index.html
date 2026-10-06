@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Ministering · {{ ward_name }}{% endblock %}
+{% block content %}
+<h1>Ministering</h1>
+
+<section class="card">
+  <h2>Layouts</h2>
+  {% if layouts %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Name</th><th>Status</th><th>Groups</th><th>Updated</th><th></th></tr></thead>
+    <tbody>
+    {% for l in layouts %}
+      <tr>
+        <td><a href="/ministering/layouts/{{ l.id }}">{{ l.name }}</a></td>
+        <td>
+          {% if l.kind == "imported" %}
+            <span class="badge {{ 'current' if l.is_current else '' }}">{{ "Current in LCR" if l.is_current else "Past import" }}</span>
+          {% else %}
+            <span class="badge {{ l.status }}">{{ l.status|capitalize }}</span>
+          {% endif %}
+        </td>
+        <td>{{ l.groups }}</td>
+        <td class="muted">{{ l.updated_at[:10] }} · {{ l.created_by }}</td>
+        <td class="actions">
+          {% if l.kind == "draft" %}
+          <a href="/ministering/layouts/{{ l.id }}/changes">Changes for LCR</a>
+          <form method="post" action="/ministering/layouts/{{ l.id }}/delete" data-name="{{ l.name }}"
+                onsubmit="return confirm('Delete “' + this.dataset.name + '”? This can’t be undone.')">
+            <button class="link danger">Delete</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">No layouts yet. Import the current assignments below, or start from scratch.</p>
+  {% endif %}
+</section>
+
+<div class="cols">
+<section class="card">
+  <h2>New layout</h2>
+  <form method="post" action="/ministering/layouts" class="stack">
+    <label>Name <input name="name" placeholder="e.g. Fall 2026 changes" maxlength="80"></label>
+    <fieldset class="choices">
+      <legend>Start from</legend>
+      <label><input type="radio" name="start" value="current" {% if current %}checked{% else %}disabled{% endif %}>
+        Current assignments{% if not current %} <span class="muted">(import first)</span>{% endif %}</label>
+      <label><input type="radio" name="start" value="scratch" {% if not current %}checked{% endif %}>
+        Scratch: same districts, no groups</label>
+      {% set drafts = layouts|selectattr("kind", "equalto", "draft")|list %}
+      {% if drafts %}
+      <label><input type="radio" name="start" value="copy"> Copy of
+        <select name="copy_from" onfocus="this.form.start.value='copy'">
+          {% for l in drafts %}<option value="{{ l.id }}">{{ l.name }}</option>{% endfor %}
+        </select></label>
+      {% endif %}
+    </fieldset>
+    <button>Create layout</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Data</h2>
+  <p>
+    {% if stats.active %}<strong>{{ stats.active }}</strong> people in the ward roster{% if stats.moved_out %},
+      {{ stats.moved_out }} moved out{% endif %}. <a href="/ministering/people">View people &amp; tags</a>
+    {% else %}<span class="muted">No roster yet. Upload the Member List first.</span>{% endif %}
+  </p>
+  <p class="muted small">
+    {% if current %}Current assignments imported {{ current.created_at[:10] }}.{% else %}No assignments imported yet.{% endif %}
+  </p>
+  <form method="post" action="/upload" enctype="multipart/form-data" class="row">
+    <input type="file" name="file" accept="application/pdf,.pdf" required>
+    <button>Upload</button>
+  </form>
+  <p class="muted small">Upload the LCR <em>Member List</em> to update the roster, or
+     <em>Ministering Assignments</em> to import what’s currently in LCR.</p>
+</section>
+</div>
+{% endblock %}

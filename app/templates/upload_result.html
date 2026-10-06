@@ -1,20 +1,51 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Upload complete</h1>
+{% set roster = summary.roster %}
+{% if roster %}
 <section class="card">
-  <p><strong>{{ summary.total }}</strong> birthdays now on the calendar.</p>
+  <h2>Ward roster</h2>
+  <p><strong>{{ roster.total }}</strong> people in the directory.
+    {% if roster.first_import %}This was the first directory upload, so everyone was added.{% endif %}</p>
+  {% if not roster.first_import %}
   <div class="cols">
     <div>
-      <h2>Added ({{ summary.added|length }})</h2>
+      <h3>Moved in ({{ roster.moved_in|length }})</h3>
+      {% if roster.moved_in %}<ul>{% for n in roster.moved_in %}<li>{{ n }}</li>{% endfor %}</ul>
+      <p class="muted small">Tagged “New move-in” for ministering.</p>
+      {% else %}<p class="muted">None</p>{% endif %}
+      {% if roster.returned %}<h3>Back again ({{ roster.returned|length }})</h3>
+      <ul>{% for n in roster.returned %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
+    </div>
+    <div>
+      <h3>Moved out ({{ roster.moved_out|length }})</h3>
+      {% if roster.moved_out %}<ul>{% for n in roster.moved_out %}<li>{{ n }}</li>{% endfor %}</ul>
+      {% if user.leads %}<p class="muted small">Flagged anywhere they appear in ministering layouts.</p>{% endif %}
+      {% else %}<p class="muted">None</p>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+<section class="card">
+  <h2>Birthday calendar</h2>
+  <p><strong>{{ summary.total }}</strong> birthdays in this upload.</p>
+  {% if summary.added or summary.missing %}
+  <div class="cols">
+    <div>
+      <h3>Added ({{ summary.added|length }})</h3>
       {% if summary.added %}<ul>{% for n in summary.added %}<li>{{ n }}</li>{% endfor %}</ul>
       {% else %}<p class="muted">None</p>{% endif %}
     </div>
     <div>
-      <h2>Removed ({{ summary.removed|length }})</h2>
-      {% if summary.removed %}<ul>{% for n in summary.removed %}<li>{{ n }}</li>{% endfor %}</ul>
+      <h3>Not in this upload ({{ summary.missing|length }})</h3>
+      {% if summary.missing %}<ul>{% for n in summary.missing %}<li>{{ n }}</li>{% endfor %}</ul>
+      <p class="muted small">Still on the calendar. They’re flagged on the <a href="/#flagged">dashboard</a>,
+        where you can remove or keep each one.</p>
       {% else %}<p class="muted">None</p>{% endif %}
     </div>
   </div>
-  <p><a href="/">Back to dashboard</a></p>
+  {% else %}<p class="muted">No changes.</p>{% endif %}
 </section>
+<p><a href="/">Back to dashboard</a>{% if roster and user.leads %} · <a href="/ministering">Ministering</a>{% endif %}</p>
 {% endblock %}

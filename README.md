@@ -4,8 +4,18 @@ A small self-hosted portal for working with LCR report exports.
 
 **Current features**
 
-- **Birthdays:** upload the LCR *Birthday List* PDF. The app syncs the roster (adds move-ins, removes
-  move-outs) and serves a live iCalendar feed that Google Calendar subscribes to.
+- **One upload box** that recognizes the LCR report you give it (PDF):
+  - *Member List* (directory): updates the ward roster **and** the birthday calendar.
+  - *Birthday List*: updates the birthday calendar only. Still supported.
+  - *Ministering Assignments*: imports what's currently in LCR (leaders only).
+- **Birthdays:** a live iCalendar feed that Google Calendar or an iPhone subscribes to, with
+  step-by-step phone guides on the dashboard. People missing from a new upload are **flagged, not
+  deleted**. The dashboard lists them as "Possibly moved out" with *Keep* / *Remove birthday*
+  buttons, and the flag clears if they show up again.
+- **Ministering** (leaders): a drag-and-drop board of districts → groups → ministers and assigned
+  people, saved as layouts (start from the current assignments, from scratch, or from a copy).
+  Includes warnings, priority tags, companion history from past imports, Draft / Proposed / Approved
+  status, and a printable **Changes for LCR** checklist. See [Ministering](#ministering).
 
 Stack: FastAPI · SQLite · Jinja templates · Docker Compose · exposed via Tailscale Funnel.
 
@@ -14,7 +24,8 @@ Stack: FastAPI · SQLite · Jinja templates · Docker Compose · exposed via Tai
 LCR exports are *For Church Use Only*.
 
 - Uploaded files are parsed in memory and never written to disk.
-- Only **name + month/day** are stored. Phones, addresses and ages are discarded.
+- Stored per person: **name, gender, birth date**, and any ministering tags leaders add.
+  Phones, emails and addresses in the exports are discarded.
 - The calendar feed is the only unauthenticated route, and it lives at an unguessable URL
   that an admin can regenerate.
 - `.gitignore` blocks PDFs, CSVs, spreadsheets and `data/`. **Never commit real exports.**
@@ -61,6 +72,26 @@ git pull && docker compose up -d --build
 
 Everything lives in `./data` (SQLite DB + session key). Back up that folder.
 
+## Ministering
+
+Typical cycle:
+
+1. Upload the latest **Member List** so move-ins and move-outs are current. New people are tagged
+   *New move-in*, and anyone who moved out is struck through wherever they appear.
+2. Upload **Ministering Assignments** to import what's in LCR now. If a name doesn't exactly match
+   the roster, a review page lets you pick who it is or skip it. Each import becomes the "Current in
+   LCR" snapshot. Older imports are kept as history.
+3. **New layout → Start from current assignments**, then drag names between groups. Tap a name to
+   move it with a menu, set tags, or see their history. Everything autosaves.
+4. Watch the **Warnings** panel: groups with fewer than 2 or more than 3 ministers, more than 6
+   assigned, brothers and sisters as companions, someone in two groups, moved-out people,
+   tagged people with no ministers, and uneven districts. Warnings never block a change.
+5. Set the status to **Proposed** for the bishop (give him the Leader role) and **Approved** once
+   it's final. Approved layouts are locked.
+6. Open **Changes for LCR** and work through the checklist in LCR.
+
+Companion history (“↺”) comes from past imports, so it appears once you've imported more than once.
+
 ## Users
 
 Admins manage people from the **Users** page:
@@ -69,18 +100,18 @@ Admins manage people from the **Users** page:
   privately. The recipient picks their own username and password. Pending invites can be revoked.
 - **Reset password:** creates a single-use link for that person to set a new password. Their
   existing sessions are signed out. Only the newest reset link works.
-- **Make admin / Make member / Remove.** You can't change or remove your own account, so there's
+- **Change role / Remove.** Pick Member, Leader or Admin from the Role menu. You can't change or remove your own account, so there's
   always at least one admin.
 
 Everyone can change their own password on the **Account** page, which signs out their other devices.
 
-Members can upload reports and see the calendar link. Admins can also manage users and regenerate
-the calendar link.
+Roles: **Members** can upload the directory and see the calendar link. **Leaders** can also use
+Ministering. **Admins** can also manage users and regenerate the calendar link.
 
 The first admin (or a lost-access recovery) is created from the server:
 
 ```bash
-docker compose exec portal python -m app.cli create-user <name> [--admin]
+docker compose exec portal python -m app.cli create-user <name> [--admin | --leader]
 docker compose exec portal python -m app.cli set-password <name>
 docker compose exec portal python -m app.cli list-users
 ```

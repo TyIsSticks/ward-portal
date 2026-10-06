@@ -103,15 +103,41 @@ def load(conn: sqlite3.Connection) -> list[Birthday]:
 
 
 def sync(conn: sqlite3.Connection, incoming: list[Birthday]) -> tuple[list[Birthday], list[Birthday]]:
-    """Make the stored roster match the upload exactly. Returns (added, removed)."""
+    """Add new birthdays and flag (never delete) ones missing from the upload.
+
+    Returns (added, newly_missing). Flagged people stay on the calendar until someone removes them
+    or marks them to keep; if they show up in a later upload, the flag clears.
+    """
     current = set(load(conn))
     new = set(incoming)
-    added, removed = sorted(new - current), sorted(current - new)
-    conn.executemany("DELETE FROM birthdays WHERE name = ? AND month = ? AND day = ?",
-                     [(b.name, b.month, b.day) for b in removed])
+    added = sorted(new - current)
+    already_flagged = set(missing(conn, include_kept=True))
+    newly_missing = sorted(current - new - already_flagged)
     conn.executemany("INSERT INTO birthdays (name, month, day) VALUES (?, ?, ?)",
                      [(b.name, b.month, b.day) for b in added])
-    return added, removed
+    conn.executemany("UPDATE birthdays SET missing_since = datetime('now') WHERE name = ? AND month = ? AND day = ?",
+                     [(b.name, b.month, b.day) for b in newly_missing])
+    conn.executemany("UPDATE birthdays SET missing_since = NULL, kept = 0 WHERE name = ? AND month = ? AND day = ?",
+                     [(b.name, b.month, b.day) for b in new & current])
+    return added, newly_missing
+
+
+def missing(conn: sqlite3.Connection, include_kept: bool = False) -> list[Birthday]:
+    """Birthdays that weren't in the latest upload (probably moved out) and still need a decision."""
+    sql = "SELECT month, day, name FROM birthdays WHERE missing_since IS NOT NULL"
+    if not include_kept:
+        sql += " AND kept = 0"
+    return sorted(Birthday(r["month"], r["day"], r["name"]) for r in conn.execute(sql))
+
+
+def resolve_missing(conn: sqlite3.Connection, birthday_id: int, action: str) -> None:
+    """action: 'remove' deletes it from the calendar; 'keep' keeps it and stops flagging it."""
+    if action == "remove":
+        conn.execute("DELETE FROM birthdays WHERE id = ? AND missing_since IS NOT NULL", (birthday_id,))
+    elif action == "keep":
+        conn.execute("UPDATE birthdays SET kept = 1 WHERE id = ?", (birthday_id,))
+    else:
+        raise ValueError(action)
 
 
 def build_ics(birthdays: list[Birthday], calendar_name: str) -> bytes:

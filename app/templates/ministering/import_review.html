@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Match names · {{ ward_name }}{% endblock %}
+{% block content %}
+<h1>Match names</h1>
+<section class="card">
+  <p class="muted">These names from the ministering report don’t exactly match anyone in the ward roster.
+     Pick who each one is, or skip it (e.g. they’ve moved out). Everyone else matched automatically.</p>
+  <form method="post" class="stack">
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>In the report</th><th>Role</th><th>Match to</th></tr></thead>
+      <tbody>
+      {% for u in unmatched %}
+        <tr>
+          <td>{{ u.name }}
+            {% if u.gender %}<span class="muted small">· {{ u.gender }}{% if u.month %} · {{ month_names[u.month][:3] }} {{ u.day }}{% endif %}</span>{% endif %}
+          </td>
+          <td>{{ "Minister" if u.role == "minister" else "Assigned" }}</td>
+          <td>
+            <select name="match_{{ loop.index0 }}" aria-label="Match for {{ u.name }}">
+              <option value="">— Skip —</option>
+              {% if u.suggestions %}
+              <optgroup label="Closest matches">
+                {% for s in u.suggestions %}<option value="{{ s.id }}" {% if loop.first %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+              </optgroup>
+              {% endif %}
+              <optgroup label="Everyone">
+                {% for p in everyone %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+              </optgroup>
+            </select>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <button>Finish import</button>
+  </form>
+</section>
+{% endblock %}

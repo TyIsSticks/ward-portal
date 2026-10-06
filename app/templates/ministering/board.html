@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}{{ layout.name }} · Ministering{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/board.css">{% endblock %}
+{% block content %}
+<div class="board-head">
+  <a href="/ministering" class="back" aria-label="All layouts">←</a>
+  <input id="layout-name" value="{{ layout.name }}" maxlength="80" aria-label="Layout name"
+         {% if layout.kind != "draft" %}readonly{% endif %}>
+  {% if layout.kind == "draft" %}
+    <select id="status" aria-label="Status">
+      {% for s in statuses %}<option value="{{ s }}" {% if s == layout.status %}selected{% endif %}>{{ s|capitalize }}</option>{% endfor %}
+    </select>
+  {% else %}
+    <span class="badge {{ 'current' if layout.is_current }}">{{ "Current in LCR" if layout.is_current else "Past import" }}</span>
+  {% endif %}
+  <span id="save-state" class="muted small" aria-live="polite"></span>
+  <span class="spacer"></span>
+  {% if not layout.is_current %}<a href="/ministering/layouts/{{ layout.id }}/changes" class="button-link">Changes for LCR</a>{% endif %}
+</div>
+
+<div id="readonly-note" class="flash info" hidden>
+  <span id="readonly-text"></span>
+  <form method="post" action="/ministering/layouts" class="inline">
+    <input type="hidden" name="start" value="copy">
+    <input type="hidden" name="copy_from" value="{{ layout.id }}">
+    <input type="hidden" name="name" value="Draft from {{ layout.name }}">
+    <button class="link">Make an editable copy</button>
+  </form>
+</div>
+<div id="conflict" class="flash error" hidden>
+  This layout was changed somewhere else, so your last change wasn't saved.
+  <button type="button" class="link" onclick="location.reload()">Reload</button>
+</div>
+
+<div class="board">
+  <aside class="side">
+    <input id="search" type="search" placeholder="Find a person…" aria-label="Find a person">
+    <details class="panel" open>
+      <summary>Warnings <span id="warn-count" class="count"></span></summary>
+      <ul id="warnings" class="warnings"></ul>
+    </details>
+    <details class="panel" open>
+      <summary>Not assigned to anyone <span id="n-unassigned" class="count"></span></summary>
+      <div id="pool-assigned" class="zone pool" data-role="assigned"></div>
+    </details>
+    <details class="panel">
+      <summary>Not ministering <span id="n-nonminister" class="count"></span></summary>
+      <div id="pool-minister" class="zone pool" data-role="minister"></div>
+    </details>
+    <p class="legend muted small">
+      <span class="chip-demo g-M">Brother</span> <span class="chip-demo g-F">Sister</span>
+      ★ tagged · ↺ history · <s>moved out</s><br>
+      Drag names between groups, or tap a name for options.
+    </p>
+  </aside>
+  <div id="districts" class="districts"></div>
+</div>
+
+<div id="popover" class="popover" role="dialog" aria-modal="false" hidden></div>
+
+<script type="application/json" id="state">{{ state|tojson }}</script>
+<script src="/static/board.js"></script>
+{% endblock %}

@@ -1,21 +1,51 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Birthdays</h1>
+<h1>Dashboard</h1>
 
 <section class="card">
-  <h2>Upload a new Birthday List</h2>
-  <p class="muted">In LCR, open <em>Reports → Birthday List</em>, export as PDF, and upload it here.
-     The calendar is updated to match the upload exactly: move-ins are added, move-outs removed.</p>
-  <form method="post" action="/birthdays/upload" enctype="multipart/form-data" class="row">
+  <h2>Upload an LCR report</h2>
+  <p class="muted">In LCR, open <em>Reports → Member List</em>, print/export it as PDF, and upload it here.
+     The ward roster and birthday calendar are updated to match: move-ins are added, move-outs removed.
+     {% if user.leads %}You can also upload <em>Ministering Assignments</em> here.{% endif %}</p>
+  <form method="post" action="/upload" enctype="multipart/form-data" class="row">
     <input type="file" name="file" accept="application/pdf,.pdf" required>
     <button>Upload &amp; sync</button>
   </form>
   <p class="muted small">
     {{ count }} birthdays on the calendar.
     {% if last %}Last upload {{ last.uploaded_at }} UTC by {{ last.uploaded_by }}
-      (+{{ last.summary.added|length }} / −{{ last.summary.removed|length }}).{% endif %}
+      (+{{ last.summary.added|length }} added{% if last.summary.missing %}, {{ last.summary.missing|length }} not in it{% endif %}).{% endif %}
   </p>
 </section>
+
+{% if flagged %}
+<section class="card warn-card" id="flagged">
+  <h2>⚠ Possibly moved out ({{ flagged|length }})</h2>
+  <p class="muted">These people weren’t in the latest upload, so they may have moved out of the ward.
+     Their birthdays are still on the calendar until you decide.</p>
+  <div class="table-wrap">
+  <table>
+    <tbody>
+    {% for b in flagged %}
+      <tr>
+        <td>{{ b.display }}</td>
+        <td class="muted">missing since {{ b.missing_since[:10] }}</td>
+        <td class="actions">
+          <form method="post" action="/birthdays/{{ b.id }}/resolve"><input type="hidden" name="action" value="keep"><button class="link">Keep</button></form>
+          <form method="post" action="/birthdays/{{ b.id }}/resolve"><input type="hidden" name="action" value="remove"><button class="link danger">Remove birthday</button></form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if flagged|length > 1 %}
+  <form method="post" action="/birthdays/remove-missing" onsubmit="return confirm('Remove all {{ flagged|length }} of these birthdays from the calendar?')">
+    <button class="secondary">Remove all {{ flagged|length }}</button>
+  </form>
+  {% endif %}
+</section>
+{% endif %}
 
 <section class="card">
   <h2>Calendar feed</h2>
@@ -26,6 +56,42 @@
     <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('feed').value); this.textContent='Copied'">Copy</button>
   </div>
   <p class="muted small">Anyone with this link can see names and birthdays. Don't share it publicly.</p>
+
+  {% set webcal = "webcal://" ~ feed_url.split("://", 1)[1] %}
+  <details class="guide">
+    <summary>How to add it on an iPhone</summary>
+    <p><strong>Easiest:</strong> on your iPhone, tap this button, then tap <em>Subscribe</em>, then <em>Add</em>.</p>
+    <p><a class="button-link" href="{{ webcal }}">Subscribe on iPhone</a></p>
+    <p class="muted small">If the button doesn’t work, do it by hand:</p>
+    <ol>
+      <li>Tap <strong>Copy</strong> above to copy the calendar link.</li>
+      <li>Open the <strong>Settings</strong> app. Tap <strong>Apps</strong>, then <strong>Calendar</strong>.
+          <span class="muted">(On older iPhones, just tap <strong>Calendar</strong>.)</span></li>
+      <li>Tap <strong>Calendar Accounts</strong> → <strong>Add Account</strong> → <strong>Other</strong>.</li>
+      <li>Tap <strong>Add Subscribed Calendar</strong>, paste the link into the <em>Server</em> box, and tap <strong>Next</strong>.</li>
+      <li>Tap <strong>Save</strong>. The birthdays now show up in the Calendar app.</li>
+    </ol>
+    <p class="muted small">Use the Google Calendar app on your iPhone instead? Follow the Android steps.</p>
+  </details>
+  <details class="guide">
+    <summary>How to add it on Android (Google Calendar)</summary>
+    <p>The Google Calendar app can’t add a calendar link by itself, so you do it once on the Google Calendar
+       website. It then appears in the app automatically.</p>
+    <p><strong>Easiest:</strong> tap this button, sign in to Google if asked, and tap <em>Add</em>.</p>
+    <p><a class="button-link" href="https://calendar.google.com/calendar/r?cid={{ feed_url|urlencode|replace('/', '%2F') }}" target="_blank" rel="noopener">Add to Google Calendar</a></p>
+    <p class="muted small">If that opens the app instead, or doesn’t work, do it by hand:</p>
+    <ol>
+      <li>Tap <strong>Copy</strong> above to copy the calendar link.</li>
+      <li>Open <strong>Chrome</strong> and go to <strong>calendar.google.com</strong>.
+          If it says to use the app, tap the <strong>⋮</strong> menu and check <strong>Desktop site</strong>.</li>
+      <li>On the left, next to <strong>Other calendars</strong>, tap <strong>+</strong>, then <strong>From URL</strong>.</li>
+      <li>Paste the link and tap <strong>Add calendar</strong>. Leave “Make the calendar publicly accessible” <strong>unchecked</strong>.</li>
+      <li>Open the <strong>Google Calendar</strong> app. Tap <strong>☰</strong> → <strong>Settings</strong>, tap the
+          new birthday calendar, and turn on <strong>Sync</strong>.</li>
+    </ol>
+    <p class="muted small">New birthdays can take up to a day to show up. That’s Google’s schedule, not yours.</p>
+  </details>
+
   {% if user.is_admin %}
   <form method="post" action="/feed/regenerate"
         onsubmit="return confirm('The old link will stop working. Continue?')">

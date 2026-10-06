@@ -26,5 +26,21 @@ def test_feed_requires_correct_token(client):
 
 def test_upload_rejects_non_pdf(client):
     client.post("/login", data={"username": "admin", "password": "correct horse battery"})
-    r = client.post("/birthdays/upload", files={"file": ("x.pdf", b"not a pdf", "application/pdf")})
+    r = client.post("/upload", files={"file": ("x.pdf", b"not a pdf", "application/pdf")})
     assert "be opened as a PDF" in r.text
+
+
+def test_flagged_birthdays_on_dashboard(client):
+    from app import db
+    from app.reports.birthdays import Birthday, sync
+    with db.connect() as conn:
+        sync(conn, [Birthday(1, 1, "Gone, Gary"), Birthday(2, 2, "Here, Hal")])
+        sync(conn, [Birthday(2, 2, "Here, Hal")])
+        gary = conn.execute("SELECT id FROM birthdays WHERE name = 'Gone, Gary'").fetchone()[0]
+    client.post("/login", data={"username": "admin", "password": "correct horse battery"})
+    page = client.get("/").text
+    assert "Possibly moved out (1)" in page and "Gary Gone" in page
+    assert "Gary Gone" in client.get(_feed_path(client)).text  # still on the calendar
+    client.post(f"/birthdays/{gary}/resolve", data={"action": "remove"})
+    assert "Possibly moved out" not in client.get("/").text
+    assert "Gary Gone" not in client.get(_feed_path(client)).text
