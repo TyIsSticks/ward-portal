@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Set up your account · {{ ward_name }}{% endblock %}
+{% block content %}
+<section class="card narrow">
+  {% if not link %}
+    <h1>Link not valid</h1>
+    {% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+    <p class="muted">This link is invalid, has expired, or was already used. Ask whoever sent it for a new one.</p>
+  {% else %}
+    {% if link.kind == "invite" %}
+      <h1>Create your account</h1>
+      <p class="muted">You've been invited to the {{ ward_name }} portal.</p>
+    {% else %}
+      <h1>Set a new password</h1>
+      <p class="muted">For <strong>{{ link.username }}</strong>.</p>
+    {% endif %}
+    {% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+    <form method="post" class="stack">
+      {% if link.kind == "invite" %}
+      <label>Username
+        <input name="username" value="{{ username or '' }}" autocomplete="username" required
+               pattern="[A-Za-z0-9._\-]{3,32}" title="3–32 letters, numbers, dots, dashes or underscores" autofocus>
+      </label>
+      {% endif %}
+      <label>Password <input name="password" type="password" autocomplete="new-password" minlength="10" required
+                             {% if link.kind != "invite" %}autofocus{% endif %}></label>
+      <label>Confirm password <input name="confirm" type="password" autocomplete="new-password" minlength="10" required></label>
+      <p class="muted small">At least 10 characters. A short phrase is easier to remember than random symbols.</p>
+      <button>{{ "Create account" if link.kind == "invite" else "Save password" }}</button>
+    </form>
+  {% endif %}
+</section>
+{% endblock %}

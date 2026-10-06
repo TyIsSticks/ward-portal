@@ -1,20 +1,16 @@
 import hmac
 import json
-import os
 import secrets
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import Depends, FastAPI, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import auth, config, db
+from . import admin, auth, config, db
 from .reports import birthdays
-
-BASE = Path(__file__).resolve().parent
+from .web import BASE, absolute_url, flash, render
 
 
 @asynccontextmanager
@@ -36,11 +32,7 @@ app.add_middleware(
     https_only=config.COOKIE_SECURE,
 )
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
-templates = Jinja2Templates(directory=BASE / "templates")
-templates.env.globals["ward_name"] = config.WARD_NAME
-templates.env.globals["month_names"] = [
-    "", "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"]
+app.include_router(admin.router)
 
 
 @app.exception_handler(auth.LoginRequired)
@@ -48,15 +40,8 @@ def _login_redirect(request: Request, exc: auth.LoginRequired):
     return RedirectResponse("/login", status_code=303)
 
 
-def _render(request: Request, name: str, **ctx) -> HTMLResponse:
-    ctx.setdefault("user", auth.current_user(request))
-    ctx["flash"] = request.session.pop("flash", None)
-    return templates.TemplateResponse(request, name, ctx)
-
-
 def _feed_url(request: Request, token: str) -> str:
-    base = os.environ.get("PUBLIC_URL") or str(request.base_url)
-    return f"{base.rstrip('/')}/feed/{token}/birthdays.ics"
+    return absolute_url(request, f"/feed/{token}/birthdays.ics")
 
 
 # --- Auth -------------------------------------------------------------------
@@ -65,16 +50,15 @@ def _feed_url(request: Request, token: str) -> str:
 def login_page(request: Request):
     if auth.current_user(request):
         return RedirectResponse("/", status_code=303)
-    return _render(request, "login.html")
+    return render(request, "login.html")
 
 
 @app.post("/login")
 def login(request: Request, username: str = Form(...), password: str = Form(...)):
     user = auth.authenticate(username, password)
     if not user:
-        return _render(request, "login.html", error="Invalid username or password.", username=username)
-    request.session.clear()
-    request.session["user_id"] = user["id"]
+        return render(request, "login.html", error="Invalid username or password.", username=username)
+    auth.log_in(request, user["id"])
     return RedirectResponse("/", status_code=303)
 
 
@@ -93,7 +77,7 @@ def dashboard(request: Request, user: dict = Depends(auth.require_user)):
         count = conn.execute("SELECT COUNT(*) FROM birthdays").fetchone()[0]
         last = conn.execute(
             "SELECT * FROM uploads WHERE report = 'birthdays' ORDER BY id DESC LIMIT 1").fetchone()
-    return _render(request, "dashboard.html", user=user, count=count,
+    return render(request, "dashboard.html", user=user, count=count,
                    last=dict(last) | {"summary": json.loads(last["summary"])} if last else None,
                    feed_url=_feed_url(request, token))
 
@@ -105,19 +89,19 @@ def birthday_list(request: Request, user: dict = Depends(auth.require_user)):
     by_month: dict[int, list] = {}
     for b in rows:
         by_month.setdefault(b.month, []).append(b)
-    return _render(request, "birthdays.html", user=user, by_month=by_month, total=len(rows))
+    return render(request, "birthdays.html", user=user, by_month=by_month, total=len(rows))
 
 
 @app.post("/birthdays/upload", response_class=HTMLResponse)
 async def birthday_upload(request: Request, file: UploadFile, user: dict = Depends(auth.require_user)):
     data = await file.read(config.MAX_UPLOAD_BYTES + 1)
     if len(data) > config.MAX_UPLOAD_BYTES:
-        request.session["flash"] = ("error", "That file is too large.")
+        flash(request, "error", "That file is too large.")
         return RedirectResponse("/", status_code=303)
     try:
         parsed = birthdays.parse_pdf(data)
     except birthdays.ReportError as exc:
-        request.session["flash"] = ("error", str(exc))
+        flash(request, "error", str(exc))
         return RedirectResponse("/", status_code=303)
 
     with db.connect() as conn:
@@ -128,14 +112,14 @@ async def birthday_upload(request: Request, file: UploadFile, user: dict = Depen
         conn.execute("INSERT INTO uploads (report, uploaded_by, summary) VALUES (?, ?, ?)",
                      ("birthdays", user["username"], json.dumps(summary)))
     # The uploaded file is never written to disk; only parsed rows are kept.
-    return _render(request, "upload_result.html", user=user, summary=summary)
+    return render(request, "upload_result.html", user=user, summary=summary)
 
 
 @app.post("/feed/regenerate")
 def regenerate_feed(request: Request, user: dict = Depends(auth.require_admin)):
     with db.connect() as conn:
         db.set_setting(conn, "feed_token", secrets.token_urlsafe(32))
-    request.session["flash"] = ("ok", "New feed URL created. Re-subscribe in Google Calendar with the new link.")
+    flash(request, "ok", "New feed URL created. Re-subscribe in Google Calendar with the new link.")
     return RedirectResponse("/", status_code=303)
 
 

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Account · {{ ward_name }}{% endblock %}
+{% block content %}
+<h1>Account</h1>
+<section class="card narrow-left">
+  <p>Signed in as <strong>{{ user.username }}</strong> ({{ "Admin" if user.is_admin else "Member" }}).</p>
+  <h2>Change password</h2>
+  {% if error %}<div class="flash error">{{ error }}</div>{% endif %}
+  <form method="post" action="/account/password" class="stack">
+    <label>Current password <input name="current" type="password" autocomplete="current-password" required></label>
+    <label>New password <input name="password" type="password" autocomplete="new-password" minlength="10" required></label>
+    <label>Confirm new password <input name="confirm" type="password" autocomplete="new-password" minlength="10" required></label>
+    <button>Change password</button>
+  </form>
+</section>
+{% endblock %}

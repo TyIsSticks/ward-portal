@@ -14,14 +14,10 @@ from . import auth, db
 
 def _prompt_password() -> str:
     while True:
-        pw = getpass.getpass("Password: ")
-        if len(pw) < 10:
-            print("Use at least 10 characters.")
-            continue
-        if pw != getpass.getpass("Confirm:  "):
-            print("Passwords didn't match.")
-            continue
-        return pw
+        try:
+            return auth.validate_password(getpass.getpass("Password: "), getpass.getpass("Confirm:  "))
+        except ValueError as exc:
+            print(exc)
 
 
 def main() -> int:
@@ -38,6 +34,11 @@ def main() -> int:
     db.init()
 
     if args.cmd == "create-user":
+        try:
+            auth.validate_username(args.username)
+        except ValueError as exc:
+            print(exc)
+            return 1
         try:
             auth.create_user(args.username, _prompt_password(), is_admin=args.admin)
         except sqlite3.IntegrityError:

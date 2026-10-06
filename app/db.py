@@ -9,7 +9,24 @@ CREATE TABLE IF NOT EXISTS users (
     username      TEXT NOT NULL UNIQUE COLLATE NOCASE,
     password_hash TEXT NOT NULL,
     is_admin      INTEGER NOT NULL DEFAULT 0,
-    created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+    -- Bumped on password change so existing sessions are signed out.
+    session_version INTEGER NOT NULL DEFAULT 0
+);
+
+-- Single-use links: 'invite' creates an account, 'reset' sets a new password.
+-- Only a hash of the token is stored.
+CREATE TABLE IF NOT EXISTS invites (
+    id          INTEGER PRIMARY KEY,
+    token_hash  TEXT NOT NULL UNIQUE,
+    kind        TEXT NOT NULL CHECK (kind IN ('invite', 'reset')),
+    user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    is_admin    INTEGER NOT NULL DEFAULT 0,
+    note        TEXT NOT NULL DEFAULT '',
+    created_by  TEXT NOT NULL,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    expires_at  TEXT NOT NULL,
+    used_at     TEXT
 );
 
 CREATE TABLE IF NOT EXISTS settings (
@@ -39,7 +56,15 @@ CREATE TABLE IF NOT EXISTS uploads (
 def init() -> None:
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)
     with connect() as conn:
+        _migrate(conn)
         conn.executescript(SCHEMA)
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Bring databases created by older versions up to the current schema."""
+    users_cols = {r["name"] for r in conn.execute("PRAGMA table_info(users)")}
+    if users_cols and "session_version" not in users_cols:
+        conn.execute("ALTER TABLE users ADD COLUMN session_version INTEGER NOT NULL DEFAULT 0")
 
 
 @contextmanager

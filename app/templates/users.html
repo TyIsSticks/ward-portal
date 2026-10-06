@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Users · {{ ward_name }}{% endblock %}
+{% block content %}
+<h1>Users</h1>
+
+{% if new_link %}
+<section class="card highlight">
+  <h2>{% if new_link.kind == "invite" %}Invite link for {{ new_link.for }}{% else %}Password reset link for {{ new_link.for }}{% endif %}</h2>
+  <p class="muted">Send this privately. It works once and expires in {{ ttl_days }} days.
+     <strong>It won't be shown again.</strong> If you lose it, just make a new one.</p>
+  <div class="row">
+    <input id="newlink" value="{{ new_link.url }}" readonly onclick="this.select()">
+    <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('newlink').value); this.textContent='Copied'">Copy</button>
+  </div>
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Invite someone</h2>
+  <form method="post" action="/admin/invites" class="row">
+    <input name="note" placeholder="Who is it for? (e.g. Sister Smith)" maxlength="100" class="grow">
+    <select name="role">
+      <option value="member">Member</option>
+      <option value="admin">Admin</option>
+    </select>
+    <button>Create invite link</button>
+  </form>
+  <p class="muted small">Members can upload reports and see the calendar link. Admins can also manage users
+     and regenerate the calendar link.</p>
+</section>
+
+{% if invites %}
+<section class="card">
+  <h2>Pending invites</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>For</th><th>Role</th><th>Created</th><th>Expires</th><th></th></tr></thead>
+    <tbody>
+    {% for i in invites %}
+      <tr>
+        <td>{{ i.note or "—" }}</td>
+        <td>{{ "Admin" if i.is_admin else "Member" }}</td>
+        <td class="muted">{{ i.created_at[:10] }} by {{ i.created_by }}</td>
+        <td class="muted">{{ i.expires_at[:10] }}</td>
+        <td class="actions">
+          <form method="post" action="/admin/invites/{{ i.id }}/revoke"><button class="link">Revoke</button></form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Accounts</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Username</th><th>Role</th><th>Joined</th><th></th></tr></thead>
+    <tbody>
+    {% for p in people %}
+      <tr>
+        <td>{{ p.username }}{% if p.id == user.id %} <span class="muted">(you)</span>{% endif %}</td>
+        <td>{{ "Admin" if p.is_admin else "Member" }}</td>
+        <td class="muted">{{ p.created_at[:10] }}</td>
+        <td class="actions">
+          {% if p.id != user.id %}
+          <form method="post" action="/admin/users/{{ p.id }}/reset"><button class="link">Reset password</button></form>
+          <form method="post" action="/admin/users/{{ p.id }}/role">
+            <input type="hidden" name="role" value="{{ 'member' if p.is_admin else 'admin' }}">
+            <button class="link">{{ "Make member" if p.is_admin else "Make admin" }}</button>
+          </form>
+          <form method="post" action="/admin/users/{{ p.id }}/delete"
+                onsubmit="return confirm('Remove {{ p.username }}? They will be signed out immediately.')">
+            <button class="link danger">Remove</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endblock %}

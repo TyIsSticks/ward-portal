@@ -63,6 +63,22 @@ Everything lives in `./data` (SQLite DB + session key). Back up that folder.
 
 ## Users
 
+Admins manage people from the **Users** page:
+
+- **Invite someone:** creates a single-use link (Member or Admin) that expires in 7 days. Send it
+  privately. The recipient picks their own username and password. Pending invites can be revoked.
+- **Reset password:** creates a single-use link for that person to set a new password. Their
+  existing sessions are signed out. Only the newest reset link works.
+- **Make admin / Make member / Remove.** You can't change or remove your own account, so there's
+  always at least one admin.
+
+Everyone can change their own password on the **Account** page, which signs out their other devices.
+
+Members can upload reports and see the calendar link. Admins can also manage users and regenerate
+the calendar link.
+
+The first admin (or a lost-access recovery) is created from the server:
+
 ```bash
 docker compose exec portal python -m app.cli create-user <name> [--admin]
 docker compose exec portal python -m app.cli set-password <name>

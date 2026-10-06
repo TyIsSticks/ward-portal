@@ -53,6 +53,21 @@ button.link { background: none; color: var(--accent); padding: 0; }
 .flash.ok { background: var(--ok); }
 .flash.error { background: var(--err); }
 
+.narrow-left { max-width: 420px; }
+.highlight { border-color: var(--accent); }
+.grow { flex: 1 1 14rem; min-width: 0; }
+select { font: inherit; padding: .5rem .6rem; border: 1px solid var(--line); border-radius: 6px;
+         background: var(--bg); color: var(--ink); }
+button.danger { color: #c0392b; }
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: .45rem .5rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { font-size: .8rem; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); font-weight: 600; }
+td.muted { white-space: nowrap; }
+td.actions { text-align: right; }
+td.actions form { display: inline-block; margin: 0 0 0 .9rem; }
+
 .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
 .months { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; }
 .months .card { margin: 0; }
