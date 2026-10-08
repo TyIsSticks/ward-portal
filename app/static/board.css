@@ -69,20 +69,21 @@ button.icon:hover { color: var(--ink); background: var(--soft); }
 body.drag-minister .zone[data-role="minister"], body.drag-assigned .zone[data-role="assigned"] { border-color: var(--accent); }
 .zone.over { background: color-mix(in srgb, var(--accent) 14%, transparent); border-style: solid; }
 
-.chip { display: inline-flex; align-items: center; gap: .25rem; font: inherit; font-size: .85rem; font-weight: 700;
-  padding: .25rem .65rem; border-radius: 99px; border: 1px solid transparent; cursor: grab; user-select: none;
-  -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; max-width: 100%; }
-.chip .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip { display: inline-flex; align-items: center; justify-content: center; gap: .2rem; font: inherit; font-size: .82rem;
+  font-weight: 700; line-height: 1; height: 1.9rem; padding: 0 .7rem; border-radius: 999px;
+  border: 1px solid transparent; cursor: grab; user-select: none; -webkit-user-select: none;
+  -webkit-touch-callout: none; touch-action: manipulation; max-width: 100%; box-sizing: border-box; }
+.chip .nm { display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chip.g-M { background: var(--eq-bg); color: var(--eq); }
 .chip.g-F { background: var(--rs-bg); color: var(--rs); }
 .chip.g-U { background: var(--bg); color: var(--ink); border-color: var(--line); }
 .chip.tagged { border-color: currentColor; }
-.chip .mark { display: inline-block; font-size: .58rem; line-height: 1; opacity: .72; transform: translateY(-.02rem);
+.chip .mark { display: inline-flex; align-items: center; justify-content: center; line-height: 1; opacity: .72;
   font-family: "Segoe UI Symbol", "Apple Color Emoji", "Noto Sans Symbols", sans-serif; }
 .chip .mark.flag {
-  color: #f0b75d; opacity: .9; font-size: .52rem; font-weight: 700;
-  background: none; border: none; box-shadow: none; padding: 0;
-  filter: saturate(.8) brightness(1.05);
+  color: #f0b75d; opacity: .9; font-size: .52rem; font-weight: 700; width: .7rem; height: .7rem;
+  min-width: .7rem; margin-top: 0; padding: 0; background: none; border: none; box-shadow: none;
+  filter: saturate(.8) brightness(1.05); transform: translateY(-.02rem);
 }
 .chip.moved .nm { text-decoration: line-through; opacity: .7; }
 .chip.dragging { opacity: .35; }
