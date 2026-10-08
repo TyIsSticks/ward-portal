@@ -11,7 +11,7 @@ from datetime import date
 from .reports import directory, ministering as report
 from .reports.birthdays import Birthday, display_name
 
-PRIORITY_TAGS = ["New move-in", "New member", "Needs extra care", "Returning", "Limited contact", "Less active", "Moving records", "Leader (not ministering)"]
+PRIORITY_TAGS = ["New move-in", "New member", "Needs extra care", "Returning", "Limited contact", "Less active", "Moving records", "Leader (no ministers)"]
 # Tags that should never be left without ministers.
 NEEDS_MINISTERS_TAGS = {"New move-in", "New member", "Needs extra care", "Returning"}
 STATUSES = ("draft", "proposed", "approved")
