@@ -57,7 +57,7 @@
     <tr class="{{ 'no-ministers' if not has_any }}">
       <td>{{ p.name }}{% if not p.active %} <span class="badge moved">Moved out</span>{% endif %}
         {% if not has_any %}<span class="badge moved">No ministers</span>{% endif %}
-        {% if show_tags and p.tags %}<div class="muted small">★ {{ p.tags|join(", ") }}</div>{% endif %}</td>
+        {% if show_tags and p.tags %}<div class="muted small">⚑ {{ p.tags|join(", ") }}</div>{% endif %}</td>
       {% for org in sources %}
       <td>{% if r.ministers[org] %}{{ names(r.ministers[org]) }}{% else %}<span class="muted">—</span>{% endif %}
         {% if r.changed[org] %} <span class="chg-mark">New</span>{% endif %}</td>

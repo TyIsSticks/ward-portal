@@ -169,7 +169,7 @@
       dataset: { pid, role, gkey: gkey || "" },
     },
       h("span", { class: "nm" }, p.display),
-      p.tags.length ? h("span", { class: "mark", "aria-hidden": "true" }, "★") : null,
+      p.tags.length ? h("span", { class: "mark flag", "aria-hidden": "true" }, "⚑") : null,
       hist ? h("span", { class: "mark", "aria-hidden": "true" }, "↺") : null);
   }
 
