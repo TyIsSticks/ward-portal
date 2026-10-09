@@ -34,7 +34,7 @@
         <td>{{ "✓" if (o ~ ":assigned") in r else "" }}</td>
         {% endfor %}
         <td class="tags" data-pid="{{ p.id }}">
-          {% for t in tags %}<button type="button" class="tag {{ 'on' if t in p.tags }}" data-tag="{{ t }}" aria-pressed="{{ 'true' if t in p.tags else 'false' }}">{{ t }}</button>{% endfor %}
+          {% for t in tags %}<button type="button" class="tag {{ tag_kind(t) }} {{ 'on' if t in p.tags }}" data-tag="{{ t }}" aria-pressed="{{ 'true' if t in p.tags else 'false' }}">{{ t }}</button>{% endfor %}
         </td>
       </tr>
     {% endfor %}

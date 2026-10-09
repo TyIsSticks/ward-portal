@@ -37,6 +37,7 @@ def board_state(conn, layout: dict) -> dict:
         "history": m.history(conn, org, layout["id"]),
         "tags": m.PRIORITY_TAGS,
         "needs_ministers_tags": sorted(m.NEEDS_MINISTERS_TAGS),
+        "tag_kinds": {t: m.tag_kind(t) for t in m.PRIORITY_TAGS},
         "current_import_id": current["id"] if current else None,
     }
 
@@ -129,7 +130,7 @@ def people_page(request: Request, user: dict = leader):
                     for p in g["assigned"]:
                         roles.setdefault(p, set()).add(f"{org}:assigned")
     return render(request, "ministering/people.html", user=user, people=list(people.values()),
-                  roles=roles, tags=m.PRIORITY_TAGS, imported=imported, orgs=m.ORGS)
+                  roles=roles, tags=m.PRIORITY_TAGS, tag_kind=m.tag_kind, imported=imported, orgs=m.ORGS)
 
 
 @router.get("/ministering/assignments", response_class=HTMLResponse)

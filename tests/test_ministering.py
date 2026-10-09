@@ -132,6 +132,15 @@ def test_tags_only_accept_presets(conn):
     assert m.set_tags(conn, pid, ["Needs extra care", "made up", "New move-in"]) == ["New move-in", "Needs extra care"]
 
 
+def test_tag_kinds_split_flags():
+    assert m.tag_kind("Less active") == "need"
+    assert m.tag_kind("Moving records") == "skip"
+    assert m.tag_kind("Leader (not ministering)") == "skip"
+    assert m.tag_kind("Limited contact") == "info"
+    assert not m.NEEDS_MINISTERS_TAGS & m.LEFT_OUT_TAGS
+    assert (m.NEEDS_MINISTERS_TAGS | m.LEFT_OUT_TAGS) <= set(m.PRIORITY_TAGS)
+
+
 # --- changes for LCR --------------------------------------------------------
 
 def test_changes_match_groups_by_overlap():
@@ -361,7 +370,9 @@ def test_board_flow(client, conn):
 
     r = client.put(f"/api/ministering/people/{p['Cole, Cy']}/tags", json={"tags": ["Needs extra care"]})
     assert r.json() == {"tags": ["Needs extra care"]}
-    assert "Needs extra care" in client.get("/ministering/people").text
+    people_page = client.get("/ministering/people").text
+    assert 'class="tag need on" data-tag="Needs extra care"' in people_page
+    assert 'class="tag skip " data-tag="Moving records"' in people_page
 
 
 def test_upload_routes_reports_by_type(client, monkeypatch):

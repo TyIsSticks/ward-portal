@@ -6,6 +6,8 @@
   const S = JSON.parse(document.getElementById("state").textContent);
   const RULES = { minMinisters: 2, maxMinisters: 3, maxAssigned: 6 };
   const NEEDS = new Set(S.needs_ministers_tags);
+  const tagKind = (t) => S.tag_kinds[t] || "info";
+  const FLAG_TITLES = { need: "Needs ministers", skip: "Left out of ministering", info: "Tagged" };
   const GENDER_WORD = { M: "brother", F: "sister" };
 
   // Which people each side list shows: "all", "M" or "F". Defaults come from the organization
@@ -169,8 +171,9 @@
       dataset: { pid, role, gkey: gkey || "" },
     },
       h("span", { class: "nm" }, p.display),
-      p.tags.length ? h("span", { class: "mark flag", "aria-hidden": "true" }, "⚑") : null,
-      hist ? h("span", { class: "mark", "aria-hidden": "true" }, "↺") : null);
+      ...["need", "skip", "info"].filter(k => p.tags.some(t => tagKind(t) === k))
+        .map(k => h("span", { class: `mark flag ${k}`, "aria-hidden": "true" }, "⚑")),
+      hist ? h("span", { class: "mark hist", "aria-hidden": "true" }, "↺") : null);
   }
 
   function zone(role, g) {
@@ -377,7 +380,8 @@
     }
 
     const tagBox = h("div", { class: "tags" }, ...S.tags.map(t => h("button", {
-      type: "button", class: "tag" + (p.tags.includes(t) ? " on" : ""), "aria-pressed": String(p.tags.includes(t)),
+      type: "button", class: `tag ${tagKind(t)}` + (p.tags.includes(t) ? " on" : ""), "aria-pressed": String(p.tags.includes(t)),
+      title: FLAG_TITLES[tagKind(t)],
       onclick: async (e) => {
         const btn = e.currentTarget;
         const next = p.tags.includes(t) ? p.tags.filter(x => x !== t) : [...p.tags, t];

@@ -78,13 +78,12 @@ body.drag-minister .zone[data-role="minister"], body.drag-assigned .zone[data-ro
 .chip.g-F { background: var(--rs-bg); color: var(--rs); }
 .chip.g-U { background: var(--bg); color: var(--ink); border-color: var(--line); }
 .chip.tagged { border-color: currentColor; }
-.chip .mark { display: inline-flex; align-items: center; justify-content: center; line-height: 1; opacity: .72;
-  font-family: "Segoe UI Symbol", "Apple Color Emoji", "Noto Sans Symbols", sans-serif; }
-.chip .mark.flag {
-  color: #f0b75d; opacity: .9; font-size: .52rem; font-weight: 700; width: .7rem; height: .7rem;
-  min-width: .7rem; margin-top: 0; padding: 0; background: none; border: none; box-shadow: none;
-  filter: saturate(.8) brightness(1.05); transform: translateY(-.02rem);
-}
+.chip .mark { display: inline-flex; align-items: center; justify-content: center; flex: none; line-height: 1;
+  font-size: .52rem; font-weight: 700; width: .7rem; height: .7rem; padding: 0; opacity: .72;
+  font-family: "Segoe UI Symbol", "Apple Color Emoji", "Noto Sans Symbols", sans-serif; transform: translateY(-.02rem); }
+.chip .mark + .mark { margin-left: -.1rem; }
+.chip .mark.flag { opacity: .95; }
+.chip .mark.hist { font-size: .62rem; opacity: .6; }
 .chip.moved .nm { text-decoration: line-through; opacity: .7; }
 .chip.dragging { opacity: .35; }
 .chip.ghost { position: fixed; left: 0; top: 0; z-index: 50; pointer-events: none; box-shadow: 0 6px 18px rgba(0,0,0,.25); }

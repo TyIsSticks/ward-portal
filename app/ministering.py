@@ -11,9 +11,21 @@ from datetime import date
 from .reports import directory, ministering as report
 from .reports.birthdays import Birthday, display_name
 
-PRIORITY_TAGS = ["New move-in", "New member", "Needs extra care", "Returning", "Limited contact", "Less active", "Moving records", "Leader (no ministers)", "Leader (not ministering)" ]
-# Tags that should never be left without ministers.
-NEEDS_MINISTERS_TAGS = {"New move-in", "New member", "Needs extra care", "Returning"}
+# Grouped by flag colour: needs ministers (green), left out on purpose (yellow), then everything else.
+PRIORITY_TAGS = ["New move-in", "New member", "Needs extra care", "Returning", "Less active",
+                 "Moving records", "Leader (no ministers)", "Leader (not ministering)",
+                 "Limited contact"]
+# Tags that should never be left without ministers (green flag).
+NEEDS_MINISTERS_TAGS = {"New move-in", "New member", "Needs extra care", "Returning", "Less active"}
+# Tags for people deliberately left out of ministering, either way (yellow flag).
+LEFT_OUT_TAGS = {"Moving records", "Leader (no ministers)", "Leader (not ministering)"}
+
+
+def tag_kind(tag: str) -> str:
+    """Which flag a tag shows as: "need" (green), "skip" (yellow) or "info" (plain)."""
+    return "need" if tag in NEEDS_MINISTERS_TAGS else "skip" if tag in LEFT_OUT_TAGS else "info"
+
+
 STATUSES = ("draft", "proposed", "approved")
 
 # Elders quorum and Relief Society keep separate assignments in LCR, so each has its own layouts.

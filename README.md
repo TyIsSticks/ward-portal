@@ -126,6 +126,11 @@ The side lists ("Not assigned to anyone", "Not ministering") can show brothers, 
 everyone. They default to what each organization does in your ward, and each leader's choice is
 remembered in their browser.
 
+Tags show as small flags on each name: **green** for people who need ministers (New move-in, New
+member, Needs extra care, Returning, Less active; they're also in the warnings until someone is assigned),
+**yellow** for people left out on purpose (Moving records and the Leader tags), and a plain flag for
+anything else (Limited contact).
+
 Companion history (“↺”) comes from past imports, so it appears once you've imported more than once.
 
 ## Wards
