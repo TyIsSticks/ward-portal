@@ -11,18 +11,18 @@ from datetime import date
 from .reports import directory, ministering as report
 from .reports.birthdays import Birthday, display_name
 
-# Grouped by flag colour: needs ministers (green), then left out on purpose (yellow).
+# Grouped by flag colour: needs ministers (yellow), left out on purpose (green), then everything else.
 PRIORITY_TAGS = ["New move-in", "New member", "Needs extra care", "Returning", "Less active",
-                 "Limited contact", "Moving records", "Leader (no ministers)", "Leader (not ministering)"]
-# Tags that should never be left without ministers (green flag).
-NEEDS_MINISTERS_TAGS = {"New move-in", "New member", "Needs extra care", "Returning", "Less active",
-                        "Limited contact"}
-# Tags for people deliberately left out of ministering, either way (yellow flag).
+                 "Moving records", "Leader (no ministers)", "Leader (not ministering)",
+                 "Limited contact"]
+# Tags that should never be left without ministers (yellow flag).
+NEEDS_MINISTERS_TAGS = {"New move-in", "New member", "Needs extra care", "Returning", "Less active"}
+# Tags for people deliberately left out of ministering, either way (green flag).
 LEFT_OUT_TAGS = {"Moving records", "Leader (no ministers)", "Leader (not ministering)"}
 
 
 def tag_kind(tag: str) -> str:
-    """Which flag a tag shows as: "need" (green), "skip" (yellow) or "info" (plain)."""
+    """Which flag a tag shows as: "need" (yellow), "skip" (green) or "info" (plain)."""
     return "need" if tag in NEEDS_MINISTERS_TAGS else "skip" if tag in LEFT_OUT_TAGS else "info"
 
 

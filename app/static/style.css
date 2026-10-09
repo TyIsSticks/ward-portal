@@ -2,7 +2,7 @@
 :root {
   --band: #1E4D3B; --band-2: #2E6B53; --band-ink: #fff; --band-muted: #BFD9CB; --tab-ink: #D7E8DF;
   --bg: #F3F6F4; --card: #fff; --ink: #1B2A22; --muted: #4E5F56; --line: #DCE5DF; --soft: #E7EEEA;
-  --accent: #1E4D3B; --accent-ink: #fff; --flag-need: #1E9E55; --flag-skip: #E2A21B; --flag-need-ink: #fff; --cta: #C2540A; --gold: #F2B33D;
+  --accent: #1E4D3B; --accent-ink: #fff; --flag-need: #E2A21B; --flag-skip: #1E9E55; --flag-skip-ink: #fff; --cta: #C2540A; --gold: #F2B33D;
   --ok: #DFF1E7; --err: #FBE4E4; --err-ink: #A1242B; --warn-bg: #FFF4D6; --warn-ink: #7A4B00;
   --bday-bg: #FFE9D6; --bday: #8A3A08; --eq-bg: #DCEAFB; --eq: #1F4E99; --rs-bg: #F9E1EA; --rs: #9B2457;
   --radius: 20px;
@@ -13,7 +13,7 @@
   :root:not([data-theme="light"]) {
     --band: #163A2C; --band-2: #24573F; --band-muted: #A9CBB9;
     --bg: #101613; --card: #18211C; --ink: #E6EEE9; --muted: #A3B3AA; --line: #2A3730; --soft: #222D27;
-    --accent: #7FCBA4; --accent-ink: #0E1C15; --flag-need: #4CC77E; --flag-skip: #F0B75D; --flag-need-ink: #0E1C15; --cta: #E07A35;
+    --accent: #7FCBA4; --accent-ink: #0E1C15; --flag-need: #F0B75D; --flag-skip: #4CC77E; --flag-skip-ink: #0E1C15; --cta: #E07A35;
     --ok: #1C3327; --err: #3A1F21; --err-ink: #F5A3A8; --warn-bg: #3A2C14; --warn-ink: #F0C27A;
     --bday-bg: #3A2414; --bday: #F3B98A; --eq-bg: #16263D; --eq: #9CC2F2; --rs-bg: #3A1C29; --rs: #F0A6C4;
     color-scheme: dark;
@@ -22,7 +22,7 @@
 :root[data-theme="dark"] {
     --band: #163A2C; --band-2: #24573F; --band-muted: #A9CBB9;
     --bg: #101613; --card: #18211C; --ink: #E6EEE9; --muted: #A3B3AA; --line: #2A3730; --soft: #222D27;
-    --accent: #7FCBA4; --accent-ink: #0E1C15; --flag-need: #4CC77E; --flag-skip: #F0B75D; --flag-need-ink: #0E1C15; --cta: #E07A35;
+    --accent: #7FCBA4; --accent-ink: #0E1C15; --flag-need: #F0B75D; --flag-skip: #4CC77E; --flag-skip-ink: #0E1C15; --cta: #E07A35;
     --ok: #1C3327; --err: #3A1F21; --err-ink: #F5A3A8; --warn-bg: #3A2C14; --warn-ink: #F0C27A;
     --bday-bg: #3A2414; --bday: #F3B98A; --eq-bg: #16263D; --eq: #9CC2F2; --rs-bg: #3A1C29; --rs: #F0A6C4;
     color-scheme: dark;
@@ -195,8 +195,8 @@ a.badge { text-decoration: none; }
 .tag.need::before { color: var(--flag-need); }
 .tag.skip::before { color: var(--flag-skip); }
 .tag.on::before { color: inherit; }
-.tag.need.on { background: var(--flag-need); border-color: var(--flag-need); color: var(--flag-need-ink); }
-.tag.skip.on { background: var(--flag-skip); border-color: var(--flag-skip); color: #3A2600; }
+.tag.need.on { background: var(--flag-need); border-color: var(--flag-need); color: #3A2600; }
+.tag.skip.on { background: var(--flag-skip); border-color: var(--flag-skip); color: var(--flag-skip-ink); }
 
 /* --- Dashboard tiles ------------------------------------------------------ */
 .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; margin-bottom: 22px; }
