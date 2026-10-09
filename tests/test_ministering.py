@@ -136,7 +136,8 @@ def test_tag_kinds_split_flags():
     assert m.tag_kind("Less active") == "need"
     assert m.tag_kind("Moving records") == "skip"
     assert m.tag_kind("Leader (not ministering)") == "skip"
-    assert m.tag_kind("Limited contact") == "info"
+    assert m.tag_kind("Limited contact") == "need"
+    assert m.tag_kind("made up") == "info"
     assert not m.NEEDS_MINISTERS_TAGS & m.LEFT_OUT_TAGS
     assert (m.NEEDS_MINISTERS_TAGS | m.LEFT_OUT_TAGS) <= set(m.PRIORITY_TAGS)
 

@@ -11,12 +11,12 @@ from datetime import date
 from .reports import directory, ministering as report
 from .reports.birthdays import Birthday, display_name
 
-# Grouped by flag colour: needs ministers (green), left out on purpose (yellow), then everything else.
+# Grouped by flag colour: needs ministers (green), then left out on purpose (yellow).
 PRIORITY_TAGS = ["New move-in", "New member", "Needs extra care", "Returning", "Less active",
-                 "Moving records", "Leader (no ministers)", "Leader (not ministering)",
-                 "Limited contact"]
+                 "Limited contact", "Moving records", "Leader (no ministers)", "Leader (not ministering)"]
 # Tags that should never be left without ministers (green flag).
-NEEDS_MINISTERS_TAGS = {"New move-in", "New member", "Needs extra care", "Returning", "Less active"}
+NEEDS_MINISTERS_TAGS = {"New move-in", "New member", "Needs extra care", "Returning", "Less active",
+                        "Limited contact"}
 # Tags for people deliberately left out of ministering, either way (yellow flag).
 LEFT_OUT_TAGS = {"Moving records", "Leader (no ministers)", "Leader (not ministering)"}
 
