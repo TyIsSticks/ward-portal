@@ -80,7 +80,16 @@ button.add-teacher { background: transparent; color: var(--accent); border: 2px 
 .talk-demo.req { background: var(--les-bg); color: var(--les); }
 .req-note { color: var(--les); font-weight: 700; }
 
+.only-sm { display: none; }
+.menu-pop a.only-sm { display: none; }
+
 @media (max-width: 640px) {
+  .lessons-app .hide-sm { display: none; }
+  .only-sm { display: inline; }
+  .menu-pop a.only-sm { display: block; }
+  .lessons-app .board-head { gap: 6px 8px; }
+  .lessons-app .tray-tabs { overflow-x: auto; scrollbar-width: none; }
+  .lessons-app .tray-tabs button { flex: none; }
   .weeks { grid-template-columns: 1fr; }
   .les-title { display: none; }
   .conf-nav { font-size: .85rem; }

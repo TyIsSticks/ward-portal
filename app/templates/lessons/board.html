@@ -28,9 +28,9 @@
     </span>
     <span id="save-state" class="muted small" aria-live="polite"></span>
     <span class="spacer"></span>
-    <button type="button" id="autofill" class="secondary sm">Fill in First Presidency &amp; Twelve</button>
-    <a class="secondary sm" href="/lessons/talks?conf={{ conf }}">Conference talks</a>
-    <a class="secondary sm" href="/lessons/teachers">Teachers</a>
+    <button type="button" id="autofill" class="secondary sm" title="Put First Presidency and Twelve talks on open Sundays">Fill in <span class="hide-sm">First Presidency &amp; Twelve</span><span class="only-sm">★ talks</span></button>
+    <a class="secondary sm hide-sm" href="/lessons/talks?conf={{ conf }}">Conference talks</a>
+    <a class="secondary sm hide-sm" href="/lessons/teachers">Teachers</a>
     <details class="menu les-menu">
       <summary aria-label="Lesson settings">⋯</summary>
       <div class="menu-pop">
@@ -39,6 +39,8 @@
           <input type="hidden" name="shared" value="{{ '' if shared else '1' }}">
           <button type="submit">{{ "Give EQ and RS separate plans" if shared else "EQ and RS teach the same lessons" }}</button>
         </form>
+        <a class="only-sm" href="/lessons/talks?conf={{ conf }}">Conference talks</a>
+        <a class="only-sm" href="/lessons/teachers">Teachers</a>
         <a href="/lessons/calendar">Put lessons on your phone</a>
         {% if (record.year, record.month) != current %}<a href="/lessons/{{ plan }}">Go to the current conference</a>{% endif %}
       </div>
