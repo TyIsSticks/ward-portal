@@ -38,3 +38,13 @@
   </details>
 </section>
 {%- endmacro %}
+
+{# One choice in a style or voice picker. The sample folds away, and sits outside the label so opening it
+   doesn't pick the option. #}
+{% macro bot_option(field, value, label, current, sample="", note="") -%}
+<div class="bot-option">
+  <label><input type="radio" name="{{ field }}" value="{{ value }}"{% if current == value %} checked{% endif %}>
+    <span><strong>{{ label }}</strong>{% if note %} <span class="muted small">{{ note }}</span>{% endif %}</span></label>
+  {% if sample %}<details class="bot-sample"><summary>See a sample</summary><div class="bot-msg">{{ sample }}</div></details>{% endif %}
+</div>
+{%- endmacro %}

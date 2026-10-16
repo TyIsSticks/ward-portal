@@ -327,7 +327,8 @@ details.ward-switch > summary:hover { background: rgba(255,255,255,.2); }
 .err-text { color: var(--err-ink); font-weight: 700; }
 .bot-msg { display: block; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .875rem; font-weight: 400;
            background: var(--bg); border-radius: 14px 14px 14px 4px; padding: .7rem .9rem; margin-top: .35rem; }
-.bot-styles label { align-items: flex-start; }
-.bot-styles label > span { flex: 1 1 0; min-width: 0; }
+.bot-option { display: grid; gap: .1rem; }
+.bot-sample { margin-left: 1.9rem; }
+.bot-sample summary { cursor: pointer; font-size: .8rem; font-weight: 700; color: var(--accent); width: fit-content; }
 .bot-styles textarea { width: 100%; resize: vertical; }
 .bot-styles .sub-field { display: grid; gap: .3rem; font-weight: 700; }

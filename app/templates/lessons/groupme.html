@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_groupme.html" import groupme_card %}
+{% from "_groupme.html" import groupme_card, bot_option %}
 {% set active = "lessons" %}
 {% block title %}GroupMe reminders · {{ ward_name }}{% endblock %}
 {% block content %}
@@ -23,12 +23,9 @@
     <fieldset class="choices bot-styles">
       <legend>Voice</legend>
       {% for key, label in voices.items() %}
-      <label><input type="radio" name="voice" value="{{ key }}"{% if bot.voice == key %} checked{% endif %}>
-        <span><strong>{{ label }}</strong><span class="bot-msg">{{ bot.samples[key] }}</span></span></label>
+      {{ bot_option("voice", key, label, bot.voice, bot.samples[key]) }}
       {% endfor %}
-      <label><input type="radio" name="voice" value="custom"{% if bot.voice == "custom" %} checked{% endif %}>
-        <span><strong>Write your own</strong>
-          {% if bot.samples.custom %}<span class="bot-msg">{{ bot.samples.custom }}</span>{% endif %}</span></label>
+      {{ bot_option("voice", "custom", "Write your own", bot.voice, bot.samples.custom or "") }}
       <label class="sub-field">Opening lines
         <textarea name="openers" rows="4">{{ bot.own.openers }}</textarea></label>
       <label class="sub-field">Closing lines
