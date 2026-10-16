@@ -1,3 +1,4 @@
+import asyncio
 import json
 from datetime import date, timedelta
 from contextlib import asynccontextmanager
@@ -7,7 +8,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import admin, auth, config, db, lessons, lessons_routes, ministering, ministering_routes, wards
+from . import (admin, auth, config, db, groupme, groupme_routes, lessons, lessons_routes, ministering,
+               ministering_routes, wards)
 from .reports import birthdays, conference, detect, directory
 from .reports import ministering as ministering_report
 from .web import BASE, absolute_url, flash, render
@@ -16,7 +18,10 @@ from .web import BASE, absolute_url, flash, render
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     db.init()
+    bots = asyncio.create_task(groupme.run_forever()) if config.GROUPME_ENABLED else None
     yield
+    if bots:
+        bots.cancel()
 
 
 app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
@@ -32,6 +37,7 @@ app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 app.include_router(admin.router)
 app.include_router(ministering_routes.router)
 app.include_router(lessons_routes.router)
+app.include_router(groupme_routes.router)
 
 
 @app.exception_handler(auth.LoginRequired)
@@ -139,10 +145,18 @@ def birthday_page(request: Request, month: str = "", user: dict = Depends(auth.r
         last = conn.execute(
             "SELECT uploaded_at FROM uploads WHERE report IN ('birthdays', 'directory') ORDER BY id DESC LIMIT 1"
         ).fetchone()
+        bot = None
+        if user["manages"]:
+            today = groupme.now().date()
+            names = groupme.todays_birthdays(conn, today) or [groupme.short_name(b["name"]) for b in soon[:1]]
+            bot = groupme.status(conn, "birthdays") | {
+                "style": groupme.style(conn), "today": groupme.todays_birthdays(conn, today),
+                "samples": {k: groupme.birthday_message(names or ["Sam Sample"], k) for k in groupme.STYLES}}
     return render(request, "birthdays.html", user=user, weeks=weeks, first=first, today=today,
                   prev=f"{prev:%Y-%m}", next=f"{nxt:%Y-%m}", soon=soon[:8], count=count,
                   in_month=sum(len(c["names"]) for w in weeks for c in w), flagged=flagged,
-                  last=last["uploaded_at"] if last else None, feed_url=_feed_url(request, token))
+                  last=last["uploaded_at"] if last else None, feed_url=_feed_url(request, token), bot=bot,
+                  styles={k: v[0] for k, v in groupme.STYLES.items()})
 
 
 @app.get("/upload", response_class=HTMLResponse)

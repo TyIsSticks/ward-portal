@@ -1,0 +1,40 @@
+{# GroupMe bot settings card. The call block goes inside the form, above the buttons (e.g. a style picker).
+   Usage: {% from "_groupme.html" import groupme_card %} #}
+
+{% macro groupme_card(bot, id, title, intro) -%}
+<section class="card groupme" id="{{ id }}">
+  <h2>{{ title }}</h2>
+  <p class="muted small">{{ intro }}</p>
+  <p class="small">
+    {% if bot.configured %}<span class="badge approved">On</span> Bot {{ bot.masked }}{% else %}<span class="badge">Off</span> No bot yet{% endif %}
+    {% if bot.last %}
+      · {% if bot.last.ok %}last posted {{ bot.last.at }}{% else %}<span class="err-text">couldn’t post {{ bot.last.at }}: {{ bot.last.error }}</span>{% endif %}
+    {% endif %}
+  </p>
+  <form method="post" action="/groupme/{{ bot.key }}" class="stack">
+    <label>Bot ID
+      <input name="bot_id" autocomplete="off" spellcheck="false"
+             placeholder="{{ 'Paste a new bot ID to replace ' ~ bot.masked if bot.configured else 'Paste the bot ID' }}">
+    </label>
+    {{ caller() if caller }}
+    <div class="row">
+      <button name="action" value="save">Save</button>
+      {% if bot.configured %}
+      <button class="secondary" name="action" value="test"
+              onclick="return confirm('Post a test message to the group chat now?')">Send a test</button>
+      <button class="link danger" name="action" value="remove"
+              onclick="return confirm('Stop posting to this group?')">Turn off</button>
+      {% endif %}
+    </div>
+  </form>
+  <details class="guide">
+    <summary>Where do I find the bot ID?</summary>
+    <ol class="small">
+      <li>Go to <strong>dev.groupme.com/bots</strong> and sign in with your GroupMe account.</li>
+      <li>Tap the bot (or <strong>Create Bot</strong> and pick the group it should post in).</li>
+      <li>Copy the <strong>Bot ID</strong> and paste it above. Leave the callback URL empty.</li>
+    </ol>
+    <p class="muted small">Anyone with the bot ID can post as the bot, so keep it private.</p>
+  </details>
+</section>
+{%- endmacro %}

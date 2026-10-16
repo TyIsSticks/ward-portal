@@ -13,6 +13,11 @@ COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "false").lower() == "true"
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
+# Local time for GroupMe messages ("8 am on their birthday"), whatever the server's clock says.
+TIMEZONE = os.environ.get("TZ", "America/Denver")
+# Set to false to stop the GroupMe bots from posting (e.g. on a test copy of the data).
+GROUPME_ENABLED = os.environ.get("GROUPME_ENABLED", "true").lower() != "false"
+
 
 def secret_key() -> str:
     """Session signing key: SECRET_KEY env var, else generated once and kept in the data dir."""

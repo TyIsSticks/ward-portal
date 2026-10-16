@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "_icons.html" import icon %}
 {% from "_subscribe.html" import subscribe_card, subscribe_help %}
+{% from "_groupme.html" import groupme_card %}
 {% set active = "birthdays" %}
 {% block title %}Birthdays · {{ ward_name }}{% endblock %}
 {% block content %}
@@ -82,6 +83,22 @@
 
   <aside class="side-col">
     {{ subscribe_card(feed_url, "Put birthdays on your phone", "Subscribe once and new birthdays show up by themselves.") }}
+
+    {% if bot %}
+    {% call groupme_card(bot, "groupme", "Birthday shout-outs in GroupMe",
+                         "A GroupMe bot wishes everyone happy birthday in the group chat at 8 am on their birthday. "
+                         ~ ("Today: " ~ bot.today|join(", ") ~ "." if bot.today else "")) %}
+      <fieldset class="choices bot-styles">
+        <legend>Style</legend>
+        <label><input type="radio" name="style" value="mix"{% if bot.style == "mix" %} checked{% endif %}>
+          <span><strong>Mix it up</strong> <span class="muted small">a different style each time</span></span></label>
+        {% for key, label in styles.items() %}
+        <label><input type="radio" name="style" value="{{ key }}"{% if bot.style == key %} checked{% endif %}>
+          <span><strong>{{ label }}</strong><span class="bot-msg">{{ bot.samples[key] }}</span></span></label>
+        {% endfor %}
+      </fieldset>
+    {% endcall %}
+    {% endif %}
 
     {% call subscribe_help(feed_url, "birthdays", "birthday calendar",
                            "New birthdays can take up to a day to appear. That’s Google’s schedule.") %}

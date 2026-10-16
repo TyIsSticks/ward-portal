@@ -11,6 +11,7 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "DATA_DIR", tmp_path)
     monkeypatch.setattr(config, "DB_PATH", tmp_path / "portal.db")
     monkeypatch.setattr(auth, "_failures", {})
+    monkeypatch.setattr(config, "GROUPME_ENABLED", False)   # no background posting during tests
     from app.main import app
     with TestClient(app) as c:
         auth.create_user("admin", ADMIN_PW, is_admin=True)

@@ -549,6 +549,12 @@ def _schedule(conn: sqlite3.Connection, org: str) -> list[dict]:
     return [out[d] for d in sorted(out)]
 
 
+def sunday(conn: sqlite3.Connection, org: str, day: date) -> dict | None:
+    """One Sunday of an organization's schedule (talks, teachers, notes, status), or None if no
+    loaded conference covers it (e.g. general conference itself, or talks not loaded yet)."""
+    return next((w for w in _schedule(conn, org) if w["date"] == day.isoformat()), None)
+
+
 def _describe(w: dict, teacher_line: bool = True) -> str:
     lines = []
     if teacher_line and w["teacher_names"]:

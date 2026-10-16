@@ -9,7 +9,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
-from . import auth, db, lessons as les, wards
+from . import auth, db, groupme, lessons as les, wards
 from .ministering_routes import _json as json_body
 from .reports import conference as gc
 from .reports.birthdays import ReportError
@@ -183,8 +183,12 @@ def calendar_page(request: Request, user: dict = leader):
     with db.ward_connect(ward_id) as conn:
         token = les.feed_token(conn)
         shared = les.is_shared(conn)
+        today = groupme.now().date()
+        bots = {o: groupme.status(conn, f"lessons-{o}") | {"preview": groupme.preview(conn, f"lessons-{o}", today)}
+                for o in les.ORGS}
     feeds = {o: org_feed_url(request, ward_id, token, o) for o in les.ORGS}
-    return render(request, "lessons/calendar.html", user=user, feeds=feeds, org_names=les.ORGS, shared=shared)
+    return render(request, "lessons/calendar.html", user=user, feeds=feeds, org_names=les.ORGS, shared=shared,
+                  bots=bots, sunday=groupme.coming_sunday(today), lesson_hour=groupme.LESSON_HOUR)
 
 
 @router.post("/lessons/calendar/regenerate")
