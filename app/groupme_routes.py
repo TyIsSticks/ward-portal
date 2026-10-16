@@ -1,4 +1,4 @@
-"""Setting up the GroupMe bots: the birthday bot (ward admins) and lesson bots (leaders)."""
+"""Setting up the GroupMe bots: the birthday bot (ward admins) and lesson bots (leaders). Members can't."""
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
@@ -7,8 +7,7 @@ from .web import flash
 
 router = APIRouter()
 
-BACK = {"birthdays": "/birthdays#groupme", "lessons-eq": "/lessons/calendar#groupme-eq",
-        "lessons-rs": "/lessons/calendar#groupme-rs"}
+BACK = {"birthdays": "/birthdays#groupme", "lessons-eq": "/lessons/groupme#eq", "lessons-rs": "/lessons/groupme#rs"}
 
 
 @router.post("/groupme/{key}")

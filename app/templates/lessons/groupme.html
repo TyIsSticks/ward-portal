@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% from "_groupme.html" import groupme_card %}
+{% set active = "lessons" %}
+{% block title %}GroupMe reminders · {{ ward_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="grow">
+    <p class="crumbs"><a href="/lessons">← Lesson plan</a></p>
+    <h1>GroupMe reminders</h1>
+    <div class="sub">A GroupMe bot posts next Sunday’s lesson (talk, link and teacher) to the group chat every Monday at
+      {{ lesson_hour }} am, or says why there’s no lesson. Each organization can have its own bot.
+      {% if shared %}Both use the shared plan, each with its own teachers.{% endif %}</div>
+  </div>
+</div>
+
+<div class="cols">
+{% for org, name in org_names.items() %}
+  <div>
+  {% set bot = bots[org] %}
+  {% call groupme_card(bot, org, name ~ " lesson reminders",
+                       "Pick how it sounds. The samples are for Sunday, " ~ sunday.strftime("%b") ~ " " ~ sunday.day
+                       ~ ", and the wording changes every week.") %}
+    <fieldset class="choices bot-styles">
+      <legend>Voice</legend>
+      {% for key, label in voices.items() %}
+      <label><input type="radio" name="voice" value="{{ key }}"{% if bot.voice == key %} checked{% endif %}>
+        <span><strong>{{ label }}</strong><span class="bot-msg">{{ bot.samples[key] }}</span></span></label>
+      {% endfor %}
+      <label><input type="radio" name="voice" value="custom"{% if bot.voice == "custom" %} checked{% endif %}>
+        <span><strong>Write your own</strong>
+          {% if bot.samples.custom %}<span class="bot-msg">{{ bot.samples.custom }}</span>{% endif %}</span></label>
+      <label class="sub-field">Opening lines
+        <textarea name="openers" rows="4">{{ bot.own.openers }}</textarea></label>
+      <label class="sub-field">Closing lines
+        <textarea name="signoffs" rows="4">{{ bot.own.signoffs }}</textarea></label>
+      <p class="muted small">One line is picked at random for the start and one for the end; next Sunday’s talk,
+        link and teacher go in between. <code>{org}</code> becomes “{{ name }}” and <code>{when}</code> the date.
+        Leave a box empty to skip it.</p>
+    </fieldset>
+  {% endcall %}
+  </div>
+{% endfor %}
+</div>
+{% endblock %}

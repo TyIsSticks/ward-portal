@@ -230,7 +230,7 @@ away; *Turn off* stops it (the chosen wording is kept).
   droid*, *Mix it up*, or *Write your own* (messages separated by a blank line, with `{names}` for
   the birthday person; one is picked at random). The page shows a sample of each. People flagged as
   possibly moved out are skipped, and only first and last names are used (never ages).
-- **Lesson reminders** (Lessons → ⋯ → *GroupMe reminders*, leaders): every Monday at 9 am it posts the
+- **Lesson reminders** (Lessons → ⋯ → *GroupMe reminders*, its own page for leaders): every Monday at 9 am it posts the
   coming Sunday's talk, a link to read it and the teacher, or why there's no lesson (fifth Sunday,
   stake conference, no second hour, general conference, or nothing planned yet). Pick a voice:
   *Friendly* (the default), *Battle droid* (every message says "roger roger"), or *Write your own*

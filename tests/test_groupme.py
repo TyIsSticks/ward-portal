@@ -11,6 +11,14 @@ from tests.test_lessons import add_people, conf  # noqa: F401  (fixture)
 BOT = "abcdef0123456789abcdef0123"
 
 
+def body(response) -> str:
+    """Only what shows on the page (not the <title>), and only if the page rendered."""
+    assert response.status_code == 200
+    head, page = response.text.split("<body", 1)
+    assert "<" not in head.split("<title>")[1].split("</title>")[0], "markup ended up in the <title>"
+    return page
+
+
 @pytest.fixture
 def posted(monkeypatch):
     sent = []
@@ -98,12 +106,14 @@ def test_settings_forms(client, posted):
     login(client)
     assert "doesn’t look like" in client.post("/groupme/birthdays", data={"bot_id": "nope"}).text
     client.post("/groupme/birthdays", data={"bot_id": BOT, "style": "saga"})
-    page = client.get("/birthdays").text
+    page = body(client.get("/birthdays"))
     assert "••••" + BOT[-4:] in page and BOT not in page and "Epic saga" in page
     client.post("/groupme/birthdays", data={"action": "test"})
     assert posted and posted[0][1].startswith("🧪 Test")
     client.post("/groupme/lessons-eq", data={"bot_id": BOT})
-    assert "roger roger" in client.get("/lessons/calendar").text.lower()
+    client.post("/groupme/lessons-eq", data={"voice": "droid"})
+    assert "roger roger" in body(client.get("/lessons/groupme")).lower()
+    assert "GroupMe" not in body(client.get("/lessons/calendar"))   # the phone calendar page stays just that
     client.post("/groupme/birthdays", data={"action": "remove"})
     with db.ward_connect(1) as conn:
         assert gm.bot_id(conn, "birthdays") is None and gm.bot_id(conn, "lessons-eq") == BOT
@@ -115,7 +125,24 @@ def test_who_can_set_up_bots(client):
     login(client, "lead", "a long enough password")
     assert client.post("/groupme/birthdays", data={"bot_id": BOT}).status_code == 403   # ward admins only
     assert client.post("/groupme/lessons-rs", data={"bot_id": BOT}, follow_redirects=False).status_code == 303
-    assert "Birthday shout-outs" not in client.get("/birthdays").text
+    assert "Birthday shout-outs" not in body(client.get("/birthdays"))
+    assert "Relief Society lesson reminders" in body(client.get("/lessons/groupme"))
+
+
+def test_members_only_get_the_calendars(client):
+    with db.ward_connect(1) as conn:
+        gm.set_bot_id(conn, "birthdays", BOT)
+        gm.set_bot_id(conn, "lessons-eq", BOT)
+    auth.create_user("mem", "a long enough password", role="member")
+    login(client, "mem", "a long enough password")
+    page = body(client.get("/birthdays"))
+    assert "Put birthdays on your phone" in page and "GroupMe" not in page and BOT[-4:] not in page
+    assert client.get("/lessons/groupme").status_code == 403
+    for key in gm.BOTS:
+        for data in ({"bot_id": BOT}, {"action": "test"}, {"action": "remove"}, {"style": "custom", "custom": "x"}):
+            assert client.post(f"/groupme/{key}", data=data).status_code == 403
+    with db.ward_connect(1) as conn:   # nothing changed
+        assert gm.bot_id(conn, "birthdays") == BOT and gm.bot_id(conn, "lessons-eq") == BOT
 
 
 def test_choosing_and_writing_voices(client, conf, posted):
@@ -130,7 +157,7 @@ def test_choosing_and_writing_voices(client, conf, posted):
         assert "roger roger" in gm.preview(conn, "lessons-eq", date(2030, 10, 14)).lower()
     client.post("/groupme/lessons-eq", data={"voice": "custom", "openers": "Ahoy, {org}!\n\n  Avast  ",
                                               "signoffs": ""})
-    page = client.get("/lessons/calendar").text
+    page = body(client.get("/lessons/groupme"))
     assert "Ahoy, {org}!\nAvast</textarea>" in page
     with db.ward_connect(1) as conn:
         text = gm.preview(conn, "lessons-eq", date(2030, 10, 14))

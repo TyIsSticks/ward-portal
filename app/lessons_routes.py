@@ -183,11 +183,18 @@ def calendar_page(request: Request, user: dict = leader):
     with db.ward_connect(ward_id) as conn:
         token = les.feed_token(conn)
         shared = les.is_shared(conn)
-        today = groupme.now().date()
-        bots = {o: _lesson_bot(conn, o, today) for o in les.ORGS}
     feeds = {o: org_feed_url(request, ward_id, token, o) for o in les.ORGS}
-    return render(request, "lessons/calendar.html", user=user, feeds=feeds, org_names=les.ORGS, shared=shared,
-                  bots=bots, sunday=groupme.coming_sunday(today), lesson_hour=groupme.LESSON_HOUR,
+    return render(request, "lessons/calendar.html", user=user, feeds=feeds, org_names=les.ORGS, shared=shared)
+
+
+@router.get("/lessons/groupme", response_class=HTMLResponse)
+def groupme_page(request: Request, user: dict = leader):
+    today = groupme.now().date()
+    with db.ward_connect(user["ward"]["id"]) as conn:
+        bots = {o: _lesson_bot(conn, o, today) for o in les.ORGS}
+        shared = les.is_shared(conn)
+    return render(request, "lessons/groupme.html", user=user, bots=bots, org_names=les.ORGS, shared=shared,
+                  sunday=groupme.coming_sunday(today), lesson_hour=groupme.LESSON_HOUR,
                   voices={k: v["name"] for k, v in groupme.VOICES.items()})
 
 
