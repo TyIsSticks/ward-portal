@@ -90,6 +90,13 @@ def create_user(username: str, password: str, is_admin: bool = False, role: str 
         return insert_user(conn, username, password, role or ("admin" if is_admin else "member"), ward_id)
 
 
+def set_display_name(conn, user_id: int, name: str) -> str:
+    """Set what the portal calls someone. Blank goes back to their username."""
+    name = " ".join(name.split())[:40]
+    conn.execute("UPDATE users SET display_name = ? WHERE id = ?", (name, user_id))
+    return name
+
+
 def update_password(conn, user_id: int, password: str) -> None:
     """Set a new password and sign the user out of every existing session."""
     conn.execute(
@@ -142,7 +149,7 @@ def current_user(request: Request) -> dict | None:
         return None
     with db.connect() as conn:
         row = conn.execute(
-            "SELECT id, username, ward_id, is_admin, is_ward_admin, is_leader, session_version "
+            "SELECT id, username, display_name, ward_id, is_admin, is_ward_admin, is_leader, session_version "
             "FROM users WHERE id = ?", (user_id,)).fetchone()
         if not row or row["session_version"] != request.session.get("sv"):
             return None
@@ -151,6 +158,7 @@ def current_user(request: Request) -> dict | None:
             ward_id = request.session["ward_id"]
         ward = conn.execute("SELECT * FROM wards WHERE id = ?", (ward_id,)).fetchone()             or conn.execute("SELECT * FROM wards ORDER BY id LIMIT 1").fetchone()
     user = dict(row)
+    user["name"] = row["display_name"] or row["username"].capitalize()
     user["role"] = role_of(row)
     user["role_label"] = ROLE_LABELS[user["role"]]
     user["leads"] = user["role"] in ("leader", "ward_admin", "admin")

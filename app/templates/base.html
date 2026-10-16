@@ -41,9 +41,9 @@
         {% if user %}
         {% if not compact %}<a class="btn-cta" href="/upload">{{ icon("upload") }}<span class="label">Upload report</span></a>{% endif %}
         <details class="menu">
-          <summary aria-label="Account menu">{{ user.username[:2]|upper }}</summary>
+          <summary aria-label="Account menu">{{ user.name[:2]|upper }}</summary>
           <div class="menu-pop">
-            <div class="who"><strong>{{ user.username }}</strong><br><span class="muted small">{{ user.role_label }}{% if not user.is_admin %} · {{ user.ward.name }}{% endif %}</span></div>
+            <div class="who"><strong>{{ user.name }}</strong>{% if user.display_name %} <span class="muted small">({{ user.username }})</span>{% endif %}<br><span class="muted small">{{ user.role_label }}{% if not user.is_admin %} · {{ user.ward.name }}{% endif %}</span></div>
             <div class="theme-pick" role="group" aria-label="Theme">
               <span class="small muted">Theme</span>
               <div class="seg">

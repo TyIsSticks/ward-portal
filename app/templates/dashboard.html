@@ -3,7 +3,7 @@
 {% set active = "home" %}
 {% set hero = true %}
 {% block hero %}
-<h1 class="hero-title">Hi {{ user.username|capitalize }}, here’s the ward this week.</h1>
+<h1 class="hero-title">Hi {{ user.name }}, here’s the ward this week.</h1>
 {% endblock %}
 {% block main_class %}pull{% endblock %}
 {% block content %}

@@ -170,3 +170,14 @@ def test_migrates_database_from_first_version(tmp_path, monkeypatch):
     db.init()  # running again is a no-op
     with db.ward_connect(1) as conn:
         assert conn.execute("SELECT COUNT(*) FROM birthdays").fetchone()[0] == 1
+
+
+def test_display_name(client):
+    login(client)
+    assert "Hi Admin, here" in client.get("/").text   # no name set: the username
+    r = client.post("/account/name", data={"display_name": "  Ty  "})
+    assert "be called Ty from now on" in r.text and 'value="Ty"' in r.text
+    page = client.get("/").text
+    assert "Hi Ty, here" in page and "(admin)" in page   # the menu still shows the sign-in name
+    client.post("/account/name", data={"display_name": ""})
+    assert "Hi Admin, here" in client.get("/").text

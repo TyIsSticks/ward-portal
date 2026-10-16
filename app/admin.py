@@ -202,6 +202,14 @@ def account_page(request: Request, user: dict = Depends(auth.require_user)):
     return render(request, "account.html", user=user)
 
 
+@router.post("/account/name")
+def change_name(request: Request, display_name: str = Form(""), user: dict = Depends(auth.require_user)):
+    with db.connect() as conn:
+        name = auth.set_display_name(conn, user["id"], display_name)
+    flash(request, "ok", f"You’ll be called {name} from now on." if name else "Your username is shown again.")
+    return RedirectResponse("/account", status_code=303)
+
+
 @router.post("/account/password", response_class=HTMLResponse)
 def change_password(request: Request, current: str = Form(...), password: str = Form(...),
                     confirm: str = Form(...), user: dict = Depends(auth.require_user)):
