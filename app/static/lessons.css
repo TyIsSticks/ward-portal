@@ -1,0 +1,64 @@
+/* Lesson planning board. Builds on board.css (full-height screen, tray, popover, zones). */
+.les-title { font-size: 1.35rem; margin: 0; }
+.board-head .secondary.sm, button.secondary.sm { padding: .3rem .85rem; font-size: .85rem; }
+.conf-nav { display: inline-flex; align-items: center; gap: 6px; font-size: .95rem; }
+.cal-nav.sm { width: 30px; height: 30px; font-size: .95rem; }
+
+/* EQ | RS switch */
+.seg-links { display: inline-flex; background: var(--card); border: 1px solid var(--line); border-radius: 99px; padding: 3px; }
+.seg-links a { padding: .25rem .8rem; border-radius: 99px; text-decoration: none; font-weight: 700; font-size: .85rem; color: var(--muted); }
+.seg-links a[aria-current="page"] { background: var(--accent); color: var(--accent-ink); }
+
+.les-menu > summary { background: var(--card); color: var(--ink); border: 1px solid var(--line); width: 34px; height: 34px; }
+
+.coverage { font-weight: 800; color: var(--warn-ink); background: var(--warn-bg); border-radius: 99px; padding: .15rem .6rem; }
+.coverage.done { color: var(--les); background: var(--les-bg); }
+.coverage:empty { display: none; }
+
+/* Sundays: one scrolling grid of cards */
+.weeks { position: relative; flex: 1; min-height: 0; overflow-y: auto; display: grid; gap: 12px; align-content: start;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); padding-bottom: 12px; overscroll-behavior: contain; }
+.week { background: var(--card); border: 2px solid transparent; border-radius: 18px; padding: 10px 12px;
+  display: flex; flex-direction: column; gap: .45rem; min-width: 0; }
+.week.has-warn { border-color: var(--gold); }
+.week.next { box-shadow: 0 0 0 2px var(--accent); }
+.week.past { opacity: .62; }
+.week.off { background: color-mix(in srgb, var(--card) 55%, var(--bg)); }
+.week > header { display: flex; align-items: center; gap: .4rem; }
+.w-date { font-family: Outfit, sans-serif; font-weight: 800; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: .45rem; flex: 1; min-width: 0; white-space: nowrap; }
+.w-when { font-family: "Nunito Sans", sans-serif; font-size: .75rem; font-weight: 800; color: var(--les); }
+.w-status { padding: .2rem .5rem; border-radius: 99px; font-size: .8rem; font-weight: 700; max-width: 9.5rem; }
+.week.off .w-status { background: var(--soft); }
+.week input.w-note, .week input.w-daynote { padding: .3rem .6rem; font-size: .85rem; border-radius: 10px; width: 100%; }
+.week input.w-note:not(:focus):placeholder-shown { border-color: transparent; background: transparent; }
+.week .zone.talks { min-height: 2.6rem; background: var(--bg); }
+
+/* Talk chips: two lines (title, speaker), wider than name chips */
+.tchip { display: inline-flex; align-items: center; gap: .35rem; max-width: 100%; font: inherit; text-align: left;
+  font-size: .8rem; line-height: 1.2; padding: .35rem .7rem; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--card); color: var(--ink); cursor: grab; user-select: none; -webkit-user-select: none;
+  -webkit-touch-callout: none; touch-action: manipulation; font-weight: 700; }
+.tchip .ttl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.tchip .spk { color: var(--muted); font-weight: 600; white-space: nowrap; flex: none; }
+.tchip .spk::before { content: "· "; }
+.tchip.req { background: var(--les-bg); border-color: color-mix(in srgb, var(--les) 35%, transparent); color: var(--les); }
+.tchip.req .spk { color: inherit; opacity: .8; }
+.tchip .star { flex: none; }
+.tchip.biz { font-style: italic; opacity: .75; }
+.tchip.used { opacity: .5; }
+.zone.talks .tchip { width: 100%; }
+.tchip.dragging { opacity: .35; }
+.tchip.ghost { position: fixed; left: 0; top: 0; z-index: 50; pointer-events: none; box-shadow: 0 6px 18px rgba(0,0,0,.25); max-width: 320px; }
+body.searching .tchip:not(.hit) { opacity: .3; }
+.tchip.hit { outline: 2px solid var(--hit); outline-offset: 1px; }
+body.is-dragging .zone.talks, body.is-dragging .zone.pool { border-color: var(--accent); }
+.talk-demo { display: inline-block; font-size: .75rem; font-weight: 700; padding: 0 .5rem; border-radius: 8px; border: 1px solid var(--line); }
+.talk-demo.req { background: var(--les-bg); color: var(--les); }
+.req-note { color: var(--les); font-weight: 700; }
+
+@media (max-width: 640px) {
+  .weeks { grid-template-columns: 1fr; }
+  .les-title { display: none; }
+  .conf-nav { font-size: .85rem; }
+  .board-head .secondary.sm { padding: .25rem .6rem; font-size: .78rem; }
+}

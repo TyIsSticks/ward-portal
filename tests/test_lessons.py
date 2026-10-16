@@ -180,3 +180,108 @@ def test_conference_pdf_upload_is_for_leaders(client, monkeypatch):
     r = client.post("/upload", files={"file": ("c.pdf", b"%PDF", "application/pdf")})
     assert "Loaded 4 talks for October 2030 from the PDF" in r.text
     assert "check the ticked speakers" in r.text
+
+
+# --- Sundays and plans ----------------------------------------------------------
+
+@pytest.fixture
+def conf(client, monkeypatch):
+    """October 2030's made-up talks, loaded into ward 1."""
+    monkeypatch.setattr(gc, "_get", fake_site)
+    with db.ward_connect(1) as conn:
+        les.store_conference(conn, gc.fetch(2030, 10), "website", "admin")
+        record = les.get_conference(conn, 2030, 10)
+        record["talk_ids"] = [t["id"] for t in les.talks(conn, record["id"])]
+    return record
+
+
+def test_sunday_marks(client):
+    with db.ward_connect(1) as conn:
+        assert les.set_day(conn, "2030-12-29", "lesson") == {"status": "lesson", "note": ""}   # reopen a fifth Sunday
+        assert les.set_day(conn, "2030-12-29", "fifth_sunday") == {"status": "fifth_sunday", "note": ""}
+        assert les.set_day(conn, "2030-11-10", "stake_conference", "  Stake   conf ") == \
+            {"status": "stake_conference", "note": "Stake conf"}
+        assert les.set_day(conn, "2030-11-10", "lesson")["status"] == "lesson"
+        assert conn.execute("SELECT COUNT(*) FROM lesson_days").fetchone()[0] == 0   # defaults aren't stored
+        for bad in [("2030-11-11", "lesson"), ("2030-11-10", "fifth_sunday"), ("2030-11-10", "party"), ("nope", "lesson")]:
+            with pytest.raises(les.LessonError):
+                les.set_day(conn, *bad)
+        marks = les.day_marks(conn, les.sundays(2030, 10))
+        assert marks["2030-12-29"]["status"] == "fifth_sunday" and marks["2030-12-22"]["status"] == "lesson"
+
+
+def test_save_plan_and_versions(conf):
+    a, b, c, d = conf["talk_ids"]
+    with db.ward_connect(1) as conn:
+        v = les.save_plan(conn, "eq", conf, [{"date": "2030-10-13", "talks": [b, c], "note": " Combined "},
+                                             {"date": "2030-10-20", "talks": [d]}], 0, "admin")
+        assert v == 1
+        weeks = {w["date"]: w for w in les.plan_weeks(conn, "eq", conf)}
+        assert weeks["2030-10-13"]["talks"] == [b, c] and weeks["2030-10-13"]["note"] == "Combined"
+        assert les.plan_weeks(conn, "rs", conf)[0]["talks"] == []   # each organization has its own plan
+        with pytest.raises(les.VersionConflict):
+            les.save_plan(conn, "eq", conf, [], 0, "admin")
+        with pytest.raises(les.LessonError, match="Unknown Sunday"):
+            les.save_plan(conn, "eq", conf, [{"date": "2030-10-14", "talks": []}], 1, "admin")
+        with pytest.raises(les.LessonError, match="Unknown talk"):
+            les.save_plan(conn, "eq", conf, [{"date": "2030-10-13", "talks": [99999]}], 1, "admin")
+        assert les.save_plan(conn, "eq", conf, [], 1, "admin") == 2
+        assert all(not w["talks"] for w in les.plan_weeks(conn, "eq", conf))
+        state = les.board_state(conn, "eq", conf, today=date(2030, 10, 15))
+        assert state["version"] == 2 and state["orgs"] == ["eq"] and state["required_speakers"] == ["Carl D. Birch"]
+        assert state["conference"]["next_name"] == "April 2031" and state["conference"]["next_date"] == "2031-04-06"
+
+
+def test_shared_plan_starts_from_elders_quorum(conf):
+    a, b, c, d = conf["talk_ids"]
+    with db.ward_connect(1) as conn:
+        les.save_plan(conn, "eq", conf, [{"date": "2030-10-13", "talks": [b], "note": "EQ"}], 0, "admin")
+        assert les.plan_for(conn, "rs") == "rs"
+        les.set_shared(conn, True)
+        assert les.plan_for(conn, "rs") == "ward" and les.plan_for(conn, "eq") == "ward"
+        assert les.plan_weeks(conn, "ward", conf)[0]["talks"] == [b]
+        les.save_plan(conn, "ward", conf, [{"date": "2030-10-13", "talks": [c]}], 0, "admin")
+        les.set_shared(conn, False)
+        les.set_shared(conn, True)   # the shared plan isn't overwritten again
+        assert les.plan_weeks(conn, "ward", conf)[0]["talks"] == [c]
+        assert les.plan_weeks(conn, "eq", conf)[0]["talks"] == [b]
+
+
+def test_board_pages_and_api(client, conf):
+    a, b, c, d = conf["talk_ids"]
+    login(client)
+    r = client.get("/lessons?conf=2030-10", follow_redirects=False)
+    assert r.headers["location"] == "/lessons/eq?conf=2030-10"
+    page = client.get("/lessons/rs?conf=2030-10").text
+    assert "October 2030 conference" in page and '"plan": "rs"' in page
+    r = client.get("/lessons/eq?conf=2031-04", follow_redirects=False)   # not loaded yet
+    assert r.headers["location"] == "/lessons/talks?conf=2031-04"
+    assert client.get("/lessons/nope").status_code == 404
+
+    url = f"/api/lessons/eq/{conf['id']}"
+    assert client.put(url, content="{}").status_code == 415   # JSON only
+    assert client.put(url, json={"version": 0, "weeks": [{"date": "2030-10-13", "talks": [b]}]}).json() == {"version": 1}
+    assert client.put(url, json={"version": 0, "weeks": []}).status_code == 409
+    assert client.put(url, json={"version": 1, "weeks": [{"date": "2030-10-14"}]}).status_code == 400
+    assert client.put("/api/lessons/eq/999", json={"version": 0, "weeks": []}).status_code == 404
+
+    assert client.put("/api/lessons/days/2030-11-10", json={"status": "no_second_hour", "note": "Ward conference"}).json() \
+        == {"status": "no_second_hour", "note": "Ward conference"}
+    assert client.put("/api/lessons/days/2030-11-11", json={"status": "lesson"}).status_code == 400
+
+    # Sharing one plan moves both organizations to /lessons/ward.
+    client.post("/lessons/settings", data={"shared": "1", "conf": "2030-10"})
+    r = client.get("/lessons/eq?conf=2030-10", follow_redirects=False)
+    assert r.headers["location"] == "/lessons/ward?conf=2030-10"
+    assert '"orgs": ["eq", "rs"]' in client.get("/lessons/ward?conf=2030-10").text
+    client.post("/lessons/settings", data={"shared": "", "conf": "2030-10"})
+    assert client.get("/lessons/ward?conf=2030-10", follow_redirects=False).headers["location"] == "/lessons/eq?conf=2030-10"
+
+
+def test_lessons_are_for_leaders(client):
+    from app import auth
+    auth.create_user("mem", "a long enough password", role="member")
+    login(client, "mem", "a long enough password")
+    for path in ["/lessons", "/lessons/eq"]:
+        assert client.get(path).status_code == 403
+    assert client.put("/api/lessons/days/2030-11-10", json={"status": "lesson"}).status_code == 403

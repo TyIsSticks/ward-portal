@@ -6,6 +6,7 @@ lessons for a conference run from the Sunday after it to the Sunday before the n
 import sqlite3
 from datetime import date, timedelta
 
+from . import db
 from .reports import conference as gc
 
 ORGS = {"eq": "Elders Quorum", "rs": "Relief Society"}
@@ -134,3 +135,160 @@ def required_speakers(talk_rows: list[dict]) -> list[str]:
         if t["required"] and t["kind"] == "talk" and t["speaker"] not in out:
             out.append(t["speaker"])
     return out
+
+
+# --- Sundays ----------------------------------------------------------------
+# Lessons are every Sunday except fifth Sundays (automatic, can be reopened) and Sundays the ward
+# marks: stake conference or no second hour. Marks are ward-wide, so they apply to both plans.
+
+STATUSES = {"lesson": "Lesson", "fifth_sunday": "Fifth Sunday", "stake_conference": "Stake conference",
+            "no_second_hour": "No second hour"}
+
+
+def auto_status(day: date) -> str:
+    return "fifth_sunday" if day.day > 28 else "lesson"
+
+
+def day_marks(conn: sqlite3.Connection, days: list[date]) -> dict[str, dict]:
+    """{iso date: {"status", "note"}} for the given Sundays, marks applied over the defaults."""
+    marks = {r["date"]: dict(r) for r in conn.execute("SELECT * FROM lesson_days")}
+    out = {}
+    for d in days:
+        m = marks.get(d.isoformat())
+        out[d.isoformat()] = {"status": m["status"] if m else auto_status(d), "note": m["note"] if m else ""}
+    return out
+
+
+def set_day(conn: sqlite3.Connection, iso: str, status: str, note: str = "") -> dict:
+    """Mark a Sunday for the whole ward. A note (e.g. "Ward conference") goes with the mark."""
+    try:
+        day = date.fromisoformat(iso)
+    except ValueError:
+        raise LessonError("Not a date.") from None
+    if day.weekday() != 6:
+        raise LessonError("Lessons are on Sundays.")
+    if status not in STATUSES or (status == "fifth_sunday" and day.day <= 28):
+        raise LessonError("Unknown status.")
+    note = " ".join(str(note or "").split())[:120]
+    if status == "fifth_sunday" or (status == "lesson" and day.day <= 28 and not note):
+        conn.execute("DELETE FROM lesson_days WHERE date = ?", (iso,))   # back to the default
+    else:
+        conn.execute("INSERT INTO lesson_days (date, status, note) VALUES (?, ?, ?) "
+                     "ON CONFLICT(date) DO UPDATE SET status = excluded.status, note = excluded.note",
+                     (iso, status, note))
+    return day_marks(conn, [day])[iso]
+
+
+# --- Plans ------------------------------------------------------------------
+
+PLAN_NAMES = ORGS | {"ward": "Elders Quorum & Relief Society"}
+
+
+def is_shared(conn: sqlite3.Connection) -> bool:
+    """True when Elders Quorum and Relief Society teach the same talks each Sunday (one plan)."""
+    return db.get_ward_setting(conn, "lessons_shared") == "1"
+
+
+def set_shared(conn: sqlite3.Connection, shared: bool) -> None:
+    """Switch between one shared plan and a plan per organization.
+
+    The first time the plans are shared, the shared plan starts as a copy of Elders Quorum's.
+    Each plan is kept, so switching back shows what was there before.
+    """
+    db.set_ward_setting(conn, "lessons_shared", "1" if shared else "0")
+    if shared and not conn.execute("SELECT 1 FROM lesson_talks WHERE plan = 'ward' "
+                                   "UNION SELECT 1 FROM lesson_notes WHERE plan = 'ward'").fetchone():
+        conn.execute("INSERT INTO lesson_talks (plan, date, talk_id, position) "
+                     "SELECT 'ward', date, talk_id, position FROM lesson_talks WHERE plan = 'eq'")
+        conn.execute("INSERT INTO lesson_notes (plan, date, note) "
+                     "SELECT 'ward', date, note FROM lesson_notes WHERE plan = 'eq'")
+
+
+def plan_for(conn: sqlite3.Connection, org: str) -> str:
+    return "ward" if is_shared(conn) else org
+
+
+def plan_orgs(plan: str) -> list[str]:
+    return list(ORGS) if plan == "ward" else [plan]
+
+
+class VersionConflict(LessonError):
+    pass
+
+
+def _version(conn, plan: str, conference_id: int) -> int:
+    row = conn.execute("SELECT version FROM lesson_boards WHERE plan = ? AND conference_id = ?",
+                       (plan, conference_id)).fetchone()
+    return row["version"] if row else 0
+
+
+def plan_weeks(conn: sqlite3.Connection, plan: str, conf: dict) -> list[dict]:
+    """Every Sunday of a conference's lessons: its ward-wide mark and this plan's talks and note."""
+    days = sundays(conf["year"], conf["month"])
+    marks = day_marks(conn, days)
+    first, last = days[0].isoformat(), days[-1].isoformat()
+    talk_ids: dict[str, list[int]] = {}
+    for r in conn.execute("SELECT date, talk_id FROM lesson_talks WHERE plan = ? AND date BETWEEN ? AND ? "
+                          "ORDER BY date, position", (plan, first, last)):
+        talk_ids.setdefault(r["date"], []).append(r["talk_id"])
+    notes = {r["date"]: r["note"] for r in conn.execute(
+        "SELECT date, note FROM lesson_notes WHERE plan = ? AND date BETWEEN ? AND ?", (plan, first, last))}
+    out = []
+    for d in days:
+        iso = d.isoformat()
+        out.append({"date": iso, "status": marks[iso]["status"], "day_note": marks[iso]["note"],
+                    "fifth": d.day > 28, "talks": talk_ids.get(iso, []), "note": notes.get(iso, "")})
+    return out
+
+
+def board_state(conn: sqlite3.Connection, plan: str, conf: dict, today: date | None = None) -> dict:
+    """Everything the planning board needs, as JSON."""
+    talk_rows = talks(conn, conf["id"])
+    nxt = next_conference(conf["year"], conf["month"])
+    return {
+        "plan": plan,
+        "plan_name": PLAN_NAMES[plan],
+        "orgs": plan_orgs(plan),
+        "org_names": ORGS,
+        "conference": {"id": conf["id"], "key": f"{conf['year']}-{conf['month']:02d}", "name": conf["name"],
+                       "next_name": conference_name(*nxt), "next_date": conference_sunday(*nxt).isoformat()},
+        "today": (today or date.today()).isoformat(),
+        "version": _version(conn, plan, conf["id"]),
+        "statuses": STATUSES,
+        "weeks": plan_weeks(conn, plan, conf),
+        "talks": [{k: t[k] for k in ("id", "title", "speaker", "calling", "summary", "url", "kind", "session")}
+                  | {"required": bool(t["required"])} for t in talk_rows],
+        "required_speakers": required_speakers(talk_rows),
+    }
+
+
+def save_plan(conn: sqlite3.Connection, plan: str, conf: dict, weeks, version: int, username: str) -> int:
+    """Replace a plan's talks and notes for one conference. Returns the new version."""
+    if not isinstance(weeks, list):
+        raise LessonError("weeks must be a list")
+    current = _version(conn, plan, conf["id"])
+    if version != current:
+        raise VersionConflict("This plan was changed somewhere else.")
+    valid_days = {d.isoformat() for d in sundays(conf["year"], conf["month"])}
+    valid_talks = {r[0] for r in conn.execute("SELECT id FROM talks WHERE conference_id = ?", (conf["id"],))}
+    rows, notes = [], []
+    for w in weeks:
+        if not isinstance(w, dict) or w.get("date") not in valid_days:
+            raise LessonError("Unknown Sunday.")
+        ids = [int(t) for t in w.get("talks") or []]
+        if any(t not in valid_talks for t in ids):
+            raise LessonError("Unknown talk.")
+        rows += [(plan, w["date"], t, i) for i, t in enumerate(dict.fromkeys(ids))]
+        note = " ".join(str(w.get("note") or "").split())[:200]
+        if note:
+            notes.append((plan, w["date"], note))
+    first, last = min(valid_days), max(valid_days)
+    conn.execute("DELETE FROM lesson_talks WHERE plan = ? AND date BETWEEN ? AND ?", (plan, first, last))
+    conn.execute("DELETE FROM lesson_notes WHERE plan = ? AND date BETWEEN ? AND ?", (plan, first, last))
+    conn.executemany("INSERT INTO lesson_talks (plan, date, talk_id, position) VALUES (?, ?, ?, ?)", rows)
+    conn.executemany("INSERT INTO lesson_notes (plan, date, note) VALUES (?, ?, ?)", notes)
+    conn.execute("INSERT INTO lesson_boards (plan, conference_id, version, updated_by) VALUES (?, ?, ?, ?) "
+                 "ON CONFLICT(plan, conference_id) DO UPDATE SET version = excluded.version, "
+                 "updated_by = excluded.updated_by, updated_at = datetime('now')",
+                 (plan, conf["id"], current + 1, username))
+    return current + 1

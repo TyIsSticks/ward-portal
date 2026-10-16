@@ -173,11 +173,45 @@ CREATE TABLE IF NOT EXISTS talks (
     required      INTEGER NOT NULL DEFAULT 0,    -- by the First Presidency or the Twelve
     UNIQUE (conference_id, uri)
 );
+
+-- Ward-wide marks on a Sunday. Fifth Sundays have no lesson unless reopened with 'lesson'.
+CREATE TABLE IF NOT EXISTS lesson_days (
+    date   TEXT PRIMARY KEY,                -- YYYY-MM-DD, always a Sunday
+    status TEXT NOT NULL CHECK (status IN ('lesson', 'stake_conference', 'no_second_hour')),
+    note   TEXT NOT NULL DEFAULT ''
+);
+
+-- The talks taught on a Sunday. plan is 'eq', 'rs', or 'ward' when both teach the same lessons.
+CREATE TABLE IF NOT EXISTS lesson_talks (
+    plan     TEXT NOT NULL CHECK (plan IN ('eq', 'rs', 'ward')),
+    date     TEXT NOT NULL,
+    talk_id  INTEGER NOT NULL REFERENCES talks(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL,
+    PRIMARY KEY (plan, date, talk_id)
+);
+
+CREATE TABLE IF NOT EXISTS lesson_notes (
+    plan TEXT NOT NULL CHECK (plan IN ('eq', 'rs', 'ward')),
+    date TEXT NOT NULL,
+    note TEXT NOT NULL,
+    PRIMARY KEY (plan, date)
+);
+
+-- Bumped on every save of a plan, for edit conflicts.
+CREATE TABLE IF NOT EXISTS lesson_boards (
+    plan          TEXT NOT NULL,
+    conference_id INTEGER NOT NULL REFERENCES conferences(id) ON DELETE CASCADE,
+    version       INTEGER NOT NULL DEFAULT 0,
+    updated_by    TEXT NOT NULL DEFAULT '',
+    updated_at    TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (plan, conference_id)
+);
 """
 
 # Ward tables in an order that respects foreign keys (parents first).
 WARD_TABLES = ["people", "person_tags", "layouts", "districts", "companionships", "companionship_members",
-               "pending_imports", "birthdays", "uploads", "ward_settings", "conferences", "talks"]
+               "pending_imports", "birthdays", "uploads", "ward_settings", "conferences", "talks",
+               "lesson_days", "lesson_talks", "lesson_notes", "lesson_boards"]
 
 
 def _open(path: Path) -> sqlite3.Connection:

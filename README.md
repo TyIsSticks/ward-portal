@@ -18,8 +18,9 @@ A small self-hosted portal for working with LCR report exports.
   Includes warnings, priority tags, companion history from past imports, Draft / Proposed / Approved
   status, and a printable **Changes for LCR** checklist. See [Ministering](#ministering).
 - **Lessons** (leaders): plan Elders Quorum and Relief Society lessons from the latest general
-  conference. The talks come straight from the Church website (or a printed PDF), with First
-  Presidency and Twelve talks marked. See [Lessons](#lessons).
+  conference on a drag-and-drop board of Sundays. The talks come straight from the Church website
+  (or a printed PDF), First Presidency and Twelve talks are tracked until each has a lesson, and
+  stake conference, fifth Sundays and "no second hour" weeks are skipped. See [Lessons](#lessons).
 
 **Multiple wards:** each ward has its own members, birthdays, calendar link, and Elders Quorum and
 Relief Society ministering, stored in its own database file (`data/wards/ward-<id>.db`). Accounts
@@ -153,6 +154,29 @@ PDF instead: on churchofjesuschrist.org open *General Conference → October 202
 and save as PDF, then upload it here or on the regular **Upload report** page. A PDF has no
 callings, so the ticks are filled in from names the portal already knows; check them before
 planning. Loading a conference again (either way) keeps the talks already planned.
+
+**Planning** (the **Lessons** tab): one card per Sunday from the Sunday after conference to the
+Sunday before the next one. Lessons are every Sunday except:
+
+- **Fifth Sundays:** marked automatically. Pick *Lesson* on one to teach that Sunday anyway.
+- **Stake conference** and **No second hour:** pick them on the Sunday's card, with an optional
+  note such as "Ward conference". These marks are **ward-wide**: they apply to Elders Quorum and
+  Relief Society at once.
+
+Drag talks from the tray onto Sundays. Drop more than one on the same Sunday to study them
+together, or drag one back to the tray to unplan it. Tap a talk to read its summary, open it on the
+Church website, or move it with a menu. ★ marks First Presidency and Twelve talks, and the tray
+shows how many of those speakers are planned. **Fill in First Presidency & Twelve** puts each
+missing speaker's talk on the next open Sundays in conference order, doubling up only if there
+aren't enough Sundays. Everything autosaves.
+
+The **Warnings** tab lists First Presidency and Twelve speakers who aren't planned, when there
+are fewer open Sundays left than speakers (so lessons need combining), talks on a Sunday without
+lessons, a talk planned twice, and Sundays in the next three weeks with nothing planned.
+
+Elders Quorum and Relief Society each have their own plan. If your ward teaches the same talks in
+both, choose **⋯ → EQ and RS teach the same lessons**; the shared plan starts as a copy of the
+Elders Quorum plan, and switching back shows each organization's own plan again.
 
 ## Wards
 
