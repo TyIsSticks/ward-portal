@@ -39,6 +39,7 @@
           <input type="hidden" name="shared" value="{{ '' if shared else '1' }}">
           <button type="submit">{{ "Give EQ and RS separate plans" if shared else "EQ and RS teach the same lessons" }}</button>
         </form>
+        <a href="/lessons/calendar">Put lessons on your phone</a>
         {% if (record.year, record.month) != current %}<a href="/lessons/{{ plan }}">Go to the current conference</a>{% endif %}
       </div>
     </details>

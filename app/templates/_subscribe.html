@@ -1,0 +1,53 @@
+{# Calendar subscriptions: the big buttons, and step-by-step help with the private link.
+   Usage: {% from "_subscribe.html" import subscribe_card, subscribe_help %} #}
+
+{% macro subscribe_card(feed_url, title, intro, id="subscribe") -%}
+{% set webcal = "webcal://" ~ feed_url.split("://", 1)[1] %}
+<section class="card dark subscribe" id="{{ id }}">
+  <h2>{{ title }}</h2>
+  <p>{{ intro }}</p>
+  <a class="btn-cta" href="{{ webcal }}">iPhone · Subscribe</a>
+  <a class="btn-cta light" href="https://calendar.google.com/calendar/r?cid={{ feed_url|urlencode|replace('/', '%2F') }}" target="_blank" rel="noopener">Android · Google Calendar</a>
+</section>
+{%- endmacro %}
+
+{# `things`: what shows up ("birthdays"); `calendar`: what it's called in Google ("birthday calendar").
+   Anything in the call block (e.g. a "make a new link" form) goes under the link. #}
+{% macro subscribe_help(feed_url, things, calendar, lag, field_id="feed") -%}
+<section class="card">
+  <h2>Step-by-step help</h2>
+  <details class="guide">
+    <summary>How to add it on an iPhone</summary>
+    <p class="small">If the <strong>iPhone · Subscribe</strong> button doesn’t work, do it by hand:</p>
+    <ol>
+      <li>Copy the calendar link below.</li>
+      <li>Open the <strong>Settings</strong> app. Tap <strong>Apps</strong>, then <strong>Calendar</strong>.
+          <span class="muted">(On older iPhones, just tap <strong>Calendar</strong>.)</span></li>
+      <li>Tap <strong>Calendar Accounts</strong> → <strong>Add Account</strong> → <strong>Other</strong>.</li>
+      <li>Tap <strong>Add Subscribed Calendar</strong>, paste the link into <em>Server</em>, and tap <strong>Next</strong>.</li>
+      <li>Tap <strong>Save</strong>. The {{ things }} now show up in the Calendar app.</li>
+    </ol>
+    <p class="muted small">Use the Google Calendar app on your iPhone? Follow the Android steps.</p>
+  </details>
+  <details class="guide">
+    <summary>How to add it on Android (Google Calendar)</summary>
+    <p class="small">The Google Calendar app can’t add a link by itself, so you do it once on the website:</p>
+    <ol>
+      <li>Copy the calendar link below.</li>
+      <li>Open <strong>Chrome</strong> and go to <strong>calendar.google.com</strong>. If it says to use the app,
+          tap <strong>⋮</strong> and check <strong>Desktop site</strong>.</li>
+      <li>Next to <strong>Other calendars</strong>, tap <strong>+</strong>, then <strong>From URL</strong>.</li>
+      <li>Paste the link and tap <strong>Add calendar</strong>. Leave “Make the calendar publicly accessible” <strong>unchecked</strong>.</li>
+      <li>In the <strong>Google Calendar</strong> app: <strong>☰</strong> → <strong>Settings</strong>, tap the new {{ calendar }},
+          and turn on <strong>Sync</strong>.</li>
+    </ol>
+    <p class="muted small">{{ lag }}</p>
+  </details>
+  <label for="{{ field_id }}" class="small" style="display: block; margin-top: 1rem; font-weight: 800">Calendar link (keep it private)</label>
+  <div class="row">
+    <input id="{{ field_id }}" value="{{ feed_url }}" readonly onclick="this.select()">
+    <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('{{ field_id }}').value); this.textContent='Copied'">Copy</button>
+  </div>
+  {% if caller is defined %}{{ caller() }}{% endif %}
+</section>
+{%- endmacro %}

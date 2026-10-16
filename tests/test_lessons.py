@@ -391,3 +391,63 @@ def test_dashboard_tile(client):
     login(client)
     page = client.get("/").text
     assert "Open lesson plan" in page and "conference talks for lesson planning" in page
+
+
+# --- calendars --------------------------------------------------------------------
+
+def test_lesson_calendars(client, conf):
+    a, b, c, d = conf["talk_ids"]
+    with db.ward_connect(1) as conn:
+        ids = add_people(conn)
+        al = les.add_teacher(conn, "eq", person_id=ids["Able, Al"])
+        bo = les.add_teacher(conn, "eq", person_id=ids["Baker, Bo"])
+        les.save_plan(conn, "eq", conf, [
+            {"date": "2030-10-13", "talks": [b, c], "teachers": {"eq": [al["id"], bo["id"]]}, "note": "Bring scriptures"},
+            {"date": "2030-10-20", "talks": [], "teachers": {"eq": [bo["id"]]}}], 0, "x")
+        les.set_day(conn, "2030-10-27", "stake_conference")
+        token = les.feed_token(conn)
+        al_token = les.get_teacher(conn, al["id"])["feed_token"]
+
+    feed = client.get(f"/feed/1/lessons/{token}/eq.ics")
+    assert feed.status_code == 200 and feed.headers["content-type"].startswith("text/calendar")
+    body = feed.text.replace("\r\n ", "")   # unfold long lines
+    assert "X-WR-CALNAME:My Ward Elders Quorum lessons" in body
+    assert r"SUMMARY:EQ lesson: “Faith & Hope” + Light (Al Able\, Bo Baker)" in body   # iCalendar escapes commas
+    assert "SUMMARY:EQ lesson: talk not picked yet (Bo Baker)" in body
+    assert "SUMMARY:No EQ lesson (Stake conference)" in body
+    assert "Note: Bring scriptures" in body and "12birch?lang=eng" in body
+    assert "DTSTART;VALUE=DATE:20301013" in body
+    rs = client.get(f"/feed/1/lessons/{token}/rs.ics").text
+    assert "No RS lesson (Stake conference)" in rs and "RS lesson:" not in rs   # marks are ward-wide
+
+    mine = client.get(f"/feed/1/teacher/{al_token}.ics").text.replace("\r\n ", "")
+    assert "SUMMARY:Teach Elders Quorum: “Faith & Hope” + Light" in mine and "Teaching with Bo Baker" in mine
+    assert "20301020" not in mine   # Bo's Sunday, not Al's
+
+    for bad in [f"/feed/1/lessons/wrong/eq.ics", f"/feed/1/lessons/{token}/xx.ics", f"/feed/99/lessons/{token}/eq.ics",
+                "/feed/1/teacher/wrong.ics", f"/feed/99/teacher/{al_token}.ics"]:
+        assert client.get(bad).status_code == 404, bad
+    from app import db as dbm
+    assert not dbm.ward_path(99).exists()   # a bad ward id never creates a database
+
+    login(client)
+    assert f"/feed/1/lessons/{token}/eq.ics" in client.get("/lessons/calendar").text
+    assert f"/feed/1/teacher/{al_token}.ics" in client.get(f"/lessons/teachers/{al['id']}/calendar").text
+    client.post("/lessons/calendar/regenerate")
+    client.post(f"/lessons/teachers/{al['id']}/calendar/regenerate")
+    assert client.get(f"/feed/1/lessons/{token}/eq.ics").status_code == 404
+    assert client.get(f"/feed/1/teacher/{al_token}.ics").status_code == 404
+
+
+def test_shared_plan_calendars(client, conf):
+    a, b, c, d = conf["talk_ids"]
+    with db.ward_connect(1) as conn:
+        ids = add_people(conn)
+        di = les.add_teacher(conn, "rs", person_id=ids["Dunn, Di"])
+        les.set_shared(conn, True)
+        les.save_plan(conn, "ward", conf, [{"date": "2030-10-13", "talks": [d], "teachers": {"rs": [di["id"]]}}], 0, "x")
+        token = les.feed_token(conn)
+    rs = client.get(f"/feed/1/lessons/{token}/rs.ics").text
+    eq = client.get(f"/feed/1/lessons/{token}/eq.ics").text
+    assert "RS lesson: Closing Remarks (Di Dunn)" in rs
+    assert "EQ lesson: Closing Remarks" in eq and "Di Dunn" not in eq.split("Closing Remarks")[1].split("\n")[0]

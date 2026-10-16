@@ -7,8 +7,10 @@
     <p class="crumbs"><a href="/lessons">← Lesson plan</a></p>
     <h1>Teachers</h1>
     <div class="sub">Elders Quorum and Relief Society each keep their own list{% if shared %}, even while they share one
-      lesson plan{% endif %}. Assign teachers to Sundays by dragging them on the lesson plan.</div>
+      lesson plan{% endif %}. Assign teachers to Sundays by dragging them on the lesson plan. Each teacher has a private
+      calendar link with just their Sundays.</div>
   </div>
+  <a class="secondary" href="/lessons/calendar">Whole-schedule calendars</a>
 </div>
 
 <div class="cols">
@@ -29,6 +31,7 @@
         {% if t.next_date %}<div class="small muted">Next: {{ t.next_date }}</div>{% endif %}</td>
       <td>{{ t.lessons }}</td>
       <td class="actions">
+        {% if t.active %}<a class="small" href="/lessons/teachers/{{ t.id }}/calendar">Calendar link</a>{% endif %}
         <form method="post" action="/lessons/teachers/{{ t.id }}/active">
           <input type="hidden" name="active" value="{{ '' if t.active else '1' }}">
           <button class="link small">{{ "Take off the list" if t.active else "Put back on the list" }}</button>

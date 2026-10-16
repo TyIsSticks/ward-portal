@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "_subscribe.html" import subscribe_card, subscribe_help %}
+{% set active = "lessons" %}
+{% block title %}{{ teacher.name }}’s lessons · {{ ward_name }}{% endblock %}
+{% block main_class %}narrow-page{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="grow">
+    <p class="crumbs"><a href="/lessons/teachers#{{ teacher.org }}">← Teachers</a></p>
+    <h1>{{ teacher.name }}’s lesson calendar</h1>
+    <div class="sub">Only the Sundays {{ teacher.name.split()[0] }} teaches {{ org_name }}, with the talks and links to read them.
+      Copy the calendar link below and send it to them privately (a text or email), or subscribe on their phone together.</div>
+  </div>
+</div>
+
+{{ subscribe_card(feed_url, "Put your lessons on your phone", "Subscribe once and every lesson you’re assigned shows up by itself, with the talks to study.") }}
+
+{% call subscribe_help(feed_url, "lessons", "lesson calendar", "New lessons can take up to a day to appear. That’s Google’s schedule.") %}
+  <form method="post" action="/lessons/teachers/{{ teacher.id }}/calendar/regenerate"
+        onsubmit="return confirm('The old link stops working. Continue?')">
+    <button class="link small">Make a new link (if it leaked)</button>
+  </form>
+{% endcall %}
+<p class="muted small">Teachers don’t need an account. The link only shows their own lessons.</p>
+{% endblock %}

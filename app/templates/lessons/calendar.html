@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "_subscribe.html" import subscribe_card, subscribe_help %}
+{% set active = "lessons" %}
+{% block title %}Lesson calendars · {{ ward_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="grow">
+    <p class="crumbs"><a href="/lessons">← Lesson plan</a></p>
+    <h1>Lesson calendars</h1>
+    <div class="sub">Each organization’s whole lesson schedule on your phone: the talks, the teacher and any note on every
+      Sunday, plus Sundays without a lesson. It updates by itself as the plan changes.
+      {% if shared %}Both show the shared plan, each with its own teachers.{% endif %}</div>
+  </div>
+  <a class="secondary" href="/lessons/teachers">Teacher calendars</a>
+</div>
+
+<div class="cols">
+{% for org, name in org_names.items() %}
+  <div>
+    {{ subscribe_card(feeds[org], name ~ " lessons", "For the presidency or anyone planning lessons. Teachers have their own calendars with just their Sundays.", id=org) }}
+    {% call subscribe_help(feeds[org], name ~ " lessons", name ~ " lessons calendar",
+                           "Changes can take up to a day to appear. That’s Google’s schedule.", field_id="feed-" ~ org) %}
+    {% endcall %}
+  </div>
+{% endfor %}
+</div>
+
+<section class="card">
+  <p class="muted small">Lessons show as all-day events on Sunday. Both links share one secret, so anyone with either link can
+    see both schedules (names and talks only).</p>
+  <form method="post" action="/lessons/calendar/regenerate" onsubmit="return confirm('The old links stop working for everyone. Continue?')">
+    <button class="link small">Make new links (if one leaked)</button>
+  </form>
+</section>
+{% endblock %}

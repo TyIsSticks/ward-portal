@@ -5,7 +5,9 @@ lessons for a conference run from the Sunday after it to the Sunday before the n
 """
 import secrets
 import sqlite3
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
+
+from icalendar import Calendar, Event
 
 from . import db
 from .reports import conference as gc
@@ -449,3 +451,109 @@ def dashboard(conn: sqlite3.Connection, today: date | None = None) -> dict:
                                         "Combine some lessons",
                                 "cta": "Plan", "href": href})
     return out
+
+
+# --- Calendar feeds -------------------------------------------------------------
+# Same idea as the birthday calendar: a private link that phones subscribe to. Each organization
+# has a feed of its whole schedule (one secret per ward), and each teacher has their own.
+
+def feed_token(conn: sqlite3.Connection) -> str:
+    token = db.get_ward_setting(conn, "lessons_feed_token")
+    if not token:
+        token = secrets.token_urlsafe(24)
+        db.set_ward_setting(conn, "lessons_feed_token", token)
+    return token
+
+
+def new_feed_token(conn: sqlite3.Connection) -> None:
+    db.set_ward_setting(conn, "lessons_feed_token", secrets.token_urlsafe(24))
+
+
+def new_teacher_token(conn: sqlite3.Connection, teacher_id: int) -> None:
+    conn.execute("UPDATE teachers SET feed_token = ? WHERE id = ?", (secrets.token_urlsafe(24), teacher_id))
+
+
+def teacher_by_token(conn: sqlite3.Connection, token: str) -> dict | None:
+    row = conn.execute("SELECT * FROM teachers WHERE feed_token = ?", (token,)).fetchone()
+    return dict(row) if row else None
+
+
+def _schedule(conn: sqlite3.Connection, org: str) -> list[dict]:
+    """Every planned Sunday for an organization, across all loaded conferences."""
+    plan = plan_for(conn, org)
+    names = {r["id"]: r["name"] for r in conn.execute("SELECT id, name FROM teachers")}
+    out = []
+    for conf in list_conferences(conn):
+        by_id = {t["id"]: t for t in talks(conn, conf["id"])}
+        for w in plan_weeks(conn, plan, conf):
+            w = dict(w, talks=[by_id[t] for t in w["talks"] if t in by_id], teacher_ids=w["teachers"].get(org, []))
+            w["teacher_names"] = [names[t] for t in w["teacher_ids"]]
+            out.append(w)
+    return out
+
+
+def _describe(w: dict, teacher_line: bool = True) -> str:
+    lines = []
+    if teacher_line and w["teacher_names"]:
+        lines.append(f"Teacher: {', '.join(w['teacher_names'])}")
+    if w["note"]:
+        lines.append(f"Note: {w['note']}")
+    for t in w["talks"]:
+        lines += ["", f"{t['title']} ({t['speaker']})"] + ([t["summary"]] if t["summary"] else []) + [t["url"]]
+    return "\n".join(lines).strip()
+
+
+def _calendar(name: str) -> Calendar:
+    cal = Calendar()
+    cal.add("prodid", "-//ward-portal//lessons//EN")
+    cal.add("version", "2.0")
+    cal.add("calscale", "GREGORIAN")
+    cal.add("x-wr-calname", name)
+    cal.add("refresh-interval;value=duration", "PT6H")
+    cal.add("x-published-ttl", "PT6H")
+    return cal
+
+
+def _event(uid: str, day: str, summary: str, description: str) -> Event:
+    ev = Event()
+    ev.add("uid", f"{uid}@ward-portal")   # stable, so calendar apps update events in place
+    ev.add("summary", summary)
+    ev.add("dtstart", date.fromisoformat(day))
+    ev.add("dtend", date.fromisoformat(day) + timedelta(days=1))
+    ev.add("dtstamp", datetime.now(timezone.utc))
+    ev.add("transp", "TRANSPARENT")
+    if description:
+        ev.add("description", description)
+    return ev
+
+
+def org_feed(conn: sqlite3.Connection, org: str, ward_name: str) -> bytes:
+    """An organization's whole schedule: each lesson with its talks and teacher, and Sundays without one."""
+    short = {"eq": "EQ", "rs": "RS"}[org]
+    cal = _calendar(f"{ward_name} {ORGS[org]} lessons")
+    for w in _schedule(conn, org):
+        if w["status"] == "lesson" and (w["talks"] or w["teacher_ids"] or w["note"]):
+            titles = " + ".join(t["title"] for t in w["talks"]) or "talk not picked yet"
+            who = f" ({', '.join(w['teacher_names'])})" if w["teacher_names"] else ""
+            cal.add_component(_event(f"{org}-{w['date']}", w["date"], f"{short} lesson: {titles}{who}", _describe(w)))
+        elif w["status"] in ("stake_conference", "no_second_hour"):
+            label = STATUSES[w["status"]] + (f": {w['day_note']}" if w["day_note"] else "")
+            cal.add_component(_event(f"{org}-{w['date']}", w["date"], f"No {short} lesson ({label})", ""))
+    return cal.to_ical()
+
+
+def teacher_feed(conn: sqlite3.Connection, teacher: dict, ward_name: str) -> bytes:
+    """Just the Sundays one teacher teaches."""
+    org = teacher["org"]
+    cal = _calendar(f"{ORGS[org]} lessons: {teacher['name']}")
+    for w in _schedule(conn, org):
+        if w["status"] != "lesson" or teacher["id"] not in w["teacher_ids"]:
+            continue
+        titles = " + ".join(t["title"] for t in w["talks"]) or "talk not picked yet"
+        others = [n for i, n in zip(w["teacher_ids"], w["teacher_names"]) if i != teacher["id"]]
+        desc = _describe(w, teacher_line=False)
+        if others:
+            desc = f"Teaching with {', '.join(others)}\n{desc}"
+        cal.add_component(_event(f"t{teacher['id']}-{w['date']}", w["date"], f"Teach {ORGS[org]}: {titles}",
+                                 f"{ward_name}\n{desc}".strip()))
+    return cal.to_ical()

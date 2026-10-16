@@ -40,8 +40,9 @@ LCR exports are *For Church Use Only*.
 - Uploaded files are parsed in memory and never written to disk.
 - Stored per person: **name, gender, birth date**, and any ministering tags leaders add.
   Phones, emails and addresses in the exports are discarded.
-- The calendar feed is the only unauthenticated route, and it lives at an unguessable URL
-  that an admin can regenerate.
+- The calendar feeds (birthdays, lessons, each teacher's lessons) are the only unauthenticated
+  routes, and each lives at an unguessable URL that can be regenerated.
+- Lesson plans store teacher names (typed, or picked from the roster) and nothing else about them.
 - `.gitignore` blocks PDFs, CSVs, spreadsheets and `data/`. **Never commit real exports.**
   Tests use made-up names only.
 
@@ -186,6 +187,18 @@ The dashboard's **Lessons** tile shows the next lesson (talk and teacher) and ho
 Presidency and Twelve speakers are planned. Its to-do list asks for missing talks and teachers in
 the next two weeks, for the new conference's talks once it's over, and for combined lessons when
 there aren't enough Sundays left.
+
+**Calendars on your phone** work like the birthday calendar: subscribe once (iPhone button, or the
+Google Calendar steps for Android) and changes show up by themselves. Lessons are all-day events
+on Sunday with the talks, links to read them, the teacher and any note.
+
+- **Whole schedule** (lesson plan **⋯ → Put lessons on your phone**): one calendar per
+  organization, including Sundays without a lesson. Handy for presidencies, or for trying the
+  portal next to an existing spreadsheet calendar.
+- **Each teacher** (Teachers → *Calendar link*): only the Sundays that teacher teaches. Copy the
+  link and send it to them privately; they don't need an account.
+
+The links are private and unguessable, like the birthday feed. *Make new links* stops an old one.
 
 Elders Quorum and Relief Society each have their own plan. If your ward teaches the same talks in
 both, choose **⋯ → EQ and RS teach the same lessons**; the shared plan starts as a copy of the

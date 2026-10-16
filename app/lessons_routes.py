@@ -1,14 +1,19 @@
-"""Lesson planning pages: conference talks, the planning board and teachers. Leaders and admins only."""
+"""Lesson planning: conference talks, the planning board, teachers and calendars.
+
+Leaders and admins only, except the calendar feeds, which (like the birthday feed) are reached
+by a private link.
+"""
+import secrets
 from datetime import date
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
-from . import auth, db, lessons as les
+from . import auth, db, lessons as les, wards
 from .ministering_routes import _json as json_body
 from .reports import conference as gc
 from .reports.birthdays import ReportError
-from .web import flash, render
+from .web import absolute_url, flash, render
 
 router = APIRouter()
 leader = Depends(auth.require_leader)
@@ -154,6 +159,85 @@ async def api_add_teacher(request: Request, user: dict = leader):
                                    int(person_id) if person_id else None)
     except (les.LessonError, TypeError, ValueError) as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
+
+
+# --- Calendars ----------------------------------------------------------------
+
+def org_feed_url(request: Request, ward_id: int, token: str, org: str) -> str:
+    return absolute_url(request, f"/feed/{ward_id}/lessons/{token}/{org}.ics")
+
+
+def teacher_feed_url(request: Request, ward_id: int, token: str) -> str:
+    return absolute_url(request, f"/feed/{ward_id}/teacher/{token}.ics")
+
+
+@router.get("/lessons/calendar", response_class=HTMLResponse)
+def calendar_page(request: Request, user: dict = leader):
+    ward_id = user["ward"]["id"]
+    with db.ward_connect(ward_id) as conn:
+        token = les.feed_token(conn)
+        shared = les.is_shared(conn)
+    feeds = {o: org_feed_url(request, ward_id, token, o) for o in les.ORGS}
+    return render(request, "lessons/calendar.html", user=user, feeds=feeds, org_names=les.ORGS, shared=shared)
+
+
+@router.post("/lessons/calendar/regenerate")
+def regenerate_calendar(request: Request, user: dict = leader):
+    with db.ward_connect(user["ward"]["id"]) as conn:
+        les.new_feed_token(conn)
+    flash(request, "ok", "New lesson calendar links created. Everyone needs to subscribe again with the new link.")
+    return RedirectResponse("/lessons/calendar", status_code=303)
+
+
+@router.get("/lessons/teachers/{teacher_id}/calendar", response_class=HTMLResponse)
+def teacher_calendar_page(teacher_id: int, request: Request, user: dict = leader):
+    with db.ward_connect(user["ward"]["id"]) as conn:
+        t = _teacher_or_404(conn, teacher_id)
+    return render(request, "lessons/teacher_calendar.html", user=user, teacher=t, org_name=les.ORGS[t["org"]],
+                  feed_url=teacher_feed_url(request, user["ward"]["id"], t["feed_token"]))
+
+
+@router.post("/lessons/teachers/{teacher_id}/calendar/regenerate")
+def regenerate_teacher_calendar(teacher_id: int, request: Request, user: dict = leader):
+    with db.ward_connect(user["ward"]["id"]) as conn:
+        t = _teacher_or_404(conn, teacher_id)
+        les.new_teacher_token(conn, teacher_id)
+    flash(request, "ok", f"New calendar link for {t['name']}. Send it to them; the old one stopped working.")
+    return RedirectResponse(f"/lessons/teachers/{teacher_id}/calendar", status_code=303)
+
+
+def _ward_or_none(ward_id: int) -> dict | None:
+    # Look the ward up first: opening a ward database that doesn't exist would create it.
+    with db.connect() as conn:
+        return wards.get(conn, ward_id)
+
+
+def _ics(body: bytes) -> Response:
+    return Response(body, media_type="text/calendar; charset=utf-8",
+                    headers={"Cache-Control": "no-cache", "X-Robots-Tag": "noindex"})
+
+
+@router.get("/feed/{ward_id}/lessons/{token}/{org}.ics")
+def org_feed(ward_id: int, token: str, org: str):
+    ward = _ward_or_none(ward_id)
+    if ward is None or org not in les.ORGS:
+        return Response(status_code=404)
+    with db.ward_connect(ward_id) as conn:
+        if not secrets.compare_digest(token, les.feed_token(conn)):
+            return Response(status_code=404)
+        return _ics(les.org_feed(conn, org, ward["name"]))
+
+
+@router.get("/feed/{ward_id}/teacher/{token}.ics")
+def teacher_feed(ward_id: int, token: str):
+    ward = _ward_or_none(ward_id)
+    if ward is None:
+        return Response(status_code=404)
+    with db.ward_connect(ward_id) as conn:
+        t = les.teacher_by_token(conn, token)
+        if t is None:
+            return Response(status_code=404)
+        return _ics(les.teacher_feed(conn, t, ward["name"]))
 
 
 # --- Planning board -----------------------------------------------------------
