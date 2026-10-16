@@ -29,6 +29,15 @@ def test_birthday_messages_every_style():
     assert gm.short_name("Ann Marie Apple") == "Ann Apple"
 
 
+def test_custom_birthday_messages():
+    own = "🎉 Happy birthday, {names}!\n\n🎂 Cake for {names}. {not a placeholder} {"""
+    for seed in range(10):
+        text = gm.birthday_message(["Ann Apple", "Bo Birch"], "custom", random.Random(seed), custom=own)
+        assert text in ("🎉 Happy birthday, Ann Apple and Bo Birch!",
+                        "🎂 Cake for Ann Apple and Bo Birch. {not a placeholder} {")
+    assert "Ann" in gm.birthday_message(["Ann"], "custom", custom="").title()   # nothing written: a built-in style
+
+
 def test_coming_sunday():
     assert gm.coming_sunday(date(2030, 10, 14)) == date(2030, 10, 20)   # Monday
     assert gm.coming_sunday(date(2030, 10, 20)) == date(2030, 10, 27)   # Sunday: the next one
@@ -41,12 +50,14 @@ def test_lesson_messages_always_say_roger_roger(conf):
         les.save_plan(conn, "eq", conf, [{"date": "2030-10-20", "talks": conf["talk_ids"][1:2],
                                           "teachers": {"eq": [al["id"]]}}], 0, "admin")
         les.set_day(conn, "2030-11-10", "stake_conference")
-        cases = {date(2030, 10, 20): "Al Able", date(2030, 10, 27): "Sunday, Oct 27",
+        cases = {date(2030, 10, 20): "Al Able", date(2030, 10, 27): "Oct 27",
                  date(2030, 11, 10): "stake", date(2030, 12, 29): "ifth Sunday", date(2031, 4, 6): "eneral conference"}
-        for day, expect in cases.items():
-            for seed in range(30):
-                text = gm.lesson_message(conn, "eq", day, random.Random(seed))
-                assert "roger roger" in text.lower() and expect in text and "{" not in text
+        for voice, words in gm.VOICES.items():
+            for day, expect in cases.items():
+                for seed in range(30):
+                    text = gm.lesson_message(conn, "eq", day, random.Random(seed), words)
+                    assert expect in text and "{" not in text
+                    assert ("roger roger" in text.lower()) == (voice == "droid")
         planned = gm.lesson_message(conn, "eq", date(2030, 10, 20))
         assert "https://" in planned and "“" in planned
 
@@ -105,3 +116,30 @@ def test_who_can_set_up_bots(client):
     assert client.post("/groupme/birthdays", data={"bot_id": BOT}).status_code == 403   # ward admins only
     assert client.post("/groupme/lessons-rs", data={"bot_id": BOT}, follow_redirects=False).status_code == 303
     assert "Birthday shout-outs" not in client.get("/birthdays").text
+
+
+def test_choosing_and_writing_voices(client, conf, posted):
+    login(client)
+    client.post("/groupme/lessons-eq", data={"bot_id": BOT})
+    with db.ward_connect(1) as conn:
+        assert gm.voice(conn, "lessons-eq") == "plain"   # the droid is opt-in
+    assert "Write at least one" in client.post("/groupme/lessons-eq", data={
+        "voice": "custom", "openers": " ", "signoffs": ""}).text
+    client.post("/groupme/lessons-eq", data={"voice": "droid"})
+    with db.ward_connect(1) as conn:
+        assert "roger roger" in gm.preview(conn, "lessons-eq", date(2030, 10, 14)).lower()
+    client.post("/groupme/lessons-eq", data={"voice": "custom", "openers": "Ahoy, {org}!\n\n  Avast  ",
+                                              "signoffs": ""})
+    page = client.get("/lessons/calendar").text
+    assert "Ahoy, {org}!\nAvast</textarea>" in page
+    with db.ward_connect(1) as conn:
+        text = gm.preview(conn, "lessons-eq", date(2030, 10, 14))
+        assert text.splitlines()[0] in ("Ahoy, Elders Quorum!", "Avast") and "Oct 20" in text
+        assert not text.endswith("\n")
+        gm.remove(conn, "lessons-eq")
+        assert gm.voice(conn, "lessons-eq") == "custom"   # turning the bot off keeps the wording
+
+    client.post("/groupme/birthdays", data={"bot_id": BOT, "style": "custom", "custom": "Yay {names}!"})
+    client.post("/groupme/birthdays", data={"action": "test"})
+    assert posted[-1][1].endswith("Yay Sam Sample!")
+    assert "Write at least one" in client.post("/groupme/birthdays", data={"style": "custom", "custom": ""}).text

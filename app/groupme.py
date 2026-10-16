@@ -2,7 +2,7 @@
 
 A GroupMe bot is made at dev.groupme.com/bots and posts into one group; all the portal needs is
 its bot ID. Each ward can have three: one for birthdays and one per organization for lessons.
-A background loop (started with the app) checks every few minutes and posts at most once a day
+Each bot's wording is a built-in voice or the ward's own. A background loop (started with the app) checks every few minutes and posts at most once a day
 per bot. Messages only use first and last names, the same things the birthday calendar shows.
 """
 import asyncio
@@ -32,6 +32,8 @@ LESSON_HOUR = 9                # lesson reminders go out from 9 am on Monday
 CHECK_EVERY = 5 * 60           # seconds between checks
 START_DELAY = 30               # let the app finish starting before the first check
 MAX_TRIES = 3                  # failed posts retried per day, so an outage doesn't mean silence
+MAX_CUSTOM = 50                # written-your-own messages or lines kept per list
+MAX_TEXT = 6000
 
 
 class GroupMeError(Exception):
@@ -60,18 +62,71 @@ def set_bot_id(conn: sqlite3.Connection, key: str, value: str) -> None:
 
 
 def remove(conn: sqlite3.Connection, key: str) -> None:
-    conn.execute("DELETE FROM ward_settings WHERE key LIKE ?", (f"groupme:{key}:%",))
+    """Stop posting. The chosen wording is kept, in case the bot comes back."""
+    conn.execute("DELETE FROM ward_settings WHERE key IN (?, ?, ?)",
+                 (f"groupme:{key}:bot_id", f"groupme:{key}:sent", f"groupme:{key}:last"))
+
+
+def _lines(text: str) -> list[str]:
+    return [" ".join(line.split()) for line in str(text or "").splitlines() if line.strip()][:MAX_CUSTOM]
+
+
+def _blocks(text: str) -> list[str]:
+    """Messages separated by a blank line (a message can span several lines)."""
+    return [b.strip() for b in re.split(r"\n\s*\n", str(text or "").replace("\r", "")) if b.strip()][:MAX_CUSTOM]
 
 
 def style(conn: sqlite3.Connection) -> str:
     s = db.get_ward_setting(conn, "groupme:birthdays:style")
-    return s if s in STYLES or s == "mix" else "mix"
+    return s if s in STYLES or s in ("mix", "custom") else "mix"
 
 
-def set_style(conn: sqlite3.Connection, value: str) -> None:
-    if value not in STYLES and value != "mix":
+def custom_birthdays(conn: sqlite3.Connection) -> str:
+    return db.get_ward_setting(conn, "groupme:birthdays:custom") or ""
+
+
+def set_style(conn: sqlite3.Connection, value: str, custom: str | None = None) -> None:
+    if value not in STYLES and value not in ("mix", "custom"):
         raise GroupMeError("Unknown style.")
+    if custom is not None:
+        db.set_ward_setting(conn, "groupme:birthdays:custom", str(custom)[:MAX_TEXT].replace("\r", ""))
+    if value == "custom" and not _blocks(custom_birthdays(conn)):
+        raise GroupMeError("Write at least one birthday message, or pick one of the styles.")
     db.set_ward_setting(conn, "groupme:birthdays:style", value)
+
+
+def voice(conn: sqlite3.Connection, key: str) -> str:
+    v = db.get_ward_setting(conn, f"groupme:{key}:voice")
+    return v if v in VOICES or v == "custom" else DEFAULT_VOICE
+
+
+def custom_voice(conn: sqlite3.Connection, key: str) -> dict:
+    """The ward's own opening and closing lines (text, one per line); empty until they write some."""
+    return {part: db.get_ward_setting(conn, f"groupme:{key}:{part}") or "" for part in ("openers", "signoffs")}
+
+
+def set_voice(conn: sqlite3.Connection, key: str, value: str, openers: str | None = None,
+              signoffs: str | None = None) -> None:
+    if value not in VOICES and value != "custom":
+        raise GroupMeError("Unknown voice.")
+    for part, text in (("openers", openers), ("signoffs", signoffs)):
+        if text is not None:
+            db.set_ward_setting(conn, f"groupme:{key}:{part}", "\n".join(_lines(text)))
+    if value == "custom" and not any(_lines(t) for t in custom_voice(conn, key).values()):
+        raise GroupMeError("Write at least one opening or closing line, or pick one of the voices.")
+    db.set_ward_setting(conn, f"groupme:{key}:voice", value)
+
+
+def own_voice(conn: sqlite3.Connection, key: str) -> dict:
+    """Write-your-own: the ward's opening and closing lines around the friendly wording."""
+    own = custom_voice(conn, key)
+    return VOICES["plain"] | {part: _lines(text) or [""] for part, text in own.items()}
+
+
+def lesson_voice(conn: sqlite3.Connection, key: str) -> dict:
+    """The word lists a lesson bot uses."""
+    v = voice(conn, key)
+    return own_voice(conn, key) if v == "custom" else VOICES[v]
 
 
 def status(conn: sqlite3.Connection, key: str) -> dict:
@@ -170,16 +225,26 @@ def join_names(names: list[str]) -> str:
     return f"{', '.join(names[:-1])}, and {names[-1]}"
 
 
-def birthday_message(names: list[str], which: str = "mix", rng: random.Random | None = None) -> str | None:
+def fill(template: str, values: dict) -> str:
+    """Put values into {placeholders}. Unknown ones (or a stray brace in written-your-own text) stay as typed."""
+    return re.sub(r"\{(\w+)\}", lambda m: str(values.get(m.group(1), m.group(0))), template)
+
+
+def birthday_message(names: list[str], which: str = "mix", rng: random.Random | None = None,
+                     custom: str = "") -> str | None:
+    """`which` is a style, "mix" (a random style) or "custom" (one of the ward's own messages, `custom`)."""
     if not names:
         return None
     rng = rng or random.Random()
-    which = which if which in STYLES else rng.choice(list(STYLES))
+    if which == "custom" and _blocks(custom):
+        templates = _blocks(custom)
+    else:
+        templates = STYLES[which if which in STYLES else rng.choice(list(STYLES))][1]
     one = len(names) == 1
     joined = join_names(names)
-    return rng.choice(STYLES[which][1]).format(
-        names=joined, NAMES=joined.upper(), s="s" if one else "", legend="legend" if one else "legends",
-        **{"is": "is" if one else "are", "has": "has" if one else "have", "was": "was" if one else "were"})
+    return fill(rng.choice(templates), {
+        "names": joined, "NAMES": joined.upper(), "s": "s" if one else "", "legend": "legend" if one else "legends",
+        "is": "is" if one else "are", "has": "has" if one else "have", "was": "was" if one else "were"})
 
 
 def todays_birthdays(conn: sqlite3.Connection, today: date) -> list[str]:
@@ -188,49 +253,67 @@ def todays_birthdays(conn: sqlite3.Connection, today: date) -> list[str]:
     return [short_name(b["name"]) for b in birthdays.upcoming(conn, days=0, today=today) if b["name"] not in gone]
 
 
-# --- Lesson reminders (battle droid) -----------------------------------------
-# Every message opens with a "roger roger"; the rest is shuffled so Mondays don't get stale.
+# --- Lesson reminders ---------------------------------------------------------
+# A voice is the wording around next Sunday's details. Each list is picked from at random, so
+# Mondays don't get stale. Placeholders: {org}, {when}, and {who} in the teacher lines.
 
-OPENERS = [
-    "🤖 Roger roger.",
-    "🤖 Roger roger. Incoming transmission from command.",
-    "🤖 Roger roger. Scanning the lesson schedule…",
-    "🤖 Attention, {org} unit. Roger roger.",
-    "🤖 Uh… roger roger? Yes. Roger roger.",
-    "🤖 Roger roger. Weekly briefing follows.",
-    "🤖 Roger roger. Clankers, assemble.",
-]
-SIGNOFFS = [
-    "Read the talk before Sunday. That is an order.",
-    "Report for duty in the second hour.",
-    "End transmission.",
-    "Move along. Move along. 👋",
-    "Bring your scriptures. Bring a friend. Do not bring a lightsaber.",
-    "Roger roger. 👍",
-    "This briefing will now self-destruct. Just kidding. Roger roger.",
-]
-HEADERS = ["📡 Briefing for Sunday, {when}:", "🗓️ Mission for Sunday, {when}:",
-           "🎯 Target acquired: Sunday, {when}.", "📋 Orders for Sunday, {when}:"]
-TEACHER = ["🎓 Instructor: {who}", "🎓 Commanding officer: {who}", "🎓 Unit leader: {who}"]
-NO_TEACHER = ["🎓 Instructor: unassigned. Volunteers will be… volunteered.",
-              "🎓 Instructor: [CLASSIFIED] (not assigned yet)."]
-NO_TALK = ["📖 Talk: not picked yet. Awaiting orders from the presidency.",
-           "📖 Talk: [DATA MISSING]. Stand by for orders."]
-NOTHING = ["Orders for Sunday, {when} have not been received yet. Stand by.",
-           "No lesson on the books for Sunday, {when}. Command is… working on it.",
-           "Scanning Sunday, {when}… no lesson found. Uh oh."]
-NO_LESSON = {
-    "fifth_sunday": ["Fifth Sunday detected ({when}). No regular {org} lesson. Enjoy your shore leave.",
-                     "Sunday, {when} is a fifth Sunday. Standard lesson protocol suspended."],
-    "stake_conference": ["Stake conference on Sunday, {when}. All units report to the stake center. "
-                         "No {org} lesson.",
-                         "Sunday, {when}: stake conference. No {org} lesson. Repeat: NO lesson."],
-    "no_second_hour": ["No second hour on Sunday, {when}. Stand down after sacrament meeting.",
-                       "Sunday, {when}: no second hour. No {org} lesson. Fall back after sacrament meeting."],
-    "conference": ["General conference this weekend! All units report to the couch. 🛋️ No {org} lesson.",
-                   "Sunday, {when} is general conference. Deploy snacks. Listen to the prophet. "
-                   "No {org} lesson."],
+VOICES = {
+    "plain": {
+        "name": "Friendly",
+        "openers": ["👋 Hi, {org}!", "Happy Monday, {org}! ☀️", "Good morning, {org}!",
+                    "Hi everyone! Here’s what’s coming up on Sunday."],
+        "headers": ["📅 Sunday, {when}:", "📅 This Sunday ({when}):", "📅 Lesson for Sunday, {when}:"],
+        "teacher": ["🎓 Teacher: {who}", "🎓 Taught by {who}"],
+        "no_teacher": ["🎓 Teacher: still needed. Let the presidency know if you can help!",
+                       "🎓 We still need a teacher. Reply here if you’re willing!"],
+        "no_talk": ["📖 Talk: not picked yet.", "📖 The talk hasn’t been picked yet."],
+        "nothing": ["No lesson is planned for Sunday, {when} yet. More soon!",
+                    "Sunday’s lesson ({when}) isn’t planned yet. Stay tuned."],
+        "no_lesson": {
+            "fifth_sunday": ["Sunday, {when} is a fifth Sunday, so there’s no regular {org} lesson."],
+            "stake_conference": ["Sunday, {when} is stake conference, so there’s no {org} lesson."],
+            "no_second_hour": ["There’s no second hour on Sunday, {when}, so no {org} lesson this week."],
+            "conference": ["General conference is this weekend! No {org} lesson. Enjoy conference. 🙂"],
+        },
+        "signoffs": ["See you Sunday!", "Have a great week!", "Thanks, and see you Sunday! 🙂",
+                     "Have a wonderful week, everyone."],
+    },
+    "droid": {
+        "name": "Battle droid",
+        # Every opener has a "roger roger".
+        "openers": ["🤖 Roger roger.", "🤖 Roger roger. Incoming transmission from command.",
+                    "🤖 Roger roger. Scanning the lesson schedule…", "🤖 Attention, {org} unit. Roger roger.",
+                    "🤖 Uh… roger roger? Yes. Roger roger.", "🤖 Roger roger. Weekly briefing follows.",
+                    "🤖 Roger roger. Clankers, assemble."],
+        "headers": ["📡 Briefing for Sunday, {when}:", "🗓️ Mission for Sunday, {when}:",
+                    "🎯 Target acquired: Sunday, {when}.", "📋 Orders for Sunday, {when}:"],
+        "teacher": ["🎓 Instructor: {who}", "🎓 Commanding officer: {who}", "🎓 Unit leader: {who}"],
+        "no_teacher": ["🎓 Instructor: unassigned. Volunteers will be… volunteered.",
+                       "🎓 Instructor: [CLASSIFIED] (not assigned yet)."],
+        "no_talk": ["📖 Talk: not picked yet. Awaiting orders from the presidency.",
+                    "📖 Talk: [DATA MISSING]. Stand by for orders."],
+        "nothing": ["Orders for Sunday, {when} have not been received yet. Stand by.",
+                    "No lesson on the books for Sunday, {when}. Command is… working on it.",
+                    "Scanning Sunday, {when}… no lesson found. Uh oh."],
+        "no_lesson": {
+            "fifth_sunday": ["Fifth Sunday detected ({when}). No regular {org} lesson. Enjoy your shore leave.",
+                             "Sunday, {when} is a fifth Sunday. Standard lesson protocol suspended."],
+            "stake_conference": ["Stake conference on Sunday, {when}. All units report to the stake center. "
+                                 "No {org} lesson.",
+                                 "Sunday, {when}: stake conference. No {org} lesson. Repeat: NO lesson."],
+            "no_second_hour": ["No second hour on Sunday, {when}. Stand down after sacrament meeting.",
+                               "Sunday, {when}: no second hour. No {org} lesson. Fall back after sacrament meeting."],
+            "conference": ["General conference this weekend! All units report to the couch. 🛋️ No {org} lesson.",
+                           "Sunday, {when} is general conference. Deploy snacks. Listen to the prophet. "
+                           "No {org} lesson."],
+        },
+        "signoffs": ["Read the talk before Sunday. That is an order.", "Report for duty in the second hour.",
+                     "End transmission.", "Move along. Move along. 👋",
+                     "Bring your scriptures. Bring a friend. Do not bring a lightsaber.", "Roger roger. 👍",
+                     "This briefing will now self-destruct. Just kidding. Roger roger."],
+    },
 }
+DEFAULT_VOICE = "plain"
 
 
 def coming_sunday(today: date) -> date:
@@ -238,33 +321,40 @@ def coming_sunday(today: date) -> date:
     return today + timedelta(days=6 - today.weekday() or 7)
 
 
-def lesson_message(conn: sqlite3.Connection, org: str, sunday: date, rng: random.Random | None = None) -> str:
+def lesson_message(conn: sqlite3.Connection, org: str, sunday: date, rng: random.Random | None = None,
+                   words: dict | None = None) -> str:
+    """Next Sunday's lesson (talks, links, teacher) or why there isn't one, in a voice (`words`)."""
     rng = rng or random.Random()
+    words = words or VOICES[DEFAULT_VOICE]
     fmt = {"org": les.ORGS[org], "when": f"{sunday:%b} {sunday.day}"}
+
+    def say(part, **extra):
+        return fill(rng.choice(part), fmt | extra)
+
     w = les.sunday(conn, org, sunday)
-    lines = [rng.choice(OPENERS).format(**fmt), ""]
+    body = []
     if sunday.month in (4, 10) and sunday == les.conference_sunday(sunday.year, sunday.month):
-        lines.append(rng.choice(NO_LESSON["conference"]).format(**fmt))
-    elif w and w["status"] in NO_LESSON:
-        lines.append(rng.choice(NO_LESSON[w["status"]]).format(**fmt))
+        body.append(say(words["no_lesson"]["conference"]))
+    elif w and w["status"] in words["no_lesson"]:
+        body.append(say(words["no_lesson"][w["status"]]))
         if w["day_note"]:
-            lines.append(f"📝 {w['day_note']}")
+            body.append(f"📝 {w['day_note']}")
     elif not w or not (w["talks"] or w["teacher_names"] or w["note"]):
-        lines.append(rng.choice(NOTHING).format(**fmt))
+        body.append(say(words["nothing"]))
     else:
-        lines.append(rng.choice(HEADERS).format(**fmt))
+        body.append(say(words["headers"]))
         if len(w["talks"]) > 1:
-            lines.append("📖 Combined lesson:")
+            body.append("📖 Combined lesson:")
         for t in w["talks"]:
-            lines += [f"📖 “{t['title']}” by {t['speaker']}", f"🔗 {t['url']}"]
+            body += [f"📖 “{t['title']}” by {t['speaker']}", f"🔗 {t['url']}"]
         if not w["talks"]:
-            lines.append(rng.choice(NO_TALK))
+            body.append(say(words["no_talk"]))
         who = join_names(w["teacher_names"])
-        lines.append(rng.choice(TEACHER).format(who=who) if who else rng.choice(NO_TEACHER))
+        body.append(say(words["teacher"], who=who) if who else say(words["no_teacher"]))
         if w["note"]:
-            lines.append(f"📝 {w['note']}")
-    lines += ["", rng.choice(SIGNOFFS)]
-    return "\n".join(lines)
+            body.append(f"📝 {w['note']}")
+    opener, signoff = say(words["openers"]), say(words["signoffs"])
+    return "\n\n".join(part for part in (opener, "\n".join(body), signoff) if part)
 
 
 # --- What to send ---------------------------------------------------------------
@@ -272,8 +362,8 @@ def lesson_message(conn: sqlite3.Connection, org: str, sunday: date, rng: random
 def preview(conn: sqlite3.Connection, key: str, today: date) -> str | None:
     """The message this bot would send for `today` (lessons: for the coming Sunday)."""
     if key == "birthdays":
-        return birthday_message(todays_birthdays(conn, today), style(conn))
-    return lesson_message(conn, key.removeprefix("lessons-"), coming_sunday(today))
+        return birthday_message(todays_birthdays(conn, today), style(conn), custom=custom_birthdays(conn))
+    return lesson_message(conn, key.removeprefix("lessons-"), coming_sunday(today), words=lesson_voice(conn, key))
 
 
 def due(conn: sqlite3.Connection, moment: datetime) -> list[tuple[str, str, str]]:
@@ -321,7 +411,7 @@ def send_test(conn: sqlite3.Connection, key: str, today: date) -> None:
     bid = bot_id(conn, key)
     if not bid:
         raise GroupMeError("Add the bot ID first.")
-    text = preview(conn, key, today) or birthday_message(["Sam Sample"], style(conn))
+    text = preview(conn, key, today) or birthday_message(["Sam Sample"], style(conn), custom=custom_birthdays(conn))
     post(bid, f"🧪 Test from the ward portal:\n\n{text}")
 
 

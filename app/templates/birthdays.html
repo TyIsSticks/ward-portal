@@ -96,6 +96,13 @@
         <label><input type="radio" name="style" value="{{ key }}"{% if bot.style == key %} checked{% endif %}>
           <span><strong>{{ label }}</strong><span class="bot-msg">{{ bot.samples[key] }}</span></span></label>
         {% endfor %}
+        <label><input type="radio" name="style" value="custom"{% if bot.style == "custom" %} checked{% endif %}>
+          <span><strong>Write your own</strong>
+            {% if bot.custom %}<span class="bot-msg">{{ bot.samples.custom }}</span>{% endif %}</span></label>
+        <textarea name="custom" rows="6" aria-label="Your birthday messages"
+                  placeholder="🎉 Happy birthday, {names}! We’re so glad you’re in our ward.&#10;&#10;🎂 It’s {names}’s birthday today! Send some love their way.">{{ bot.custom }}</textarea>
+        <p class="muted small">One message is picked at random each time. Put a blank line between messages.
+          <code>{names}</code> becomes the birthday person’s name (or names).</p>
       </fieldset>
     {% endcall %}
     {% endif %}

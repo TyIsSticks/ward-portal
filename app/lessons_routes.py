@@ -184,11 +184,24 @@ def calendar_page(request: Request, user: dict = leader):
         token = les.feed_token(conn)
         shared = les.is_shared(conn)
         today = groupme.now().date()
-        bots = {o: groupme.status(conn, f"lessons-{o}") | {"preview": groupme.preview(conn, f"lessons-{o}", today)}
-                for o in les.ORGS}
+        bots = {o: _lesson_bot(conn, o, today) for o in les.ORGS}
     feeds = {o: org_feed_url(request, ward_id, token, o) for o in les.ORGS}
     return render(request, "lessons/calendar.html", user=user, feeds=feeds, org_names=les.ORGS, shared=shared,
-                  bots=bots, sunday=groupme.coming_sunday(today), lesson_hour=groupme.LESSON_HOUR)
+                  bots=bots, sunday=groupme.coming_sunday(today), lesson_hour=groupme.LESSON_HOUR,
+                  voices={k: v["name"] for k, v in groupme.VOICES.items()})
+
+
+def _lesson_bot(conn, org: str, today: date) -> dict:
+    """A lesson bot's settings card: its voice, the ward's own lines, and a sample in every voice."""
+    key = f"lessons-{org}"
+    sunday = groupme.coming_sunday(today)
+    own = groupme.custom_voice(conn, key)
+    # Start write-your-own from the friendly lines, so there's something to edit.
+    starter = {p: own[p] or "\n".join(groupme.VOICES["plain"][p]) for p in own}
+    samples = {v: groupme.lesson_message(conn, org, sunday, words=groupme.VOICES[v]) for v in groupme.VOICES}
+    if any(own.values()):
+        samples["custom"] = groupme.lesson_message(conn, org, sunday, words=groupme.own_voice(conn, key))
+    return groupme.status(conn, key) | {"voice": groupme.voice(conn, key), "own": starter, "samples": samples}
 
 
 @router.post("/lessons/calendar/regenerate")

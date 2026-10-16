@@ -18,7 +18,8 @@ A small self-hosted portal for working with LCR report exports.
   Includes warnings, priority tags, companion history from past imports, Draft / Proposed / Approved
   status, and a printable **Changes for LCR** checklist. See [Ministering](#ministering).
 - **GroupMe bots:** a birthday bot wishes people happy birthday in the group chat, and a lesson bot
-  (a battle droid, roger roger) posts next Sunday's lesson every Monday. See [GroupMe bots](#groupme-bots).
+  posts next Sunday's lesson every Monday, each in a built-in voice or your own words. See
+  [GroupMe bots](#groupme-bots).
 - **Lessons** (leaders): plan Elders Quorum and Relief Society lessons from the latest general
   conference on a drag-and-drop board of Sundays. The talks come straight from the Church website
   (or a printed PDF), First Presidency and Twelve talks are tracked until each has a lesson, and
@@ -222,17 +223,19 @@ separate either way: a shared plan shows an EQ teacher and an RS teacher lane on
 
 Make a bot at [dev.groupme.com/bots](https://dev.groupme.com/bots) (pick the group it posts in, leave
 the callback URL empty), then paste its **Bot ID** into the portal. *Send a test* posts a sample right
-away; *Turn off* stops it.
+away; *Turn off* stops it (the chosen wording is kept).
 
 - **Birthday shout-outs** (Birthdays page, ward admins): at 8 am on someone's birthday it posts a
   happy birthday message. Pick a style: *Movie trailer*, *Epic saga*, *Stadium announcer*, *Battle
-  droid*, or *Mix it up*. The page shows a sample of each. People flagged as possibly moved out are
-  skipped, and only first and last names are used (never ages).
-- **Lesson reminders** (Lessons → ⋯ → *GroupMe reminders*, leaders): every Monday at 9 am a battle
-  droid posts the coming Sunday's talk, a link to read it and the teacher, or why there's no lesson
-  (fifth Sunday, stake conference, no second hour, general conference, or nothing planned yet). The
-  wording is shuffled each week and always includes a "roger roger". Elders Quorum and Relief Society
-  can each have a bot.
+  droid*, *Mix it up*, or *Write your own* (messages separated by a blank line, with `{names}` for
+  the birthday person; one is picked at random). The page shows a sample of each. People flagged as
+  possibly moved out are skipped, and only first and last names are used (never ages).
+- **Lesson reminders** (Lessons → ⋯ → *GroupMe reminders*, leaders): every Monday at 9 am it posts the
+  coming Sunday's talk, a link to read it and the teacher, or why there's no lesson (fifth Sunday,
+  stake conference, no second hour, general conference, or nothing planned yet). Pick a voice:
+  *Friendly* (the default), *Battle droid* (every message says "roger roger"), or *Write your own*
+  opening and closing lines around the lesson details (`{org}` and `{when}` fill in). The wording is
+  shuffled each week. Elders Quorum and Relief Society can each have a bot.
 
 Times use `TZ` (default `America/Denver`). The app checks every few minutes, so a message still goes
 out if the server was down at the usual time, and posts at most once a day per bot. A failed post is

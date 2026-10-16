@@ -9,10 +9,27 @@
 <div class="cols">
 {% for org, name in org_names.items() %}
   <div>
-  {% call groupme_card(bots[org], "groupme-" ~ org, name ~ " lesson reminders",
-                       "Here’s a message it could send for Sunday, " ~ sunday.strftime("%b") ~ " " ~ sunday.day
-                       ~ ". The wording changes every week.") %}
-    <div class="bot-msg">{{ bots[org].preview }}</div>
+  {% set bot = bots[org] %}
+  {% call groupme_card(bot, "groupme-" ~ org, name ~ " lesson reminders",
+                       "Pick how it sounds. The samples are for Sunday, " ~ sunday.strftime("%b") ~ " " ~ sunday.day
+                       ~ ", and the wording changes every week.") %}
+    <fieldset class="choices bot-styles">
+      <legend>Voice</legend>
+      {% for key, label in voices.items() %}
+      <label><input type="radio" name="voice" value="{{ key }}"{% if bot.voice == key %} checked{% endif %}>
+        <span><strong>{{ label }}</strong><span class="bot-msg">{{ bot.samples[key] }}</span></span></label>
+      {% endfor %}
+      <label><input type="radio" name="voice" value="custom"{% if bot.voice == "custom" %} checked{% endif %}>
+        <span><strong>Write your own</strong>
+          {% if bot.samples.custom %}<span class="bot-msg">{{ bot.samples.custom }}</span>{% endif %}</span></label>
+      <label class="sub-field">Opening lines
+        <textarea name="openers" rows="4">{{ bot.own.openers }}</textarea></label>
+      <label class="sub-field">Closing lines
+        <textarea name="signoffs" rows="4">{{ bot.own.signoffs }}</textarea></label>
+      <p class="muted small">One line is picked at random for the start and one for the end; next Sunday’s talk,
+        link and teacher go in between. <code>{org}</code> becomes “{{ name }}” and <code>{when}</code> the date.
+        Leave a box empty to skip it.</p>
+    </fieldset>
   {% endcall %}
   </div>
 {% endfor %}

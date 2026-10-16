@@ -140,7 +140,7 @@ ul.plain li { padding: .2rem 0; }
 .row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: .6rem 0; }
 .row.spread { justify-content: space-between; }
 .row input[readonly] { flex: 1 1 16rem; min-width: 0; }
-input, select { font: inherit; padding: .6rem .8rem; border: 1px solid var(--line); border-radius: 12px;
+input, select, textarea { font: inherit; padding: .6rem .8rem; border: 1px solid var(--line); border-radius: 12px;
                 background: var(--card); color: var(--ink); }
 input[type="file"] { padding: .5rem; background: var(--bg); }
 button { font: inherit; font-weight: 800; padding: .6rem 1.2rem; border: 0; border-radius: 99px;
@@ -329,3 +329,5 @@ details.ward-switch > summary:hover { background: rgba(255,255,255,.2); }
            background: var(--bg); border-radius: 14px 14px 14px 4px; padding: .7rem .9rem; margin-top: .35rem; }
 .bot-styles label { align-items: flex-start; }
 .bot-styles label > span { flex: 1 1 0; min-width: 0; }
+.bot-styles textarea { width: 100%; resize: vertical; }
+.bot-styles .sub-field { display: grid; gap: .3rem; font-weight: 700; }

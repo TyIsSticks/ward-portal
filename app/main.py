@@ -149,9 +149,11 @@ def birthday_page(request: Request, month: str = "", user: dict = Depends(auth.r
         if user["manages"]:
             today = groupme.now().date()
             names = groupme.todays_birthdays(conn, today) or [groupme.short_name(b["name"]) for b in soon[:1]]
+            custom = groupme.custom_birthdays(conn)
             bot = groupme.status(conn, "birthdays") | {
-                "style": groupme.style(conn), "today": groupme.todays_birthdays(conn, today),
-                "samples": {k: groupme.birthday_message(names or ["Sam Sample"], k) for k in groupme.STYLES}}
+                "style": groupme.style(conn), "today": groupme.todays_birthdays(conn, today), "custom": custom,
+                "samples": {k: groupme.birthday_message(names or ["Sam Sample"], k, custom=custom)
+                            for k in [*groupme.STYLES, "custom"]}}
     return render(request, "birthdays.html", user=user, weeks=weeks, first=first, today=today,
                   prev=f"{prev:%Y-%m}", next=f"{nxt:%Y-%m}", soon=soon[:8], count=count,
                   in_month=sum(len(c["names"]) for w in weeks for c in w), flagged=flagged,
