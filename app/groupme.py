@@ -312,6 +312,38 @@ VOICES = {
                      "Bring your scriptures. Bring a friend. Do not bring a lightsaber.", "Roger roger. 👍",
                      "This briefing will now self-destruct. Just kidding. Roger roger."],
     },
+    "beep": {
+        "name": "Beep-booper",
+        # Every opener has a "beep boop".
+        "openers": ["🤖 BEEP BOOP. Hello, {org} humans!", "🤖 Beep boop! Weekly lesson protocol activated.",
+                    "🤖 *whirr* *click* Beep boop. Good morning, {org}!", "🤖 Boop beep? No wait. BEEP BOOP. 🔧",
+                    "🤖 Beep. Boop. Beep boop. (That means happy Monday.)",
+                    "🤖 Beep boop! Rebooting the week… 100% complete."],
+        "headers": ["💾 Loading Sunday, {when}…", "📟 Computing Sunday, {when}:", "🔍 Scanning Sunday, {when}… found:",
+                    "🖨️ Printing Sunday, {when}:"],
+        "teacher": ["🎓 Human teacher: {who}", "🎓 Teaching unit: {who}", "🎓 Teacher detected: {who} ✅"],
+        "no_teacher": ["🎓 Teacher: ERROR 404. Human volunteer required. Beep?",
+                       "🎓 Teacher: not found. Please insert human. 🪙"],
+        "no_talk": ["📖 Talk: still downloading… ⏳", "📖 Talk: NULL. Beep boop. (Not picked yet.)"],
+        "nothing": ["Computing Sunday, {when}… ERROR: no lesson found. My circuits are confused. 😵‍💫",
+                    "Sunday, {when}: lesson file is empty. Beep… boop… sad beep."],
+        "no_lesson": {
+            "fifth_sunday": ["Fifth Sunday detected ({when}). No regular {org} lesson. Entering sleep mode. 💤",
+                             "Sunday, {when}: fifth Sunday! No {org} lesson. Happy beeps! 🎉"],
+            "stake_conference": ["Sunday, {when}: stake conference. No {org} lesson. Rerouting humans to the "
+                                 "stake center. 🗺️",
+                                 "Stake conference on Sunday, {when}. No {org} lesson. Beep boop, see you there."],
+            "no_second_hour": ["Sunday, {when}: no second hour. No {org} lesson. Powering down after sacrament "
+                               "meeting. 🔌",
+                               "No second hour on Sunday, {when}. {org} lesson.exe will not run."],
+            "conference": ["General conference this weekend! No {org} lesson. Charging batteries on the couch. 🔋🛋️",
+                           "Sunday, {when} is general conference. Downloading wisdom… please stand by. No {org} "
+                           "lesson."],
+        },
+        "signoffs": ["Beep boop. See you Sunday!", "Boop. 🤖", "Have a great week, humans. Beep!",
+                     "End of message. *happy beeping*", "Beep boop beep. (Translation: read the talk!)",
+                     "Shutting down… just kidding. Beep boop! 👋"],
+    },
 }
 DEFAULT_VOICE = "plain"
 

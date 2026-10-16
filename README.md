@@ -233,7 +233,8 @@ away; *Turn off* stops it (the chosen wording is kept).
 - **Lesson reminders** (Lessons → ⋯ → *GroupMe reminders*, its own page for leaders): every Monday at 9 am it posts the
   coming Sunday's talk, a link to read it and the teacher, or why there's no lesson (fifth Sunday,
   stake conference, no second hour, general conference, or nothing planned yet). Pick a voice:
-  *Friendly* (the default), *Battle droid* (every message says "roger roger"), or *Write your own*
+  *Friendly* (the default), *Battle droid* (every message says "roger roger"), *Beep-booper* (a silly
+  robot, beep boop), or *Write your own*
   opening and closing lines around the lesson details (`{org}` and `{when}` fill in). The wording is
   shuffled each week. Elders Quorum and Relief Society can each have a bot.
 

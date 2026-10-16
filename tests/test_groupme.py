@@ -51,7 +51,7 @@ def test_coming_sunday():
     assert gm.coming_sunday(date(2030, 10, 20)) == date(2030, 10, 27)   # Sunday: the next one
 
 
-def test_lesson_messages_always_say_roger_roger(conf):
+def test_lesson_messages_in_every_voice(conf):
     with db.ward_connect(1) as conn:
         ids = add_people(conn)
         al = les.add_teacher(conn, "eq", person_id=ids["Able, Al"])
@@ -64,8 +64,9 @@ def test_lesson_messages_always_say_roger_roger(conf):
             for day, expect in cases.items():
                 for seed in range(30):
                     text = gm.lesson_message(conn, "eq", day, random.Random(seed), words)
-                    assert expect in text and "{" not in text
+                    assert expect.lower() in text.lower() and "{" not in text
                     assert ("roger roger" in text.lower()) == (voice == "droid")
+                    assert ("beep" in text.lower()) == (voice == "beep")
         planned = gm.lesson_message(conn, "eq", date(2030, 10, 20))
         assert "https://" in planned and "“" in planned
 
