@@ -1,7 +1,12 @@
 """Elders Quorum and Relief Society lessons, taught from the most recent general conference.
 
 General conference is the first Sunday of April and October (and the Saturday before). The
-lessons for a conference run from the Sunday after it to the Sunday before the next one.
+lessons for a conference run from the Sunday after it to the Sunday before the next one, and can
+spill over into the rest of the next conference's month while its talks are still being posted.
+
+Those spill-over Sundays (April and October after conference) are shared by both conferences'
+plans. Lessons are stored by date, never by conference, so both plans show the same lesson on a
+shared Sunday and one can't be planned on top of the other.
 """
 import secrets
 import sqlite3
@@ -44,10 +49,27 @@ def conference_for(day: date) -> tuple[int, int]:
 
 
 def sundays(year: int, month: int) -> list[date]:
-    """Sundays between a conference and the next one (both conference Sundays excluded)."""
-    start = conference_sunday(year, month) + timedelta(days=7)
-    end = conference_sunday(*next_conference(year, month))
-    return [start + timedelta(weeks=i) for i in range((end - start).days // 7)]
+    """Sundays a conference's lessons can use: from the Sunday after it to the end of the next
+    conference's month, skipping the next conference's own Sunday (no meetings that day)."""
+    ny, nm = next_conference(year, month)
+    end, skip = date(ny, nm + 1, 1), conference_sunday(ny, nm)
+    day, out = conference_sunday(year, month) + timedelta(days=7), []
+    while day < end:
+        if day != skip:
+            out.append(day)
+        day += timedelta(weeks=1)
+    return out
+
+
+def is_overlap(day: date) -> bool:
+    """A Sunday after conference in April or October: either conference's talks can be taught."""
+    return day.month in (4, 10) and day > conference_sunday(day.year, day.month)
+
+
+def conferences_for_day(day: date) -> set[tuple[int, int]]:
+    """Whose talks can be taught on a Sunday: the latest conference, plus the one before it on overlap Sundays."""
+    latest = conference_for(day)
+    return {latest, prev_conference(*latest)} if is_overlap(day) else {latest}
 
 
 def conference_name(year: int, month: int) -> str:
@@ -219,10 +241,9 @@ class VersionConflict(LessonError):
     pass
 
 
-def _version(conn, plan: str, conference_id: int) -> int:
-    row = conn.execute("SELECT version FROM lesson_boards WHERE plan = ? AND conference_id = ?",
-                       (plan, conference_id)).fetchone()
-    return row["version"] if row else 0
+def _version(conn, plan: str) -> int:
+    """Edit counter for a plan (all conferences: they share Sundays)."""
+    return int(db.get_ward_setting(conn, f"lessons_version:{plan}") or 0)
 
 
 def plan_weeks(conn: sqlite3.Connection, plan: str, conf: dict) -> list[dict]:
@@ -241,12 +262,26 @@ def plan_weeks(conn: sqlite3.Connection, plan: str, conf: dict) -> list[dict]:
     for r in conn.execute("SELECT lt.org, lt.date, lt.teacher_id FROM lesson_teachers lt JOIN teachers t ON t.id = lt.teacher_id "
                           "WHERE lt.date BETWEEN ? AND ? ORDER BY t.name COLLATE NOCASE", (first, last)):
         teaching.setdefault((r["org"], r["date"]), []).append(r["teacher_id"])
+    next_sunday = conference_sunday(*next_conference(conf["year"], conf["month"]))
     out = []
     for d in days:
         iso = d.isoformat()
         out.append({"date": iso, "status": marks[iso]["status"], "day_note": marks[iso]["note"],
                     "fifth": d.day > 28, "talks": talk_ids.get(iso, []), "note": notes.get(iso, ""),
-                    "teachers": {o: teaching.get((o, iso), []) for o in orgs}})
+                    "teachers": {o: teaching.get((o, iso), []) for o in orgs},
+                    "overlap": is_overlap(d),           # either conference's talks can go here
+                    "after_next": d > next_sunday})     # past the next conference: too late for its required talks
+    return out
+
+
+def talk_lookup(conn: sqlite3.Connection, ids=None) -> dict[int, dict]:
+    """Talks by id from any conference (all of them, or just `ids`), with their conference's name."""
+    rows = conn.execute("SELECT t.*, c.year, c.month FROM talks t JOIN conferences c ON c.id = t.conference_id")
+    out = {}
+    for r in rows:
+        if ids is None or r["id"] in ids:
+            out[r["id"]] = dict(r) | {"url": f"{gc.SITE}{r['uri']}?lang=eng",
+                                      "conf_name": conference_name(r["year"], r["month"])}
     return out
 
 
@@ -254,19 +289,27 @@ def board_state(conn: sqlite3.Connection, plan: str, conf: dict, today: date | N
     """Everything the planning board needs, as JSON."""
     talk_rows = talks(conn, conf["id"])
     nxt = next_conference(conf["year"], conf["month"])
+    weeks = plan_weeks(conn, plan, conf)
+    own = {t["id"] for t in talk_rows}
+    # Talks from the neighbouring conference already planned on shared Sundays.
+    others = talk_lookup(conn, {t for w in weeks for t in w["talks"]} - own)
+    keys = ("id", "title", "speaker", "calling", "summary", "url", "kind", "session")
     return {
         "plan": plan,
         "plan_name": PLAN_NAMES[plan],
         "orgs": plan_orgs(plan),
         "org_names": ORGS,
         "conference": {"id": conf["id"], "key": f"{conf['year']}-{conf['month']:02d}", "name": conf["name"],
-                       "next_name": conference_name(*nxt), "next_date": conference_sunday(*nxt).isoformat()},
+                       "next_name": conference_name(*nxt), "next_date": conference_sunday(*nxt).isoformat(),
+                       "prev_name": conference_name(*prev_conference(conf["year"], conf["month"]))},
         "today": (today or date.today()).isoformat(),
-        "version": _version(conn, plan, conf["id"]),
+        "version": _version(conn, plan),
         "statuses": STATUSES,
-        "weeks": plan_weeks(conn, plan, conf),
-        "talks": [{k: t[k] for k in ("id", "title", "speaker", "calling", "summary", "url", "kind", "session")}
-                  | {"required": bool(t["required"])} for t in talk_rows],
+        "weeks": weeks,
+        "talks": [{k: t[k] for k in keys} | {"required": bool(t["required"]), "other": ""} for t in talk_rows]
+                 + [{k: t[k] for k in keys} | {"required": bool(t["required"]), "other": t["conf_name"],
+                    "side": "prev" if (t["year"], t["month"]) < (conf["year"], conf["month"]) else "next"}
+                    for t in others.values()],
         "required_speakers": required_speakers(talk_rows),
         "teachers": {o: list_teachers(conn, o) for o in plan_orgs(plan)},
         "roster": {o: roster(conn, o) for o in plan_orgs(plan)},
@@ -274,14 +317,18 @@ def board_state(conn: sqlite3.Connection, plan: str, conf: dict, today: date | N
 
 
 def save_plan(conn: sqlite3.Connection, plan: str, conf: dict, weeks, version: int, username: str) -> int:
-    """Replace a plan's talks and notes for one conference. Returns the new version."""
+    """Replace a plan's talks, notes and teachers on one conference's Sundays. Returns the new version.
+
+    A talk can go on a Sunday only if its conference is being taught then (`conferences_for_day`).
+    """
     if not isinstance(weeks, list):
         raise LessonError("weeks must be a list")
-    current = _version(conn, plan, conf["id"])
+    current = _version(conn, plan)
     if version != current:
         raise VersionConflict("This plan was changed somewhere else.")
     valid_days = {d.isoformat() for d in sundays(conf["year"], conf["month"])}
-    valid_talks = {r[0] for r in conn.execute("SELECT id FROM talks WHERE conference_id = ?", (conf["id"],))}
+    talk_conf = {r[0]: (r[1], r[2]) for r in conn.execute(
+        "SELECT t.id, c.year, c.month FROM talks t JOIN conferences c ON c.id = t.conference_id")}
     orgs = plan_orgs(plan)
     valid_teachers = {o: {r[0] for r in conn.execute("SELECT id FROM teachers WHERE org = ?", (o,))} for o in orgs}
     rows, notes, teaching = [], [], []
@@ -289,8 +336,11 @@ def save_plan(conn: sqlite3.Connection, plan: str, conf: dict, weeks, version: i
         if not isinstance(w, dict) or w.get("date") not in valid_days:
             raise LessonError("Unknown Sunday.")
         ids = [int(t) for t in w.get("talks") or []]
-        if any(t not in valid_talks for t in ids):
+        if any(t not in talk_conf for t in ids):
             raise LessonError("Unknown talk.")
+        allowed = conferences_for_day(date.fromisoformat(w["date"]))
+        if any(talk_conf[t] not in allowed for t in ids):
+            raise LessonError("That talk is from a conference that isn't being taught that Sunday.")
         rows += [(plan, w["date"], t, i) for i, t in enumerate(dict.fromkeys(ids))]
         note = " ".join(str(w.get("note") or "").split())[:200]
         if note:
@@ -311,10 +361,7 @@ def save_plan(conn: sqlite3.Connection, plan: str, conf: dict, weeks, version: i
     for o in orgs:   # teachers belong to an organization, whichever plan it's using
         conn.execute("DELETE FROM lesson_teachers WHERE org = ? AND date BETWEEN ? AND ?", (o, first, last))
     conn.executemany("INSERT INTO lesson_teachers (org, date, teacher_id) VALUES (?, ?, ?)", teaching)
-    conn.execute("INSERT INTO lesson_boards (plan, conference_id, version, updated_by) VALUES (?, ?, ?, ?) "
-                 "ON CONFLICT(plan, conference_id) DO UPDATE SET version = excluded.version, "
-                 "updated_by = excluded.updated_by, updated_at = datetime('now')",
-                 (plan, conf["id"], current + 1, username))
+    db.set_ward_setting(conn, f"lessons_version:{plan}", str(current + 1))
     return current + 1
 
 
@@ -412,15 +459,23 @@ def dashboard(conn: sqlite3.Connection, today: date | None = None) -> dict:
     if record is None:
         out["todo"].append({"text": f"Load the {out['conf_name']} conference talks for lesson planning",
                             "cta": "Load", "href": f"/lessons/talks?conf={out['conf_key']}"})
-        return out
-    by_id = {t["id"]: t for t in talks(conn, record["id"])}
-    required = required_speakers(list(by_id.values()))
+        # Right after conference, lessons can still come from the one before while the talks go up.
+        if is_overlap(today):
+            year, month = prev_conference(year, month)
+            record = get_conference(conn, year, month)
+        if record is None:
+            return out
+        out.update(conf_key=f"{year}-{month:02d}", loaded=True)
+    by_id = talk_lookup(conn)
+    own = [t for t in by_id.values() if t["conference_id"] == record["id"]]
+    required = required_speakers(sorted(own, key=lambda t: t["position"]))
+    deadline = conference_sunday(*next_conference(year, month))
     names = {r["id"]: r["name"] for r in conn.execute("SELECT id, name FROM teachers")}
     for plan in (["ward"] if is_shared(conn) else list(ORGS)):
         weeks = plan_weeks(conn, plan, record)
         lessons = [w for w in weeks if w["status"] == "lesson"]
-        covered = {by_id[t]["speaker"] for w in lessons for t in w["talks"]
-                   if by_id[t]["required"] and by_id[t]["kind"] == "talk"}
+        covered = {by_id[t]["speaker"] for w in lessons if not w["after_next"] for t in w["talks"]
+                   if by_id[t]["conference_id"] == record["id"] and by_id[t]["required"] and by_id[t]["kind"] == "talk"}
         ahead = [w for w in lessons if w["date"] >= today.isoformat()]
         nxt = ahead[0] if ahead else None
         short = "EQ & RS" if plan == "ward" else PLAN_NAMES[plan]
@@ -444,8 +499,8 @@ def dashboard(conn: sqlite3.Connection, today: date | None = None) -> dict:
                     out["todo"].append({"text": f"Find {'an' if o == 'eq' else 'a'} {ORGS[o]} teacher for {when}",
                                         "cta": "Plan", "href": href})
         missing = len(required) - len(covered & set(required))
-        open_ahead = sum(1 for w in ahead if not w["talks"])
-        if missing > open_ahead:
+        open_ahead = sum(1 for w in ahead if not w["talks"] and not w["after_next"])
+        if missing > open_ahead and today < deadline:
             out["todo"].append({"text": f"{short}: {missing} First Presidency and Twelve speaker{'s' * (missing != 1)} "
                                         f"left but only {open_ahead} open Sunday{'s' * (open_ahead != 1)}. "
                                         "Combine some lessons",
@@ -482,14 +537,16 @@ def _schedule(conn: sqlite3.Connection, org: str) -> list[dict]:
     """Every planned Sunday for an organization, across all loaded conferences."""
     plan = plan_for(conn, org)
     names = {r["id"]: r["name"] for r in conn.execute("SELECT id, name FROM teachers")}
-    out = []
+    by_id = talk_lookup(conn)
+    out = {}
     for conf in list_conferences(conn):
-        by_id = {t["id"]: t for t in talks(conn, conf["id"])}
         for w in plan_weeks(conn, plan, conf):
+            if w["date"] in out:   # a shared Sunday seen through the other conference already
+                continue
             w = dict(w, talks=[by_id[t] for t in w["talks"] if t in by_id], teacher_ids=w["teachers"].get(org, []))
             w["teacher_names"] = [names[t] for t in w["teacher_ids"]]
-            out.append(w)
-    return out
+            out[w["date"]] = w
+    return [out[d] for d in sorted(out)]
 
 
 def _describe(w: dict, teacher_line: bool = True) -> str:

@@ -44,9 +44,15 @@ def plan_url(plan: str, year: int, month: int) -> str:
 
 @router.get("/lessons")
 def landing(conf: str = "", user: dict = leader):
+    year, month = les.parse_conf(conf)
     with db.ward_connect(user["ward"]["id"]) as conn:
         plan = les.plan_for(conn, "eq")
-    return RedirectResponse(plan_url(plan, *les.parse_conf(conf)), status_code=303)
+        # Right after conference its talks may not be loaded yet; keep planning from the one before.
+        if not conf and les.is_overlap(date.today()) and les.get_conference(conn, year, month) is None:
+            prev = les.prev_conference(year, month)
+            if les.get_conference(conn, *prev):
+                year, month = prev
+    return RedirectResponse(plan_url(plan, year, month), status_code=303)
 
 
 @router.post("/lessons/settings")

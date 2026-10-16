@@ -100,3 +100,13 @@ button.add-teacher { background: transparent; color: var(--accent); border: 2px 
 button.zone-empty.pick { background: none; border: 0; border-radius: 8px; width: 100%; text-align: left; font: inherit;
   font-size: .85rem; font-weight: 600; color: var(--muted); padding: .2rem .3rem; cursor: pointer; }
 button.zone-empty.pick:hover, button.zone-empty.pick:focus-visible { color: var(--accent); background: var(--soft); }
+
+/* Sundays shared by two conferences' plans */
+.conf-divider { grid-column: 1 / -1; background: var(--band); color: #fff; border-radius: 14px; padding: .6rem .9rem;
+  font-size: .85rem; line-height: 1.4; }
+.conf-divider span { color: var(--band-muted); }
+.w-shared { font-family: "Nunito Sans", sans-serif; font-size: .7rem; font-weight: 800; color: var(--muted);
+  border: 1px solid var(--line); border-radius: 99px; padding: 0 .4rem; cursor: help; }
+.tchip.other { border-style: dashed; }
+.tchip .conf-tag { flex: none; font-size: .65rem; font-weight: 800; color: var(--muted); border: 1px solid var(--line);
+  border-radius: 99px; padding: 0 .35rem; }

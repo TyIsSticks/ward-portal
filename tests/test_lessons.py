@@ -17,8 +17,15 @@ def test_conference_sundays_and_lesson_weeks():
     assert les.conference_sunday(2027, 4) == date(2027, 4, 4)
     assert les.conference_sunday(2023, 10) == date(2023, 10, 1)   # the month starts on a Sunday
     weeks = les.sundays(2026, 10)
-    assert weeks[0] == date(2026, 10, 11) and weeks[-1] == date(2027, 3, 28) and len(weeks) == 25
+    # Through the end of April, so lessons can still use October talks while April's go up.
+    assert weeks[0] == date(2026, 10, 11) and weeks[-1] == date(2027, 4, 25) and len(weeks) == 28
+    assert date(2027, 3, 28) in weeks and date(2027, 4, 4) not in weeks   # April conference Sunday
     assert all(d.weekday() == 6 for d in weeks)
+    assert les.sundays(2027, 4)[0] == date(2027, 4, 11)   # the next plan starts on the same shared Sundays
+    assert les.conferences_for_day(date(2027, 4, 11)) == {(2027, 4), (2026, 10)}
+    assert les.conferences_for_day(date(2027, 3, 28)) == {(2026, 10)}
+    assert les.conferences_for_day(date(2027, 5, 2)) == {(2027, 4)}
+    assert not les.is_overlap(date(2026, 10, 4))   # conference Sunday itself
 
 
 def test_conference_for_a_day():
@@ -451,3 +458,65 @@ def test_shared_plan_calendars(client, conf):
     eq = client.get(f"/feed/1/lessons/{token}/eq.ics").text
     assert "RS lesson: Closing Remarks (Di Dunn)" in rs
     assert "EQ lesson: Closing Remarks" in eq and "Di Dunn" not in eq.split("Closing Remarks")[1].split("\n")[0]
+
+
+# --- Sundays shared by two conferences -------------------------------------------------
+
+def april_2031(conn):
+    """A made-up April 2031 conference with one Twelve talk and one other."""
+    talks = [gc.Talk(speaker="Carl D. Birch", title="Spring", uri="/study/general-conference/2031/04/12birch",
+                     calling="Of the Quorum of the Twelve Apostles", required=True),
+             gc.Talk(speaker="Eve Elm", title="Blossom", uri="/study/general-conference/2031/04/13elm")]
+    cid = les.store_conference(conn, gc.Conference(2031, 4, talks), "website", "x")
+    return les.get_conference(conn, 2031, 4), [t["id"] for t in les.talks(conn, cid)]
+
+
+def test_shared_sundays_after_conference(conf):
+    a, b, c, d = conf["talk_ids"]   # October 2030: b is Birch's Twelve talk
+    with db.ward_connect(1) as conn:
+        april, (spring, blossom) = april_2031(conn)
+        # An October talk on the first Sunday after April conference, planned from October's board.
+        v = les.save_plan(conn, "eq", conf, [{"date": "2031-04-13", "talks": [c]}], 0, "x")
+        # April's board sees the same lesson: one Sunday, one lesson, whichever board you open.
+        week = les.plan_weeks(conn, "eq", april)[0]
+        assert week["date"] == "2031-04-13" and week["talks"] == [c] and week["overlap"] and not week["after_next"]
+        state = les.board_state(conn, "eq", april)
+        other = next(t for t in state["talks"] if t["id"] == c)
+        assert other["other"] == "October 2030" and other["side"] == "prev"
+        assert state["conference"]["prev_name"] == "October 2030"
+
+        # April's board can combine its own talk there, and must send the October one back to keep it.
+        v = les.save_plan(conn, "eq", april, [{"date": "2031-04-13", "talks": [c, spring]}], v, "x")
+        assert les.plan_weeks(conn, "eq", conf)[-3]["talks"] == [c, spring]
+        # Versions are per plan, so the October board's old version is now stale.
+        with pytest.raises(les.VersionConflict):
+            les.save_plan(conn, "eq", conf, [], 1, "x")
+        # October talks can't go on Sundays after the overlap, or April talks before April conference.
+        with pytest.raises(les.LessonError, match="isn't being taught"):
+            les.save_plan(conn, "eq", april, [{"date": "2031-05-04", "talks": [c]}], v, "x")
+        with pytest.raises(les.LessonError, match="isn't being taught"):
+            les.save_plan(conn, "eq", conf, [{"date": "2031-03-30", "talks": [spring]}], v, "x")
+
+        # A Twelve talk on a shared Sunday is after its deadline, so it doesn't count as studied.
+        les.save_plan(conn, "eq", conf, [{"date": "2031-04-20", "talks": [b]}], v, "x")
+        weeks = {w["date"]: w for w in les.plan_weeks(conn, "eq", conf)}
+        assert weeks["2031-04-20"]["after_next"] and not weeks["2031-03-30"]["after_next"]
+        info = les.dashboard(conn, date(2030, 10, 10))
+        assert info["plans"][0]["covered"] == 0
+
+
+def test_after_conference_before_new_talks(client, conf):
+    """Right after April conference, with its talks not loaded yet, October's plan carries on."""
+    a, b, c, d = conf["talk_ids"]
+    with db.ward_connect(1) as conn:
+        les.save_plan(conn, "eq", conf, [{"date": "2031-04-13", "talks": [c]}], 0, "x")
+        info = les.dashboard(conn, date(2031, 4, 8))
+        assert info["todo"][0]["text"] == "Load the April 2031 conference talks for lesson planning"
+        assert info["plans"][0]["next"]["talks"] == ["Light"] and info["conf_key"] == "2030-10"
+        assert not any("Combine" in t["text"] for t in info["todo"])   # October's deadline has passed
+
+        # The calendar shows a shared Sunday once, even with both conferences loaded.
+        april_2031(conn)
+        token = les.feed_token(conn)
+    feed = client.get(f"/feed/1/lessons/{token}/eq.ics").text
+    assert feed.count("DTSTART;VALUE=DATE:20310413") == 1 and "EQ lesson: Light" in feed

@@ -65,17 +65,30 @@
 
   function coverage() {
     const covered = new Set();
-    for (const w of weeks) if (isLesson(w)) for (const id of w.talks) {
+    // Only this conference's talks, taught before the next conference, count.
+    for (const w of weeks) if (isLesson(w) && !w.after_next) for (const id of w.talks) {
       const t = talk(id);
-      if (t.required && t.kind === "talk") covered.add(t.speaker);
+      if (t.required && t.kind === "talk" && !t.other) covered.add(t.speaker);
     }
     const missing = S.required_speakers.filter(s => !covered.has(s));
     return { covered, missing, total: S.required_speakers.length };
   }
 
   // --- mutations --------------------------------------------------------------
+  // Weeks a talk can go on: any for this conference's talks. The previous conference's only on the
+  // shared Sundays at the start; the next one's only on the shared Sundays after it.
+  function fits(id, w) {
+    const t = talk(id);
+    if (!t.other) return true;
+    return t.side === "prev" ? w.overlap && !w.after_next : w.after_next;
+  }
+
   function move(id, from, to) {
     if (from === to) return;
+    if (to && !fits(id, weekBy.get(to))) {
+      elSave.textContent = `“${talk(id).title}” is from ${talk(id).other}: it can only go on the shared Sundays`;
+      return;
+    }
     if (from) { const w = weekBy.get(from); w.talks = w.talks.filter(t => t !== id); }
     if (to) { const w = weekBy.get(to); if (!w.talks.includes(id)) w.talks.push(id); }
     changed();
@@ -152,12 +165,15 @@
     if (t.required) cls.push("req");
     if (t.kind === "business") cls.push("biz");
     if (!from && placed.has(id)) cls.push("used");
+    if (t.other) cls.push("other");
     const where = placed.has(id) ? `Planned for ${placed.get(id).map(label).join(", ")}` : "Not planned";
     return h("button", { type: "button", class: cls.join(" "), dataset: { tid: id, from: from || "" },
-                         title: [t.title, t.speaker, t.calling, where].filter(Boolean).join(" · ") },
+                         title: [t.title, t.speaker, t.calling, t.other ? `From ${t.other} conference` : null, where]
+                           .filter(Boolean).join(" · ") },
       t.required ? h("span", { class: "star", "aria-hidden": "true" }, "★") : null,
       h("span", { class: "ttl" }, t.title),
-      h("span", { class: "spk" }, lastName(t.speaker)));
+      h("span", { class: "spk" }, lastName(t.speaker)),
+      t.other ? h("span", { class: "conf-tag" }, t.other) : null);
   }
 
   function teacherChip(id, org, from) {
@@ -188,6 +204,11 @@
     if (!isLesson(w) && (w.talks.length || hasTeachers(w))) out.push(`Lesson planned on a ${S.statuses[w.status].toLowerCase()}`);
     if (!isLesson(w) || n < 0) return out;
     if (!w.talks.length && n <= SOON_DAYS) out.push("No talk yet");
+    if (w.after_next) for (const id of w.talks) {
+      const t = talk(id);
+      if (t.required && t.kind === "talk" && !t.other)
+        out.push(`${t.speaker} is First Presidency or Twelve: plan “${t.title}” before ${S.conference.next_name} conference`);
+    }
     const prev = previousLesson(w);
     for (const o of S.orgs) {
       if (!w.teachers[o].length && n <= SOON_DAYS) out.push(`No ${teacherLabel(o).toLowerCase()} yet`);
@@ -218,7 +239,8 @@
     const showTalks = isLesson(w) || w.talks.length;
     return h("article", { class: cls.join(" "), id: `w-${w.date}`, dataset: { date: w.date } },
       h("header", {},
-        h("div", { class: "w-date" }, label(w.date), when(w.date) ? h("span", { class: "w-when" }, when(w.date)) : null),
+        h("div", { class: "w-date" }, label(w.date), when(w.date) ? h("span", { class: "w-when" }, when(w.date)) : null,
+          w.overlap && !w.after_next ? h("span", { class: "w-shared", title: `Shared with the ${S.conference.prev_name} plan: its talks can be taught here too` }, "Shared") : null),
         warns.length ? h("span", { class: "g-warn", title: warns.join("\n") }, `⚠ ${warns.length}`) : null,
         statusSel),
       isLesson(w) ? null : h("div", { class: "off-note" },
@@ -240,13 +262,23 @@
 
   function renderWeeks() {
     const { scrollTop } = elWeeks;
-    elWeeks.replaceChildren(...weeks.map(renderWeek));
+    const cards = [];
+    for (const w of weeks) {
+      if (w.after_next && !cards.some(c => c.classList.contains("conf-divider"))) {
+        cards.push(h("div", { class: "conf-divider" },
+          h("strong", {}, `${S.conference.next_name} conference · ${label(S.conference.next_date)}`),
+          h("span", {}, ` Sundays after it are shared with the ${S.conference.next_name} plan. ${S.conference.name} talks can still be taught
+            while the new ones go up, but First Presidency and Twelve talks belong before conference.`)));
+      }
+      cards.push(renderWeek(w));
+    }
+    elWeeks.replaceChildren(...cards);
     elWeeks.scrollTop = scrollTop;
   }
 
   const byOrder = (a, b) => talk(a).order - talk(b).order;
   function renderPools() {
-    const all = [...talks.keys()].sort(byOrder);
+    const all = [...talks.keys()].filter(id => !talk(id).other).sort(byOrder);
     const open = all.filter(id => !placed.has(id) && talk(id).kind === "talk")
       .sort((a, b) => (talk(b).required - talk(a).required) || byOrder(a, b));
     $("#pool-open").replaceChildren(...open.map(id => chip(id, null)),
@@ -271,7 +303,7 @@
   function computeWarnings() {
     const list = [];
     const { missing, total } = coverage();
-    const openAhead = weeks.filter(w => isLesson(w) && !w.talks.length && daysUntil(w.date) >= 0);
+    const openAhead = weeks.filter(w => isLesson(w) && !w.talks.length && !w.after_next && daysUntil(w.date) >= 0);
     if (missing.length) {
       list.push({ text: `${missing.length} of ${total} First Presidency and Twelve speakers aren't planned yet: ${missing.join(", ")}`, tray: "open" });
       if (missing.length > openAhead.length) {
@@ -371,7 +403,7 @@
   function openTalk(el) {
     const id = Number(el.dataset.tid), from = el.dataset.from || null;
     const t = talk(id);
-    const targets = weeks.filter(w => isLesson(w) || w.date === from);
+    const targets = weeks.filter(w => (isLesson(w) && fits(id, w)) || w.date === from);
     const sel = h("select", { "aria-label": from ? "Taught on" : "Add to" },
       h("option", { value: "" }, from ? "— Not planned —" : "— Pick a Sunday —"),
       ...targets.map(w => weekOption(w, w.date === from)));
@@ -474,14 +506,14 @@
         .sort((a, b) => a.order - b.order);
       return (theirs.find(t => !/^closing remarks$/i.test(t.title)) || theirs[0]).id;
     });
-    const open = weeks.filter(w => isLesson(w) && !w.talks.length && daysUntil(w.date) >= 0);
+    const open = weeks.filter(w => isLesson(w) && !w.talks.length && !w.after_next && daysUntil(w.date) >= 0);
     const combine = Math.max(0, picks.length - open.length);
     if (!confirm(`Put ${picks.length} talk${picks.length === 1 ? "" : "s"} on the open Sundays, in conference order?`
                  + (combine ? ` There aren't enough open Sundays, so ${combine} will share a Sunday with another talk.` : ""))) return;
     picks.forEach((id, i) => {
       if (i < open.length) open[i].talks.push(id);
       else {   // spread the rest over the future lesson Sundays with the fewest talks
-        const ahead = weeks.filter(w => isLesson(w) && daysUntil(w.date) >= 0);
+        const ahead = weeks.filter(w => isLesson(w) && !w.after_next && daysUntil(w.date) >= 0);
         ahead.sort((a, b) => a.talks.length - b.talks.length || a.date.localeCompare(b.date))[0]?.talks.push(id);
       }
     });

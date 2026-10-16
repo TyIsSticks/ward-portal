@@ -158,7 +158,7 @@ callings, so the ticks are filled in from names the portal already knows; check 
 planning. Loading a conference again (either way) keeps the talks already planned.
 
 **Planning** (the **Lessons** tab): one card per Sunday from the Sunday after conference to the
-Sunday before the next one. Lessons are every Sunday except:
+end of the next conference's month. Lessons are every Sunday except:
 
 - **Fifth Sundays:** marked automatically. Pick *Lesson* on one to teach that Sunday anyway.
 - **Stake conference** and **No second hour:** pick them on the Sunday's card, with an optional
@@ -173,6 +173,14 @@ Church website, or move it with a menu. ★ marks First Presidency and Twelve ta
 shows how many of those speakers are planned. **Fill in First Presidency & Twelve** puts each
 missing speaker's talk on the next open Sundays in conference order, doubling up only if there
 aren't enough Sundays. Everything autosaves.
+
+**After the next conference** the plan keeps going to the end of April (or October), since the new
+talks can take a little while to go up. Those Sundays are **shared** with the next conference's
+plan: both plans show the same lesson on them, so nothing can be planned on top of something else.
+On those Sundays you can teach talks from either conference (a talk from the other conference shows
+its name, like *April 2027*), but First Presidency and Twelve talks still belong before conference:
+one planned after it is flagged and doesn't count toward the total. Right after conference, until
+the new talks are loaded, the Lessons tab and dashboard keep showing the previous plan.
 
 The **Warnings** tab lists First Presidency and Twelve speakers who aren't planned, when there
 are fewer open Sundays left than speakers (so lessons need combining), talks on a Sunday without

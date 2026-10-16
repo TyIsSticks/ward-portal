@@ -216,21 +216,12 @@ CREATE TABLE IF NOT EXISTS lesson_teachers (
     PRIMARY KEY (org, date, teacher_id)
 );
 
--- Bumped on every save of a plan, for edit conflicts.
-CREATE TABLE IF NOT EXISTS lesson_boards (
-    plan          TEXT NOT NULL,
-    conference_id INTEGER NOT NULL REFERENCES conferences(id) ON DELETE CASCADE,
-    version       INTEGER NOT NULL DEFAULT 0,
-    updated_by    TEXT NOT NULL DEFAULT '',
-    updated_at    TEXT NOT NULL DEFAULT (datetime('now')),
-    PRIMARY KEY (plan, conference_id)
-);
 """
 
 # Ward tables in an order that respects foreign keys (parents first).
 WARD_TABLES = ["people", "person_tags", "layouts", "districts", "companionships", "companionship_members",
                "pending_imports", "birthdays", "uploads", "ward_settings", "conferences", "talks",
-               "lesson_days", "lesson_talks", "lesson_notes", "teachers", "lesson_teachers", "lesson_boards"]
+               "lesson_days", "lesson_talks", "lesson_notes", "teachers", "lesson_teachers"]
 
 
 def _open(path: Path) -> sqlite3.Connection:
@@ -301,6 +292,9 @@ def _migrate_columns(conn: sqlite3.Connection) -> None:
     if _columns(conn, "birthdays") and "missing_since" not in _columns(conn, "birthdays"):
         conn.execute("ALTER TABLE birthdays ADD COLUMN missing_since TEXT")
         conn.execute("ALTER TABLE birthdays ADD COLUMN kept INTEGER NOT NULL DEFAULT 0")
+    # Lesson plan versions were per conference; conferences now share Sundays, so they're per plan
+    # (kept in ward_settings). Only edit-conflict counters were in this table.
+    conn.execute("DROP TABLE IF EXISTS lesson_boards")
     # Layouts made before Relief Society support were all elders quorum.
     add("layouts", "org", "TEXT NOT NULL DEFAULT 'eq'")
     if _columns(conn, "layouts") and "approved_at" not in _columns(conn, "layouts"):
