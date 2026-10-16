@@ -140,7 +140,8 @@ Companion history (“↺”) comes from past imports, so it appears once you've
 
 ## Lessons
 
-Elders Quorum and Relief Society lessons are taught from the most recent general conference. Every
+Elders Quorum and Relief Society lessons are taught from the most recent general conference. As with
+ministering, any Leader can see and edit both organizations’ plans. Every
 member of the First Presidency and the Quorum of the Twelve who gave a talk needs a lesson before
 the next conference.
 
