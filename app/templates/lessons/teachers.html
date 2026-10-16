@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% set active = "lessons" %}
+{% block title %}Teachers · {{ ward_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="grow">
+    <p class="crumbs"><a href="/lessons">← Lesson plan</a></p>
+    <h1>Teachers</h1>
+    <div class="sub">Elders Quorum and Relief Society each keep their own list{% if shared %}, even while they share one
+      lesson plan{% endif %}. Assign teachers to Sundays by dragging them on the lesson plan.</div>
+  </div>
+</div>
+
+<div class="cols">
+{% for org, name in org_names.items() %}
+<section class="card" id="{{ org }}">
+  <h2>{{ name }}</h2>
+  {% set list = teachers[org] %}
+  {% if list %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Teacher</th><th>Lessons</th><th></th></tr></thead>
+    <tbody>
+    {% for t in list %}
+    <tr{% if not t.active %} class="muted"{% endif %}>
+      <td><strong>{{ t.name }}</strong>
+        {% if t.moved_out %}<span class="badge moved">Moved out</span>{% endif %}
+        {% if not t.active %}<span class="badge">Off the list</span>{% endif %}
+        {% if t.next_date %}<div class="small muted">Next: {{ t.next_date }}</div>{% endif %}</td>
+      <td>{{ t.lessons }}</td>
+      <td class="actions">
+        <form method="post" action="/lessons/teachers/{{ t.id }}/active">
+          <input type="hidden" name="active" value="{{ '' if t.active else '1' }}">
+          <button class="link small">{{ "Take off the list" if t.active else "Put back on the list" }}</button>
+        </form>
+        <form method="post" action="/lessons/teachers/{{ t.id }}/remove" data-name="{{ t.name }}"
+              onsubmit="return confirm('Remove ' + this.dataset.name + '? Their upcoming lessons lose their teacher.')">
+          <button class="link danger small">Remove</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">No {{ name }} teachers yet.</p>
+  {% endif %}
+
+  <form method="post" action="/lessons/teachers" class="stack add-teacher">
+    <input type="hidden" name="org" value="{{ org }}">
+    <h3>Add a teacher</h3>
+    {% if roster[org] %}
+    <label>From the roster
+      <select name="person_id">
+        <option value="">— Pick someone —</option>
+        {% for p in roster[org] %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+      </select></label>
+    <label>Or type a name <input name="name" maxlength="80" placeholder="e.g. Sam Rivera"></label>
+    {% else %}
+    <label>Name <input name="name" maxlength="80" required placeholder="e.g. Sam Rivera"></label>
+    <p class="muted small">Upload the Member List to pick teachers from the ward roster.</p>
+    {% endif %}
+    <div><button>Add teacher</button></div>
+  </form>
+  <p class="muted small">“Take off the list” hides someone from the lesson plan for a while. Removing someone who already
+    taught keeps their name on past lessons.</p>
+</section>
+{% endfor %}
+</div>
+{% endblock %}

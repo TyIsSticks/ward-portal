@@ -94,6 +94,68 @@ async def save_required(request: Request, user: dict = leader):
     return RedirectResponse(talks_url(year, month), status_code=303)
 
 
+# --- Teachers -----------------------------------------------------------------
+
+@router.get("/lessons/teachers", response_class=HTMLResponse)
+def teachers_page(request: Request, user: dict = leader):
+    with db.ward_connect(user["ward"]["id"]) as conn:
+        teachers = {o: les.list_teachers(conn, o) for o in les.ORGS}
+        roster = {o: les.roster(conn, o) for o in les.ORGS}
+        shared = les.is_shared(conn)
+    return render(request, "lessons/teachers.html", user=user, teachers=teachers, roster=roster,
+                  org_names=les.ORGS, shared=shared, today=date.today().isoformat())
+
+
+@router.post("/lessons/teachers")
+def add_teacher_form(request: Request, org: str = Form(...), person_id: str = Form(""), name: str = Form(""),
+                     user: dict = leader):
+    try:
+        with db.ward_connect(user["ward"]["id"]) as conn:
+            t = les.add_teacher(conn, org, name, int(person_id) if person_id.isdigit() else None)
+        flash(request, "ok", f"Added {t['name']} to the {les.ORGS[org]} teachers.")
+    except les.LessonError as exc:
+        flash(request, "error", str(exc))
+    return RedirectResponse(f"/lessons/teachers#{org}", status_code=303)
+
+
+@router.post("/lessons/teachers/{teacher_id}/active")
+def teacher_active(teacher_id: int, request: Request, active: str = Form(""), user: dict = leader):
+    with db.ward_connect(user["ward"]["id"]) as conn:
+        t = _teacher_or_404(conn, teacher_id)
+        les.set_teacher_active(conn, teacher_id, active == "1")
+    flash(request, "ok", f"{t['name']} is {'back on the list' if active == '1' else 'off the list for now'}.")
+    return RedirectResponse(f"/lessons/teachers#{t['org']}", status_code=303)
+
+
+@router.post("/lessons/teachers/{teacher_id}/remove")
+def teacher_remove(teacher_id: int, request: Request, user: dict = leader):
+    with db.ward_connect(user["ward"]["id"]) as conn:
+        t = _teacher_or_404(conn, teacher_id)
+        how = les.remove_teacher(conn, teacher_id)
+    flash(request, "ok", f"Removed {t['name']}." if how == "deleted" else
+          f"Removed {t['name']} from upcoming lessons. Past lessons still show their name.")
+    return RedirectResponse(f"/lessons/teachers#{t['org']}", status_code=303)
+
+
+def _teacher_or_404(conn, teacher_id: int) -> dict:
+    t = les.get_teacher(conn, teacher_id)
+    if t is None:
+        raise HTTPException(status_code=404, detail="Teacher not found")
+    return t
+
+
+@router.post("/api/lessons/teachers")
+async def api_add_teacher(request: Request, user: dict = leader):
+    body = await json_body(request)
+    person_id = body.get("person_id")
+    try:
+        with db.ward_connect(user["ward"]["id"]) as conn:
+            return les.add_teacher(conn, str(body.get("org", "")), str(body.get("name") or ""),
+                                   int(person_id) if person_id else None)
+    except (les.LessonError, TypeError, ValueError) as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+
+
 # --- Planning board -----------------------------------------------------------
 # Registered last so /lessons/talks etc. match before /lessons/{plan}.
 

@@ -285,3 +285,70 @@ def test_lessons_are_for_leaders(client):
     for path in ["/lessons", "/lessons/eq"]:
         assert client.get(path).status_code == 403
     assert client.put("/api/lessons/days/2030-11-10", json={"status": "lesson"}).status_code == 403
+
+
+# --- teachers -------------------------------------------------------------------
+
+def add_people(conn):
+    for name, gender in [("Able, Al", "M"), ("Baker, Bo", "M"), ("Dunn, Di", "F")]:
+        conn.execute("INSERT INTO people (name, gender) VALUES (?, ?)", (name, gender))
+    return {r["name"]: r["id"] for r in conn.execute("SELECT id, name FROM people")}
+
+
+def test_teachers(conf):
+    a, b, c, d = conf["talk_ids"]
+    with db.ward_connect(1) as conn:
+        ids = add_people(conn)
+        assert [p["name"] for p in les.roster(conn, "eq")] == ["Al Able", "Bo Baker"]
+        assert [p["name"] for p in les.roster(conn, "rs")] == ["Di Dunn"]
+        al = les.add_teacher(conn, "eq", person_id=ids["Able, Al"])
+        vic = les.add_teacher(conn, "eq", "  Visiting   Vic ")
+        di = les.add_teacher(conn, "rs", person_id=ids["Dunn, Di"])
+        assert (al["name"], vic["name"]) == ("Al Able", "Visiting Vic")
+        assert les.add_teacher(conn, "eq", person_id=ids["Able, Al"])["id"] == al["id"]   # no duplicates
+        with pytest.raises(les.LessonError):
+            les.add_teacher(conn, "eq", "")
+
+        weeks = [{"date": "2030-10-13", "talks": [b], "teachers": {"eq": [al["id"], vic["id"]]}}]
+        les.save_plan(conn, "eq", conf, weeks, 0, "admin")
+        assert les.plan_weeks(conn, "eq", conf)[0]["teachers"] == {"eq": [al["id"], vic["id"]]}
+        with pytest.raises(les.LessonError, match="Unknown teacher"):   # an RS teacher on the EQ plan
+            les.save_plan(conn, "eq", conf, [{"date": "2030-10-13", "teachers": {"eq": [di["id"]]}}], 1, "admin")
+
+        # In a shared plan each organization keeps its own teachers.
+        les.set_shared(conn, True)
+        les.save_plan(conn, "ward", conf, [{"date": "2030-10-13", "talks": [b],
+                                            "teachers": {"eq": [al["id"]], "rs": [di["id"]]}}], 0, "admin")
+        assert les.plan_weeks(conn, "ward", conf)[0]["teachers"] == {"eq": [al["id"]], "rs": [di["id"]]}
+        assert les.plan_weeks(conn, "eq", conf)[0]["teachers"] == {"eq": [al["id"]]}
+
+        assert les.remove_teacher(conn, vic["id"]) == "deleted"
+        conn.execute("INSERT INTO lesson_teachers (org, date, teacher_id) VALUES ('eq', '2000-01-02', ?)", (al["id"],))
+        assert les.remove_teacher(conn, al["id"]) == "inactive"   # taught before: kept, off the list
+        al_now = les.list_teachers(conn, "eq")[0]
+        assert not al_now["active"] and al_now["lessons"] == 1   # only the past lesson is left
+        assert les.add_teacher(conn, "eq", person_id=ids["Able, Al"])["active"]   # adding again brings them back
+
+        conn.execute("UPDATE people SET active = 0 WHERE id = ?", (ids["Dunn, Di"],))
+        assert les.list_teachers(conn, "rs")[0]["moved_out"]
+
+
+def test_teacher_pages(client, conf):
+    login(client)
+    with db.ward_connect(1) as conn:
+        ids = add_people(conn)
+    page = client.get("/lessons/teachers").text
+    assert "No Elders Quorum teachers yet" in page and "Bo Baker" in page
+    r = client.post("/lessons/teachers", data={"org": "eq", "person_id": str(ids["Baker, Bo"])})
+    assert "Added Bo Baker to the Elders Quorum teachers." in r.text
+    r = client.post("/api/lessons/teachers", json={"org": "rs", "name": "Rae Rivers"})
+    assert r.status_code == 200 and r.json()["name"] == "Rae Rivers"
+    assert client.post("/api/lessons/teachers", json={"org": "xx", "name": "No One"}).status_code == 400
+    rae = r.json()["id"]
+    client.post(f"/lessons/teachers/{rae}/active", data={"active": ""})
+    assert "Off the list" in client.get("/lessons/teachers").text
+    r = client.post(f"/lessons/teachers/{rae}/remove")
+    assert "Removed Rae Rivers." in r.text
+    assert client.post("/lessons/teachers/999/remove").status_code == 404
+    state = client.get("/lessons/eq?conf=2030-10").text
+    assert '"roster": {"eq": [' in state and "Bo Baker" in state

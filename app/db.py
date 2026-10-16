@@ -197,6 +197,24 @@ CREATE TABLE IF NOT EXISTS lesson_notes (
     PRIMARY KEY (plan, date)
 );
 
+-- Lesson teachers. Each organization keeps its own list, even when the two share a plan.
+CREATE TABLE IF NOT EXISTS teachers (
+    id         INTEGER PRIMARY KEY,
+    org        TEXT NOT NULL CHECK (org IN ('eq', 'rs')),
+    name       TEXT NOT NULL,                    -- shown as typed, "First Last"
+    person_id  INTEGER REFERENCES people(id),    -- when picked from the roster
+    active     INTEGER NOT NULL DEFAULT 1,       -- removed teachers with past lessons are kept inactive
+    feed_token TEXT NOT NULL UNIQUE,             -- secret part of their lesson calendar link
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS lesson_teachers (
+    org        TEXT NOT NULL CHECK (org IN ('eq', 'rs')),
+    date       TEXT NOT NULL,
+    teacher_id INTEGER NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+    PRIMARY KEY (org, date, teacher_id)
+);
+
 -- Bumped on every save of a plan, for edit conflicts.
 CREATE TABLE IF NOT EXISTS lesson_boards (
     plan          TEXT NOT NULL,
@@ -211,7 +229,7 @@ CREATE TABLE IF NOT EXISTS lesson_boards (
 # Ward tables in an order that respects foreign keys (parents first).
 WARD_TABLES = ["people", "person_tags", "layouts", "districts", "companionships", "companionship_members",
                "pending_imports", "birthdays", "uploads", "ward_settings", "conferences", "talks",
-               "lesson_days", "lesson_talks", "lesson_notes", "lesson_boards"]
+               "lesson_days", "lesson_talks", "lesson_notes", "teachers", "lesson_teachers", "lesson_boards"]
 
 
 def _open(path: Path) -> sqlite3.Connection:

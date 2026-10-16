@@ -30,6 +30,7 @@
     <span class="spacer"></span>
     <button type="button" id="autofill" class="secondary sm">Fill in First Presidency &amp; Twelve</button>
     <a class="secondary sm" href="/lessons/talks?conf={{ conf }}">Conference talks</a>
+    <a class="secondary sm" href="/lessons/teachers">Teachers</a>
     <details class="menu les-menu">
       <summary aria-label="Lesson settings">⋯</summary>
       <div class="menu-pop">
@@ -53,6 +54,7 @@
       <div class="tray-tabs" role="tablist">
         <button type="button" role="tab" data-tray-tab="open" aria-selected="true">Not planned <span id="n-open" class="count"></span></button>
         <button type="button" role="tab" data-tray-tab="all" aria-selected="false">All talks <span id="n-all" class="count"></span></button>
+        <button type="button" role="tab" data-tray-tab="teachers" aria-selected="false">Teachers <span id="n-teachers" class="count"></span></button>
         <button type="button" role="tab" data-tray-tab="warnings" aria-selected="false">Warnings <span id="warn-count" class="count warn"></span></button>
       </div>
       <span id="coverage" class="coverage small"></span>
@@ -62,6 +64,7 @@
     <div class="tray-body" id="tray-body">
       <div id="pool-open" class="zone pool" data-zone="pool" data-tray="open"></div>
       <div id="pool-all" class="zone pool" data-zone="pool" data-tray="all" hidden></div>
+      <div id="pool-teachers" class="teacher-pools" data-tray="teachers" hidden></div>
       <ul id="warnings" class="warnings" data-tray="warnings" hidden></ul>
     </div>
   </section>
@@ -69,7 +72,7 @@
   <div id="weeks" class="weeks"></div>
   <p class="legend muted small">
     <span class="talk-demo req">★ First Presidency or Twelve</span> <span class="talk-demo">Other talk</span>
-    · Drag talks onto Sundays (more than one combines them), or tap a talk for options. Sunday marks apply to the whole ward.
+    · Drag talks and teachers onto Sundays (more than one talk combines them), or tap one for options. Sunday marks apply to the whole ward.
   </p>
 </div>
 

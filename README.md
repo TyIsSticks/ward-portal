@@ -174,9 +174,18 @@ The **Warnings** tab lists First Presidency and Twelve speakers who aren't plann
 are fewer open Sundays left than speakers (so lessons need combining), talks on a Sunday without
 lessons, a talk planned twice, and Sundays in the next three weeks with nothing planned.
 
+**Teachers:** each Sunday has a teacher lane. Open the tray's **Teachers** tab, choose **+ Add
+teacher** (pick from the roster, brothers for Elders Quorum and sisters for Relief Society, or
+type any name), then drag teachers onto Sundays. The number on each name is how many lessons
+they have this conference. The **Teachers** page lists everyone with their next lesson; *Take off
+the list* hides someone for a while, and removing someone who already taught keeps their name on
+past lessons. Warnings add Sundays in the next three weeks without a teacher, the same teacher on
+two lesson Sundays in a row, teachers who moved out or are off the list, and uneven turns.
+
 Elders Quorum and Relief Society each have their own plan. If your ward teaches the same talks in
 both, choose **⋯ → EQ and RS teach the same lessons**; the shared plan starts as a copy of the
-Elders Quorum plan, and switching back shows each organization's own plan again.
+Elders Quorum plan, and switching back shows each organization's own plan again. Teachers stay
+separate either way: a shared plan shows an EQ teacher and an RS teacher lane on every Sunday.
 
 ## Wards
 

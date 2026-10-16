@@ -3,6 +3,7 @@
 General conference is the first Sunday of April and October (and the Saturday before). The
 lessons for a conference run from the Sunday after it to the Sunday before the next one.
 """
+import secrets
 import sqlite3
 from datetime import date, timedelta
 
@@ -233,11 +234,17 @@ def plan_weeks(conn: sqlite3.Connection, plan: str, conf: dict) -> list[dict]:
         talk_ids.setdefault(r["date"], []).append(r["talk_id"])
     notes = {r["date"]: r["note"] for r in conn.execute(
         "SELECT date, note FROM lesson_notes WHERE plan = ? AND date BETWEEN ? AND ?", (plan, first, last))}
+    orgs = plan_orgs(plan)
+    teaching: dict[tuple, list[int]] = {}
+    for r in conn.execute("SELECT lt.org, lt.date, lt.teacher_id FROM lesson_teachers lt JOIN teachers t ON t.id = lt.teacher_id "
+                          "WHERE lt.date BETWEEN ? AND ? ORDER BY t.name COLLATE NOCASE", (first, last)):
+        teaching.setdefault((r["org"], r["date"]), []).append(r["teacher_id"])
     out = []
     for d in days:
         iso = d.isoformat()
         out.append({"date": iso, "status": marks[iso]["status"], "day_note": marks[iso]["note"],
-                    "fifth": d.day > 28, "talks": talk_ids.get(iso, []), "note": notes.get(iso, "")})
+                    "fifth": d.day > 28, "talks": talk_ids.get(iso, []), "note": notes.get(iso, ""),
+                    "teachers": {o: teaching.get((o, iso), []) for o in orgs}})
     return out
 
 
@@ -259,6 +266,8 @@ def board_state(conn: sqlite3.Connection, plan: str, conf: dict, today: date | N
         "talks": [{k: t[k] for k in ("id", "title", "speaker", "calling", "summary", "url", "kind", "session")}
                   | {"required": bool(t["required"])} for t in talk_rows],
         "required_speakers": required_speakers(talk_rows),
+        "teachers": {o: list_teachers(conn, o) for o in plan_orgs(plan)},
+        "roster": {o: roster(conn, o) for o in plan_orgs(plan)},
     }
 
 
@@ -271,7 +280,9 @@ def save_plan(conn: sqlite3.Connection, plan: str, conf: dict, weeks, version: i
         raise VersionConflict("This plan was changed somewhere else.")
     valid_days = {d.isoformat() for d in sundays(conf["year"], conf["month"])}
     valid_talks = {r[0] for r in conn.execute("SELECT id FROM talks WHERE conference_id = ?", (conf["id"],))}
-    rows, notes = [], []
+    orgs = plan_orgs(plan)
+    valid_teachers = {o: {r[0] for r in conn.execute("SELECT id FROM teachers WHERE org = ?", (o,))} for o in orgs}
+    rows, notes, teaching = [], [], []
     for w in weeks:
         if not isinstance(w, dict) or w.get("date") not in valid_days:
             raise LessonError("Unknown Sunday.")
@@ -282,13 +293,103 @@ def save_plan(conn: sqlite3.Connection, plan: str, conf: dict, weeks, version: i
         note = " ".join(str(w.get("note") or "").split())[:200]
         if note:
             notes.append((plan, w["date"], note))
+        assigned = w.get("teachers") or {}
+        if not isinstance(assigned, dict):
+            raise LessonError("teachers must be an object")
+        for o in orgs:
+            ids = [int(t) for t in assigned.get(o) or []]
+            if any(t not in valid_teachers[o] for t in ids):
+                raise LessonError("Unknown teacher.")
+            teaching += [(o, w["date"], t) for t in dict.fromkeys(ids)]
     first, last = min(valid_days), max(valid_days)
     conn.execute("DELETE FROM lesson_talks WHERE plan = ? AND date BETWEEN ? AND ?", (plan, first, last))
     conn.execute("DELETE FROM lesson_notes WHERE plan = ? AND date BETWEEN ? AND ?", (plan, first, last))
     conn.executemany("INSERT INTO lesson_talks (plan, date, talk_id, position) VALUES (?, ?, ?, ?)", rows)
     conn.executemany("INSERT INTO lesson_notes (plan, date, note) VALUES (?, ?, ?)", notes)
+    for o in orgs:   # teachers belong to an organization, whichever plan it's using
+        conn.execute("DELETE FROM lesson_teachers WHERE org = ? AND date BETWEEN ? AND ?", (o, first, last))
+    conn.executemany("INSERT INTO lesson_teachers (org, date, teacher_id) VALUES (?, ?, ?)", teaching)
     conn.execute("INSERT INTO lesson_boards (plan, conference_id, version, updated_by) VALUES (?, ?, ?, ?) "
                  "ON CONFLICT(plan, conference_id) DO UPDATE SET version = excluded.version, "
                  "updated_by = excluded.updated_by, updated_at = datetime('now')",
                  (plan, conf["id"], current + 1, username))
     return current + 1
+
+
+# --- Teachers ---------------------------------------------------------------
+
+ORG_GENDER = {"eq": "M", "rs": "F"}
+
+
+def _display(name: str) -> str:
+    """'Last, First Middle' -> 'First Middle Last' (roster names)."""
+    if "," not in name:
+        return name
+    last, given = (part.strip() for part in name.split(",", 1))
+    return f"{given} {last}".strip()
+
+
+def roster(conn: sqlite3.Connection, org: str) -> list[dict]:
+    """People who could teach in an organization (brothers for EQ, sisters for RS), by last name."""
+    return [{"id": r["id"], "name": _display(r["name"])} for r in conn.execute(
+        "SELECT id, name FROM people WHERE active = 1 AND gender = ? ORDER BY name COLLATE NOCASE",
+        (ORG_GENDER[org],))]
+
+
+def list_teachers(conn: sqlite3.Connection, org: str, include_inactive: bool = True) -> list[dict]:
+    rows = conn.execute(
+        "SELECT t.*, p.active AS person_active, "
+        "(SELECT COUNT(*) FROM lesson_teachers lt WHERE lt.teacher_id = t.id) AS lessons, "
+        "(SELECT MIN(date) FROM lesson_teachers lt WHERE lt.teacher_id = t.id "
+        " AND date >= date('now', 'localtime')) AS next_date "
+        "FROM teachers t LEFT JOIN people p ON p.id = t.person_id WHERE t.org = ? "
+        + ("" if include_inactive else "AND t.active = 1 ") + "ORDER BY t.active DESC, t.name COLLATE NOCASE", (org,))
+    return [{"id": r["id"], "org": r["org"], "name": r["name"], "person_id": r["person_id"],
+             "active": bool(r["active"]), "moved_out": r["person_active"] == 0, "lessons": r["lessons"],
+             "next_date": r["next_date"]} for r in rows]
+
+
+def get_teacher(conn: sqlite3.Connection, teacher_id: int) -> dict | None:
+    row = conn.execute("SELECT * FROM teachers WHERE id = ?", (teacher_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def add_teacher(conn: sqlite3.Connection, org: str, name: str = "", person_id: int | None = None) -> dict:
+    """Add a teacher from the roster (person_id) or by name. Adding someone again reactivates them."""
+    if org not in ORGS:
+        raise LessonError("Unknown organization.")
+    if person_id:
+        person = conn.execute("SELECT id, name FROM people WHERE id = ?", (person_id,)).fetchone()
+        if person is None:
+            raise LessonError("That person is not on the roster.")
+        name = _display(person["name"])
+        existing = conn.execute("SELECT id FROM teachers WHERE org = ? AND person_id = ?", (org, person_id)).fetchone()
+    else:
+        name = " ".join(name.split())[:80]
+        if not name:
+            raise LessonError("Give the teacher a name.")
+        existing = conn.execute("SELECT id FROM teachers WHERE org = ? AND person_id IS NULL "
+                                "AND name = ? COLLATE NOCASE", (org, name)).fetchone()
+    if existing:
+        conn.execute("UPDATE teachers SET active = 1 WHERE id = ?", (existing["id"],))
+        teacher_id = existing["id"]
+    else:
+        teacher_id = conn.execute("INSERT INTO teachers (org, name, person_id, feed_token) VALUES (?, ?, ?, ?)",
+                                  (org, name, person_id or None, secrets.token_urlsafe(24))).lastrowid
+    return next(t for t in list_teachers(conn, org) if t["id"] == teacher_id)
+
+
+def set_teacher_active(conn: sqlite3.Connection, teacher_id: int, active: bool) -> None:
+    conn.execute("UPDATE teachers SET active = ? WHERE id = ?", (int(active), teacher_id))
+
+
+def remove_teacher(conn: sqlite3.Connection, teacher_id: int) -> str:
+    """Delete a teacher who never taught; otherwise drop their future lessons and keep them inactive."""
+    if conn.execute("SELECT 1 FROM lesson_teachers WHERE teacher_id = ? AND date < date('now', 'localtime')",
+                    (teacher_id,)).fetchone():
+        conn.execute("DELETE FROM lesson_teachers WHERE teacher_id = ? AND date >= date('now', 'localtime')",
+                     (teacher_id,))
+        set_teacher_active(conn, teacher_id, False)
+        return "inactive"
+    conn.execute("DELETE FROM teachers WHERE id = ?", (teacher_id,))
+    return "deleted"

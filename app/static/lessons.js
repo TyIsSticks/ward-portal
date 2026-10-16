@@ -9,7 +9,10 @@
   const elWeeks = $("#weeks");
   const elPop = $("#popover");
   const talks = new Map(S.talks.map((t, i) => [t.id, { ...t, order: i }]));
-  const weeks = S.weeks.map(w => ({ ...w, talks: [...w.talks] }));
+  const weeks = S.weeks.map(w => ({ ...w, talks: [...w.talks],
+    teachers: Object.fromEntries(S.orgs.map(o => [o, [...(w.teachers[o] || [])]])) }));
+  const teachers = new Map(S.orgs.flatMap(o => S.teachers[o].map(t => [t.id, t])));
+  const SHORT = { eq: "EQ", rs: "RS" };
   const weekBy = new Map(weeks.map(w => [w.date, w]));
   const today = S.today;
   const nextDate = S.weeks.find(w => w.date >= today)?.date;
@@ -17,7 +20,9 @@
   let query = "";
 
   const talk = (id) => talks.get(id) || { id, title: "Unknown talk", speaker: "", required: false, kind: "talk", order: 1e9 };
+  const teacher = (id) => teachers.get(id) || { id, name: "Unknown", active: false, moved_out: false };
   const isLesson = (w) => w.status === "lesson";
+  const hasTeachers = (w) => S.orgs.some(o => w.teachers[o].length);
   const lastName = (name) => name.split(" ").slice(-1)[0];
 
   // --- tiny DOM helper (always textContent, never innerHTML, for data) --------
@@ -47,10 +52,15 @@
   }
 
   // --- derived lookups --------------------------------------------------------
-  let placed;   // talk id -> [dates]
+  let placed;     // talk id -> [dates]
+  let teaching;   // teacher id -> [dates]
   function reindex() {
     placed = new Map();
-    for (const w of weeks) for (const t of w.talks) (placed.get(t) || placed.set(t, []).get(t)).push(w.date);
+    teaching = new Map();
+    for (const w of weeks) {
+      for (const t of w.talks) (placed.get(t) || placed.set(t, []).get(t)).push(w.date);
+      for (const o of S.orgs) for (const t of w.teachers[o]) (teaching.get(t) || teaching.set(t, []).get(t)).push(w.date);
+    }
   }
 
   function coverage() {
@@ -68,6 +78,13 @@
     if (from === to) return;
     if (from) { const w = weekBy.get(from); w.talks = w.talks.filter(t => t !== id); }
     if (to) { const w = weekBy.get(to); if (!w.talks.includes(id)) w.talks.push(id); }
+    changed();
+  }
+
+  function moveTeacher(id, org, from, to) {
+    if (from === to) return;
+    if (from) { const w = weekBy.get(from); w.teachers[org] = w.teachers[org].filter(t => t !== id); }
+    if (to) { const w = weekBy.get(to); if (!w.teachers[org].includes(id)) w.teachers[org].push(id); }
     changed();
   }
 
@@ -89,7 +106,7 @@
     if (saving) { saveTimer = setTimeout(save, 300); return; }
     saving = true; dirty = false;
     elSave.textContent = "Saving…";
-    const body = { version, weeks: weeks.map(w => ({ date: w.date, talks: w.talks, note: w.note })) };
+    const body = { version, weeks: weeks.map(w => ({ date: w.date, talks: w.talks, note: w.note, teachers: w.teachers })) };
     try {
       const res = await fetch(`/api/lessons/${S.plan}/${S.conference.id}`, {
         method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -143,11 +160,44 @@
       h("span", { class: "spk" }, lastName(t.speaker)));
   }
 
+  function teacherChip(id, org, from) {
+    const t = teacher(id);
+    const cls = ["pchip", `o-${org}`];
+    if (t.moved_out) cls.push("moved");
+    if (!t.active) cls.push("inactive");
+    const n = (teaching.get(id) || []).length;
+    return h("button", { type: "button", class: cls.join(" "), dataset: { teacher: id, org, from: from || "" },
+                         title: [t.name, t.moved_out ? "Moved out" : null, !t.active ? "Off the teacher list" : null,
+                                 `${n} lesson${n === 1 ? "" : "s"} this conference`].filter(Boolean).join(" · ") },
+      h("span", { class: "nm" }, t.name),
+      from ? null : h("span", { class: "cnt" }, String(n)));
+  }
+
+  const teacherLabel = (org) => (S.orgs.length > 1 ? `${SHORT[org]} teacher` : "Teacher");
+
+  // Sundays before this one, back to the previous lesson Sunday (to spot back-to-back teaching).
+  function previousLesson(w) {
+    const i = weeks.indexOf(w);
+    for (let j = i - 1; j >= 0; j--) if (isLesson(weeks[j])) return weeks[j];
+    return null;
+  }
+
   function weekWarnings(w) {
     const out = [];
     const n = daysUntil(w.date);
-    if (!isLesson(w) && w.talks.length) out.push(`Talks planned on a ${S.statuses[w.status].toLowerCase()}`);
-    if (isLesson(w) && !w.talks.length && n >= 0 && n <= SOON_DAYS) out.push("No talk yet");
+    if (!isLesson(w) && (w.talks.length || hasTeachers(w))) out.push(`Lesson planned on a ${S.statuses[w.status].toLowerCase()}`);
+    if (!isLesson(w) || n < 0) return out;
+    if (!w.talks.length && n <= SOON_DAYS) out.push("No talk yet");
+    const prev = previousLesson(w);
+    for (const o of S.orgs) {
+      if (!w.teachers[o].length && n <= SOON_DAYS) out.push(`No ${teacherLabel(o).toLowerCase()} yet`);
+      for (const id of w.teachers[o]) {
+        const t = teacher(id);
+        if (t.moved_out) out.push(`${t.name} moved out`);
+        else if (!t.active) out.push(`${t.name} is off the teacher list`);
+        if (prev && prev.teachers[o].includes(id)) out.push(`${t.name} also teaches the Sunday before`);
+      }
+    }
     return out;
   }
 
@@ -177,6 +227,11 @@
       showTalks ? h("div", { class: "zone talks", dataset: { zone: "week", date: w.date } },
         ...w.talks.map(id => chip(id, w.date)),
         w.talks.length ? null : h("div", { class: "zone-empty" }, "Drop a talk here")) : null,
+      ...S.orgs.filter(o => isLesson(w) || w.teachers[o].length).map(o =>
+        h("div", { class: `zone teach o-${o}`, dataset: { zone: "teach", org: o, date: w.date } },
+          h("div", { class: "zone-label" }, teacherLabel(o)),
+          ...w.teachers[o].map(id => teacherChip(id, o, w.date)),
+          w.teachers[o].length ? null : h("div", { class: "zone-empty" }, "Drop a teacher here"))),
       isLesson(w) ? h("input", { class: "w-note", value: w.note, maxlength: 200, placeholder: "Note", "aria-label": "Note",
         onchange: (e) => { w.note = e.target.value.trim(); changed(); } }) : null);
   }
@@ -197,6 +252,18 @@
     $("#pool-all").replaceChildren(...all.map(id => chip(id, null)));
     $("#n-open").textContent = open.length;
     $("#n-all").textContent = all.length;
+
+    const pool = $("#pool-teachers");
+    pool.replaceChildren(...S.orgs.map(o => {
+      const list = [...teachers.values()].filter(t => t.org === o && t.active)
+        .sort((a, b) => a.name.localeCompare(b.name));
+      return h("div", { class: "tgroup" },
+        S.orgs.length > 1 ? h("div", { class: "zone-label" }, `${S.org_names[o]} teachers`) : null,
+        h("div", { class: "zone tpool", dataset: { zone: "tpool", org: o } },
+          ...list.map(t => teacherChip(t.id, o, null)),
+          h("button", { type: "button", class: "add-teacher", onclick: (e) => openAddTeacher(o, e.currentTarget) }, "+ Add teacher")));
+    }));
+    $("#n-teachers").textContent = [...teachers.values()].filter(t => t.active).length;
   }
 
   function computeWarnings() {
@@ -219,6 +286,14 @@
       if (talk(id).kind === "business") list.push({ text: `“${talk(id).title}” isn't a lesson talk`, date: dates[0], info: true });
     }
     for (const w of weeks) if (w.talks.length > 2) list.push({ text: `${label(w.date)}: ${w.talks.length} talks combined`, date: w.date, info: true });
+    for (const o of S.orgs) {
+      const counts = [...teachers.values()].filter(t => t.org === o && t.active)
+        .map(t => [t.name, (teaching.get(t.id) || []).length]);
+      if (counts.length > 1) {
+        const nums = counts.map(c => c[1]), max = Math.max(...nums), min = Math.min(...nums);
+        if (max - min >= 3) list.push({ text: `${S.org_names[o]} teachers are uneven: ${counts.sort((a, b) => b[1] - a[1]).map(c => `${c[0]} ${c[1]}`).join(", ")}`, tray: "teachers", info: true });
+      }
+    }
     return list;
   }
 
@@ -244,11 +319,12 @@
   }
 
   function applySearch() {
-    document.body.classList.toggle("searching", !!query);
+    document.body.classList.toggle("searching", !!query);  // dims everything that doesn't match
     let first = null;
-    for (const el of document.querySelectorAll(".tchip")) {
-      const t = talk(Number(el.dataset.tid));
-      const hit = !!query && `${t.title} ${t.speaker}`.toLowerCase().includes(query);
+    for (const el of document.querySelectorAll(".tchip, .pchip")) {
+      const text = el.dataset.teacher ? teacher(Number(el.dataset.teacher)).name
+        : `${talk(Number(el.dataset.tid)).title} ${talk(Number(el.dataset.tid)).speaker}`;
+      const hit = !!query && text.toLowerCase().includes(query);
       el.classList.toggle("hit", hit);
       if (hit && !first) first = el;
     }
@@ -310,6 +386,51 @@
       !from && dates.length ? h("p", { class: "small muted" }, `Already planned for ${dates.map(label).join(", ")}`) : null);
   }
 
+  function openTeacher(el) {
+    const id = Number(el.dataset.teacher), org = el.dataset.org, from = el.dataset.from || null;
+    const t = teacher(id);
+    const dates = teaching.get(id) || [];
+    const targets = weeks.filter(w => isLesson(w) || w.date === from);
+    const sel = h("select", { "aria-label": from ? "Teaches on" : "Assign to" },
+      h("option", { value: "" }, from ? "— Not teaching —" : "— Pick a Sunday —"),
+      ...targets.map(w => {
+        const who = w.teachers[org].map(x => teacher(x).name.split(" ")[0]).join(", ");
+        return h("option", { value: w.date, selected: w.date === from }, `${label(w.date)}${who ? ` (${who})` : ""}`);
+      }));
+    sel.addEventListener("change", () => { moveTeacher(id, org, from, sel.value || null); closePop(); });
+    showPop(el,
+      h("h3", {}, t.name),
+      h("p", { class: "small muted" }, [S.org_names[org], t.moved_out ? "Moved out" : null,
+                                        !t.active ? "Off the teacher list" : null].filter(Boolean).join(" · ")),
+      h("label", { class: "stack-label" }, from ? "Teaches on" : "Assign to", sel),
+      h("p", { class: "small" }, dates.length ? `Teaching ${dates.map(label).join(", ")}` : "No lessons yet this conference"),
+      h("a", { href: "/lessons/teachers", class: "small" }, "Manage teachers"));
+  }
+
+  function openAddTeacher(org, anchor) {
+    const taken = new Set([...teachers.values()].filter(t => t.org === org && t.person_id).map(t => t.person_id));
+    const people = S.roster[org].filter(p => !taken.has(p.id));
+    const pick = people.length ? h("select", { "aria-label": "From the roster" },
+      h("option", { value: "" }, "— Pick someone —"), ...people.map(p => h("option", { value: p.id }, p.name))) : null;
+    const typed = h("input", { maxlength: 80, placeholder: people.length ? "Or type a name" : "Name", "aria-label": "Name" });
+    const err = h("p", { class: "small error-text", hidden: true });
+    const add = h("button", { type: "button", onclick: async () => {
+      const body = { org, person_id: pick && pick.value ? Number(pick.value) : null, name: typed.value };
+      const res = await fetch("/api/lessons/teachers", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok) { err.textContent = out.error || "Couldn't add the teacher."; err.hidden = false; return; }
+      teachers.set(out.id, out);
+      closePop();
+      render();
+    } }, "Add teacher");
+    showPop(anchor,
+      h("h3", {}, `New ${S.org_names[org]} teacher`),
+      pick ? h("label", { class: "stack-label" }, "From the roster", pick) : null,
+      h("label", { class: "stack-label" }, pick ? "Or type a name" : "Name", typed),
+      err, add);
+  }
+
   // --- fill in First Presidency and Twelve ------------------------------------
   function autofill() {
     const { missing } = coverage();
@@ -338,9 +459,11 @@
   let drag = null;
 
   document.addEventListener("pointerdown", (e) => {
-    const el = e.target.closest(".tchip");
+    const el = e.target.closest(".tchip, .pchip");
     if (!el || e.button > 0) return;
-    drag = { el, id: Number(el.dataset.tid), from: el.dataset.from || null,
+    const isTeacher = !!el.dataset.teacher;
+    drag = { el, kind: isTeacher ? "teacher" : "talk", id: Number(isTeacher ? el.dataset.teacher : el.dataset.tid),
+             org: el.dataset.org || null, from: el.dataset.from || null,
              startX: e.clientX, startY: e.clientY, active: false, pointerId: e.pointerId, touch: e.pointerType === "touch" };
     if (drag.touch) drag.timer = setTimeout(() => startDrag(e.clientX, e.clientY), 280);
   });
@@ -358,13 +481,13 @@
     clearTimeout(drag.timer);
     const d = drag;
     drag = null;
-    if (!d.active) { openTalk(d.el); return; }
+    if (!d.active) { d.kind === "teacher" ? openTeacher(d.el) : openTalk(d.el); return; }
     endDrag(d);
   });
   document.addEventListener("pointercancel", () => { if (drag) { clearTimeout(drag.timer); if (drag.active) endDrag(drag, true); drag = null; } });
   document.addEventListener("click", (e) => {   // keyboard: Enter/Space on a talk opens its menu
-    const el = e.target.closest(".tchip");
-    if (el && e.detail === 0) openTalk(el);
+    const el = e.target.closest(".tchip, .pchip");
+    if (el && e.detail === 0) (el.dataset.teacher ? openTeacher(el) : openTalk(el));
   });
   document.addEventListener("touchmove", (e) => { if (drag && drag.active) e.preventDefault(); }, { passive: false });
 
@@ -376,7 +499,8 @@
     document.body.append(drag.ghost);
     drag.el.classList.add("dragging");
     document.body.classList.add("is-dragging");
-    if (drag.from) showTray("open", true);  // so there's somewhere to drop it back
+    if (drag.from) showTray(drag.kind === "teacher" ? "teachers" : "open", true);  // somewhere to drop it back
+    document.body.classList.add(drag.kind === "teacher" ? `drag-teacher-${drag.org}` : "drag-talk");
     if (navigator.vibrate && drag.touch) navigator.vibrate(15);
     moveGhost(x, y);
   }
@@ -389,8 +513,15 @@
   }
   function moveGhostTarget(x, y) {
     const zone = document.elementFromPoint(x, y)?.closest(".zone, .week");
-    // Anywhere on a lesson Sunday's card counts as its talk zone.
-    const target = zone?.classList.contains("week") ? zone.querySelector(".zone.talks") : zone;
+    let target;
+    if (drag.kind === "teacher") {   // only this organization's teacher lanes and list
+      const fit = (z) => z && (z.dataset.zone === "teach" || z.dataset.zone === "tpool") && z.dataset.org === drag.org;
+      target = zone?.classList.contains("week") ? zone.querySelector(`.zone.teach[data-org="${drag.org}"]`)
+        : fit(zone) ? zone : null;
+    } else {   // anywhere on a Sunday's card counts as its talk zone
+      target = zone?.classList.contains("week") ? zone.querySelector(".zone.talks")
+        : zone && (zone.dataset.zone === "week" || zone.dataset.zone === "pool") ? zone : null;
+    }
     if (drag.over && drag.over !== target) drag.over.classList.remove("over");
     if (target) target.classList.add("over");
     drag.over = target || null;
@@ -412,11 +543,14 @@
     cancelAnimationFrame(scrollRaf);
     d.ghost.remove();
     d.el.classList.remove("dragging");
-    document.body.classList.remove("is-dragging");
+    document.body.classList.remove("is-dragging", "drag-talk", "drag-teacher-eq", "drag-teacher-rs");
     if (d.over) d.over.classList.remove("over");
     if (cancelled || !d.over) return;
-    if (d.over.dataset.zone === "pool") move(d.id, d.from, null);
-    else if (d.over.dataset.zone === "week") move(d.id, d.from, d.over.dataset.date);
+    const zone = d.over.dataset.zone;
+    if (zone === "pool") move(d.id, d.from, null);
+    else if (zone === "week") move(d.id, d.from, d.over.dataset.date);
+    else if (zone === "tpool") moveTeacher(d.id, d.org, d.from, null);
+    else if (zone === "teach") moveTeacher(d.id, d.org, d.from, d.over.dataset.date);
   }
 
   // --- tray -----------------------------------------------------------------
