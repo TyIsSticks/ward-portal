@@ -165,8 +165,10 @@ Sunday before the next one. Lessons are every Sunday except:
   note such as "Ward conference". These marks are **ward-wide**: they apply to Elders Quorum and
   Relief Society at once.
 
-Drag talks from the tray onto Sundays. Drop more than one on the same Sunday to study them
-together, or drag one back to the tray to unplan it. Tap a talk to read its summary, open it on the
+Drag talks from the tray onto Sundays, or tap an empty *Drop a talk here* (or *Drop a teacher
+here*) to pick from a list of talks not yet planned (or that organization’s teachers, with an
+option to add a new one). Drop more than one talk on the same Sunday to study them together, or
+drag one back to the tray to unplan it. Tap a talk to read its summary, open it on the
 Church website, or move it with a menu. ★ marks First Presidency and Twelve talks, and the tray
 shows how many of those speakers are planned. **Fill in First Presidency & Twelve** puts each
 missing speaker's talk on the next open Sundays in conference order, doubling up only if there

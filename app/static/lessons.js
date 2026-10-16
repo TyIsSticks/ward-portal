@@ -226,12 +226,14 @@
           "aria-label": "Note for the whole ward", onchange: (e) => setDay(w, w.status, e.target.value) })),
       showTalks ? h("div", { class: "zone talks", dataset: { zone: "week", date: w.date } },
         ...w.talks.map(id => chip(id, w.date)),
-        w.talks.length ? null : h("div", { class: "zone-empty" }, "Drop a talk here")) : null,
+        w.talks.length ? null : h("button", { type: "button", class: "zone-empty pick",
+          onclick: (e) => pickTalk(w, e.currentTarget) }, "Drop a talk here, or tap to pick")) : null,
       ...S.orgs.filter(o => isLesson(w) || w.teachers[o].length).map(o =>
         h("div", { class: `zone teach o-${o}`, dataset: { zone: "teach", org: o, date: w.date } },
           h("div", { class: "zone-label" }, teacherLabel(o)),
           ...w.teachers[o].map(id => teacherChip(id, o, w.date)),
-          w.teachers[o].length ? null : h("div", { class: "zone-empty" }, "Drop a teacher here"))),
+          w.teachers[o].length ? null : h("button", { type: "button", class: "zone-empty pick",
+            onclick: (e) => pickTeacher(w, o, e.currentTarget) }, "Drop a teacher here, or tap to pick"))),
       isLesson(w) ? h("input", { class: "w-note", value: w.note, maxlength: 200, placeholder: "Note", "aria-label": "Note",
         onchange: (e) => { w.note = e.target.value.trim(); changed(); } }) : null);
   }
@@ -407,7 +409,39 @@
       h("a", { href: "/lessons/teachers", class: "small" }, "Manage teachers"));
   }
 
-  function openAddTeacher(org, anchor) {
+  // Tapping an empty lane: pick from a list instead of dragging.
+  function pickTalk(w, anchor) {
+    const open = [...talks.values()].filter(t => t.kind === "talk" && !placed.has(t.id));
+    const group = (name, list) => list.length ? h("optgroup", { label: name },
+      ...list.sort((a, b) => a.order - b.order).map(t => h("option", { value: t.id }, `${t.title} (${t.speaker})`))) : null;
+    const sel = h("select", { "aria-label": "Talk" }, h("option", { value: "" }, "— Pick a talk —"),
+      group("★ First Presidency & Twelve", open.filter(t => t.required)),
+      group("Other talks", open.filter(t => !t.required)));
+    sel.addEventListener("change", () => { if (sel.value) { closePop(); move(Number(sel.value), null, w.date); } });
+    showPop(anchor,
+      h("h3", {}, `Talk for ${label(w.date)}`),
+      open.length ? h("label", { class: "stack-label" }, "Not planned yet", sel)
+        : h("p", { class: "small muted" }, "Every talk is planned. Drag one from another Sunday or from All talks to use it again."));
+    if (open.length) sel.focus();
+  }
+
+  function pickTeacher(w, org, anchor) {
+    const list = [...teachers.values()].filter(t => t.org === org && t.active).sort((a, b) => a.name.localeCompare(b.name));
+    const sel = h("select", { "aria-label": teacherLabel(org) }, h("option", { value: "" }, "— Pick a teacher —"),
+      ...list.map(t => {
+        const n = (teaching.get(t.id) || []).length;
+        return h("option", { value: t.id }, `${t.name} (${n} lesson${n === 1 ? "" : "s"})`);
+      }),
+      h("option", { value: "new" }, "+ Add a new teacher…"));
+    sel.addEventListener("change", () => {
+      if (sel.value === "new") openAddTeacher(org, anchor, (t) => moveTeacher(t.id, org, null, w.date));
+      else if (sel.value) { closePop(); moveTeacher(Number(sel.value), org, null, w.date); }
+    });
+    showPop(anchor, h("h3", {}, `${teacherLabel(org)} for ${label(w.date)}`), h("label", { class: "stack-label" }, "Teacher", sel));
+    sel.focus();
+  }
+
+  function openAddTeacher(org, anchor, onAdded = null) {
     const taken = new Set([...teachers.values()].filter(t => t.org === org && t.person_id).map(t => t.person_id));
     const people = S.roster[org].filter(p => !taken.has(p.id));
     const pick = people.length ? h("select", { "aria-label": "From the roster" },
@@ -422,7 +456,7 @@
       if (!res.ok) { err.textContent = out.error || "Couldn't add the teacher."; err.hidden = false; return; }
       teachers.set(out.id, out);
       closePop();
-      render();
+      if (onAdded) onAdded(out); else render();
     } }, "Add teacher");
     showPop(anchor,
       h("h3", {}, `New ${S.org_names[org]} teacher`),
