@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% set active = "lessons" %}
+{% block title %}{{ conf_name }} talks · {{ ward_name }}{% endblock %}
+{% block content %}
+{% set conf = "%d-%02d"|format(year, month) %}
+<div class="page-head">
+  <div class="grow">
+    <p class="crumbs"><a href="/lessons?conf={{ conf }}">← Lesson plan</a></p>
+    <h1>{{ conf_name }} conference talks</h1>
+    <div class="sub">
+      {% if record %}{{ sessions.values()|map("length")|sum }} talks · {{ required|length }} First Presidency and Twelve speakers ·
+        loaded {{ record.loaded_at[:10] }} from {{ "the Church website" if record.source == "website" else "a PDF" }}
+      {% else %}Not loaded yet{% endif %}
+    </div>
+  </div>
+  <div class="row">
+    <a class="cal-nav" href="/lessons/talks?conf={{ "%d-%02d"|format(*prev) }}" aria-label="Previous conference">‹</a>
+    {% if (year, month) != current %}<a class="secondary" href="/lessons/talks">Current conference</a>{% endif %}
+    <a class="cal-nav" href="/lessons/talks?conf={{ "%d-%02d"|format(*next) }}" aria-label="Next conference">›</a>
+  </div>
+</div>
+
+<div class="split">
+  <div class="main-col">
+    {% if record %}
+    <form method="post" action="/lessons/talks/required" class="card">
+      <input type="hidden" name="conf" value="{{ conf }}">
+      <div class="row spread" style="margin-top: 0">
+        <h2 style="margin: 0">Talks</h2>
+        <button>Save ticks</button>
+      </div>
+      <p class="muted small">Ticked speakers are in the First Presidency or the Quorum of the Twelve. Each of them needs
+        a lesson before the next conference. {% if record.source == "website" %}The ticks come from each speaker’s calling
+        on the Church website.{% else %}A PDF doesn’t list callings, so check these.{% endif %}</p>
+      {% for session, rows in sessions.items() %}
+      <h3>{{ session }}</h3>
+      <ul class="plain talk-list">
+        {% for t in rows %}
+        <li class="talk-row{% if t.kind == 'business' %} business{% endif %}">
+          {% if t.kind == "talk" %}
+          <input type="checkbox" name="speaker" value="{{ t.speaker }}" id="t{{ t.id }}" {% if t.required %}checked{% endif %}
+                 aria-label="{{ t.speaker }} is First Presidency or Twelve">
+          {% else %}<span class="badge">Not a lesson</span>{% endif %}
+          <div>
+            <a href="{{ t.url }}" target="_blank" rel="noopener" class="t-title">{{ t.title }}</a>
+            <div class="small"><label for="t{{ t.id }}"><strong>{{ t.speaker }}</strong>{% if t.calling %} · <span class="muted">{{ t.calling }}</span>{% endif %}</label></div>
+            {% if t.summary %}<div class="muted small">{{ t.summary }}</div>{% endif %}
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endfor %}
+      <div class="row"><button>Save ticks</button></div>
+    </form>
+    {% else %}
+    <section class="card gold">
+      <h2>Load the {{ conf_name }} talks</h2>
+      <p>Get the talks straight from the Church website. If that doesn’t work, upload the conference page as a PDF (see the right).</p>
+      <form method="post" action="/lessons/talks/fetch">
+        <input type="hidden" name="conf" value="{{ conf }}">
+        <button>Get talks from the Church website</button>
+      </form>
+    </section>
+    {% endif %}
+  </div>
+
+  <aside class="side-col">
+    {% if record %}
+    <section class="card">
+      <h2>Studied before {{ "April" if month == 10 else "October" }}</h2>
+      <p class="muted small">Every First Presidency and Twelve speaker who gave a talk:</p>
+      <ol class="small">{% for s in required %}<li>{{ s }}</li>{% else %}<li class="muted">None ticked yet.</li>{% endfor %}</ol>
+    </section>
+    {% endif %}
+    <section class="card" id="load">
+      <h2>{{ "Load again" if record else "Upload a PDF instead" }}</h2>
+      {% if record %}
+      <form method="post" action="/lessons/talks/fetch" class="row">
+        <input type="hidden" name="conf" value="{{ conf }}">
+        <button class="secondary">Refresh from the website</button>
+      </form>
+      {% endif %}
+      <form method="post" action="/upload" enctype="multipart/form-data" class="stack">
+        <label>Conference page PDF <input type="file" name="file" accept="application/pdf,.pdf" required></label>
+        <div><button class="secondary">{{ icon("upload") }} Upload PDF</button></div>
+      </form>
+      <p class="muted small">On churchofjesuschrist.org, open <em>General Conference → {{ conf_name }}</em>, choose
+        <strong>Print</strong>, and save it as a PDF. Lessons already planned keep their talks when you load again.</p>
+    </section>
+    {% if loaded %}
+    <section class="card">
+      <h2>Loaded conferences</h2>
+      <ul class="plain">{% for c in loaded %}<li><a href="/lessons/talks?conf={{ "%d-%02d"|format(c.year, c.month) }}">{{ c.name }}</a>
+        <span class="muted small">· {{ c.talks }} talks</span></li>{% endfor %}</ul>
+    </section>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

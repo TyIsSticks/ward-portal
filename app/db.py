@@ -141,11 +141,43 @@ CREATE TABLE IF NOT EXISTS uploads (
     uploaded_at TEXT NOT NULL DEFAULT (datetime('now')),
     summary     TEXT NOT NULL
 );
+
+-- Small per-ward settings, e.g. whether Elders Quorum and Relief Society share one lesson plan.
+CREATE TABLE IF NOT EXISTS ward_settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
+-- General conference talks, fetched from the Church website or read from a printed PDF.
+CREATE TABLE IF NOT EXISTS conferences (
+    id        INTEGER PRIMARY KEY,
+    year      INTEGER NOT NULL,
+    month     INTEGER NOT NULL CHECK (month IN (4, 10)),
+    source    TEXT NOT NULL CHECK (source IN ('website', 'pdf')),
+    loaded_by TEXT NOT NULL,
+    loaded_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (year, month)
+);
+
+CREATE TABLE IF NOT EXISTS talks (
+    id            INTEGER PRIMARY KEY,
+    conference_id INTEGER NOT NULL REFERENCES conferences(id) ON DELETE CASCADE,
+    position      INTEGER NOT NULL,
+    session       TEXT NOT NULL DEFAULT '',
+    speaker       TEXT NOT NULL,
+    calling       TEXT NOT NULL DEFAULT '',
+    title         TEXT NOT NULL,
+    summary       TEXT NOT NULL DEFAULT '',
+    uri           TEXT NOT NULL,                 -- site path, /study/general-conference/...
+    kind          TEXT NOT NULL DEFAULT 'talk' CHECK (kind IN ('talk', 'business')),
+    required      INTEGER NOT NULL DEFAULT 0,    -- by the First Presidency or the Twelve
+    UNIQUE (conference_id, uri)
+);
 """
 
 # Ward tables in an order that respects foreign keys (parents first).
 WARD_TABLES = ["people", "person_tags", "layouts", "districts", "companionships", "companionship_members",
-               "pending_imports", "birthdays", "uploads"]
+               "pending_imports", "birthdays", "uploads", "ward_settings", "conferences", "talks"]
 
 
 def _open(path: Path) -> sqlite3.Connection:
@@ -295,6 +327,19 @@ def get_setting(conn: sqlite3.Connection, key: str) -> str | None:
 def set_setting(conn: sqlite3.Connection, key: str, value: str) -> None:
     conn.execute(
         "INSERT INTO settings (key, value) VALUES (?, ?) "
+        "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        (key, value),
+    )
+
+
+def get_ward_setting(conn: sqlite3.Connection, key: str) -> str | None:
+    row = conn.execute("SELECT value FROM ward_settings WHERE key = ?", (key,)).fetchone()
+    return row["value"] if row else None
+
+
+def set_ward_setting(conn: sqlite3.Connection, key: str, value: str) -> None:
+    conn.execute(
+        "INSERT INTO ward_settings (key, value) VALUES (?, ?) "
         "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         (key, value),
     )

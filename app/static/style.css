@@ -5,6 +5,7 @@
   --accent: #1E4D3B; --accent-ink: #fff; --flag-need: #E2A21B; --flag-skip: #1E9E55; --flag-skip-ink: #fff; --cta: #C2540A; --gold: #F2B33D;
   --ok: #DFF1E7; --err: #FBE4E4; --err-ink: #A1242B; --warn-bg: #FFF4D6; --warn-ink: #7A4B00;
   --bday-bg: #FFE9D6; --bday: #8A3A08; --eq-bg: #DCEAFB; --eq: #1F4E99; --rs-bg: #F9E1EA; --rs: #9B2457;
+  --les-bg: #E3F1E6; --les: #22663F;
   --radius: 20px;
   color-scheme: light;
 }
@@ -16,6 +17,7 @@
     --accent: #7FCBA4; --accent-ink: #0E1C15; --flag-need: #F0B75D; --flag-skip: #4CC77E; --flag-skip-ink: #0E1C15; --cta: #E07A35;
     --ok: #1C3327; --err: #3A1F21; --err-ink: #F5A3A8; --warn-bg: #3A2C14; --warn-ink: #F0C27A;
     --bday-bg: #3A2414; --bday: #F3B98A; --eq-bg: #16263D; --eq: #9CC2F2; --rs-bg: #3A1C29; --rs: #F0A6C4;
+    --les-bg: #17301F; --les: #93D6AE;
     color-scheme: dark;
   }
 }
@@ -25,6 +27,7 @@
     --accent: #7FCBA4; --accent-ink: #0E1C15; --flag-need: #F0B75D; --flag-skip: #4CC77E; --flag-skip-ink: #0E1C15; --cta: #E07A35;
     --ok: #1C3327; --err: #3A1F21; --err-ink: #F5A3A8; --warn-bg: #3A2C14; --warn-ink: #F0C27A;
     --bday-bg: #3A2414; --bday: #F3B98A; --eq-bg: #16263D; --eq: #9CC2F2; --rs-bg: #3A1C29; --rs: #F0A6C4;
+    --les-bg: #17301F; --les: #93D6AE;
     color-scheme: dark;
 }
 
@@ -210,6 +213,7 @@ a.badge { text-decoration: none; }
 .tile.bday { background: var(--bday-bg); } .tile.bday svg, .tile.bday .t-cta { color: var(--bday); }
 .tile.eq { background: var(--eq-bg); } .tile.eq svg, .tile.eq .t-cta { color: var(--eq); }
 .tile.rs { background: var(--rs-bg); } .tile.rs svg, .tile.rs .t-cta { color: var(--rs); }
+.tile.les { background: var(--les-bg); } .tile.les svg, .tile.les .t-cta { color: var(--les); }
 .todo a { display: flex; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line);
           text-decoration: none; color: var(--ink); }
 .todo a:first-of-type { border-top: 0; }
@@ -310,3 +314,10 @@ details.ward-switch > summary:hover { background: rgba(255,255,255,.2); }
 .ward-card { display: grid; gap: 12px; }
 .ward-card .meta { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); }
 .ward-card form.row { margin: 0; }
+
+/* --- Lessons --------------------------------------------------------------- */
+.talk-list .talk-row { display: flex; gap: .7rem; align-items: flex-start; padding: .55rem 0; border-top: 1px solid var(--line); }
+.talk-list .talk-row:first-child { border-top: 0; }
+.talk-row input[type="checkbox"] { width: 1.15rem; height: 1.15rem; margin-top: .2rem; flex: none; accent-color: var(--accent); }
+.talk-row .t-title { font-weight: 800; text-decoration: none; }
+.talk-row.business { opacity: .75; }

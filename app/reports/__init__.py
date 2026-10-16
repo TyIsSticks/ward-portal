@@ -9,11 +9,12 @@ TITLES = {
     "member list": "directory",
     "birthday list": "birthdays",
     "ministering assignments": "ministering",
+    "general conference": "conference",  # not from LCR: the conference page printed from the Church website
 }
 
 
 def detect(data: bytes) -> str:
-    """Which report a PDF is: 'directory', 'birthdays' or 'ministering'."""
+    """Which report a PDF is: 'directory', 'birthdays', 'ministering' or 'conference'."""
     try:
         with pdfplumber.open(io.BytesIO(data)) as pdf:
             first = (pdf.pages[0].extract_text() or "").lower() if pdf.pages else ""
@@ -23,4 +24,4 @@ def detect(data: bytes) -> str:
         if title in first[:400]:
             return kind
     raise ReportError("This doesn't look like a supported LCR report "
-                      "(Member List, Birthday List or Ministering Assignments).")
+                      "(Member List, Birthday List or Ministering Assignments) or a general conference page.")

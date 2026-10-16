@@ -17,6 +17,9 @@ A small self-hosted portal for working with LCR report exports.
   people, saved as layouts (start from the current assignments, from scratch, or from a copy).
   Includes warnings, priority tags, companion history from past imports, Draft / Proposed / Approved
   status, and a printable **Changes for LCR** checklist. See [Ministering](#ministering).
+- **Lessons** (leaders): plan Elders Quorum and Relief Society lessons from the latest general
+  conference. The talks come straight from the Church website (or a printed PDF), with First
+  Presidency and Twelve talks marked. See [Lessons](#lessons).
 
 **Multiple wards:** each ward has its own members, birthdays, calendar link, and Elders Quorum and
 Relief Society ministering, stored in its own database file (`data/wards/ward-<id>.db`). Accounts
@@ -132,6 +135,24 @@ assigned), **green** for people left out on purpose (Moving records and the Lead
 flag for anything else (Limited contact).
 
 Companion history (“↺”) comes from past imports, so it appears once you've imported more than once.
+
+## Lessons
+
+Elders Quorum and Relief Society lessons are taught from the most recent general conference. Every
+member of the First Presidency and the Quorum of the Twelve who gave a talk needs a lesson before
+the next conference.
+
+**Conference talks** (Lessons → *Conference talks*): choose **Get talks from the Church website**.
+The portal reads the conference's table of contents and each talk's page, the same public pages the
+Gospel Library site uses, and ticks every talk whose speaker's calling is in the First Presidency or
+the Quorum of the Twelve. Sustainings and reports are listed as *Not a lesson*. Change any tick by
+hand and save.
+
+If the website can't be reached (or changes how its pages work), upload the conference page as a
+PDF instead: on churchofjesuschrist.org open *General Conference → October 2026*, choose **Print**
+and save as PDF, then upload it here or on the regular **Upload report** page. A PDF has no
+callings, so the ticks are filled in from names the portal already knows; check them before
+planning. Loading a conference again (either way) keeps the talks already planned.
 
 ## Wards
 

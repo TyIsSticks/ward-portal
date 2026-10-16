@@ -7,8 +7,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import admin, auth, config, db, ministering, ministering_routes, wards
-from .reports import birthdays, detect, directory
+from . import admin, auth, config, db, lessons_routes, ministering, ministering_routes, wards
+from .reports import birthdays, conference, detect, directory
 from .reports import ministering as ministering_report
 from .web import BASE, absolute_url, flash, render
 
@@ -31,6 +31,7 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 app.include_router(admin.router)
 app.include_router(ministering_routes.router)
+app.include_router(lessons_routes.router)
 
 
 @app.exception_handler(auth.LoginRequired)
@@ -163,14 +164,18 @@ async def upload(request: Request, file: UploadFile, org: str = Form(""),
         kind = detect(data)
         if kind == "ministering" and not user["leads"]:
             raise birthdays.ReportError("Only leaders can import ministering assignments.")
+        if kind == "conference" and not user["leads"]:
+            raise birthdays.ReportError("Only leaders can load general conference talks.")
         parsed = {"directory": directory.parse_pdf, "birthdays": birthdays.parse_pdf,
-                  "ministering": ministering_report.parse_pdf}[kind](data)
+                  "ministering": ministering_report.parse_pdf, "conference": conference.parse_pdf}[kind](data)
     except birthdays.ReportError as exc:
         flash(request, "error", str(exc))
         return RedirectResponse(back, status_code=303)
 
     if kind == "ministering":
         return _import_ministering(request, user, parsed, org or None)
+    if kind == "conference":
+        return lessons_routes.save_conference(request, user, parsed, "pdf")
 
     with db.ward_connect(user["ward"]["id"]) as conn:
         roster = None
