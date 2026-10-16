@@ -352,3 +352,42 @@ def test_teacher_pages(client, conf):
     assert client.post("/lessons/teachers/999/remove").status_code == 404
     state = client.get("/lessons/eq?conf=2030-10").text
     assert '"roster": {"eq": [' in state and "Bo Baker" in state
+
+
+# --- dashboard -------------------------------------------------------------------
+
+def test_dashboard_summary(conf):
+    a, b, c, d = conf["talk_ids"]
+    today = date(2030, 10, 10)   # next lesson Sunday is the 13th
+    with db.ward_connect(1) as conn:
+        ids = add_people(conn)
+        al = les.add_teacher(conn, "eq", person_id=ids["Able, Al"])
+        les.save_plan(conn, "eq", conf, [{"date": "2030-10-13", "talks": [b, c], "teachers": {"eq": [al["id"]]}}], 0, "x")
+        info = les.dashboard(conn, today)
+        eq, rs = info["plans"]
+        assert eq["next"]["talks"] == ["“Faith & Hope”", "Light"] and eq["next"]["teachers"] == {"eq": ["Al Able"]}
+        assert (eq["covered"], eq["total"]) == (1, 1) and (rs["covered"], rs["total"]) == (0, 1)
+        texts = [t["text"] for t in info["todo"]]
+        assert "Pick a talk for Elders Quorum on Sun, Oct 20" in texts
+        assert "Find an Elders Quorum teacher for Sun, Oct 20" in texts
+        assert "Find a Relief Society teacher for Sun, Oct 13" in texts
+        assert not any("Oct 13" in t and "Elders Quorum" in t for t in texts)
+        assert not any("Nov" in t for t in texts)   # only the next two weeks
+
+        # With no lesson Sundays left, Relief Society can't fit its First Presidency and Twelve speaker.
+        for d_ in les.sundays(2030, 10)[1:]:
+            if d_.day <= 28:
+                les.set_day(conn, d_.isoformat(), "stake_conference")
+        les.set_day(conn, "2030-10-13", "no_second_hour")
+        texts = [t["text"] for t in les.dashboard(conn, today)["todo"]]
+        assert "Relief Society: 1 First Presidency and Twelve speaker left but only 0 open Sundays. Combine some lessons" in texts
+
+    with db.ward_connect(1) as conn:
+        assert les.dashboard(conn, date(2031, 4, 20))["todo"][0]["text"] == \
+            "Load the April 2031 conference talks for lesson planning"
+
+
+def test_dashboard_tile(client):
+    login(client)
+    page = client.get("/").text
+    assert "Open lesson plan" in page and "conference talks for lesson planning" in page

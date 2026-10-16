@@ -27,7 +27,7 @@ Relief Society ministering, stored in its own database file (`data/wards/ward-<i
 belong to one ward and only see that ward. Admins see every ward: they switch wards from the ward
 name in the header and add wards on the **Wards** page.
 
-**Layout:** the dashboard is a hub with a tile per area (Birthdays, Elders Quorum, Relief Society)
+**Layout:** the dashboard is a hub with a tile per area (Birthdays, Elders Quorum, Relief Society, Lessons)
 and a to-do list. Uploads live behind the **Upload report** button in the header. Each person can
 pick a **System / Light / Dark** theme from the account menu (top right). System follows their device.
 
@@ -181,6 +181,11 @@ they have this conference. The **Teachers** page lists everyone with their next 
 the list* hides someone for a while, and removing someone who already taught keeps their name on
 past lessons. Warnings add Sundays in the next three weeks without a teacher, the same teacher on
 two lesson Sundays in a row, teachers who moved out or are off the list, and uneven turns.
+
+The dashboard's **Lessons** tile shows the next lesson (talk and teacher) and how many First
+Presidency and Twelve speakers are planned. Its to-do list asks for missing talks and teachers in
+the next two weeks, for the new conference's talks once it's over, and for combined lessons when
+there aren't enough Sundays left.
 
 Elders Quorum and Relief Society each have their own plan. If your ward teaches the same talks in
 both, choose **⋯ → EQ and RS teach the same lessons**; the shared plan starts as a copy of the

@@ -31,6 +31,27 @@
     <span class="t-cta">Open {{ o.name }} →</span>
   </a>
   {% endfor %}
+  {% if plan %}
+  <a class="tile les" href="/lessons">
+    {{ icon("book", "") }}
+    <span class="t-title">Lessons</span>
+    <span class="t-body">
+      {% if not plan.loaded %}{{ plan.conf_name }} talks aren’t loaded yet
+      {% else %}{% for p in plan.plans %}
+        {% if plan.plans|length > 1 %}<strong>{{ p.name }}:</strong> {% endif %}
+        {% if p.next %}{{ p.next.date.strftime("%a, %b") }} {{ p.next.date.day }} ·
+          {{ p.next.talks|join(" + ") if p.next.talks else "no talk yet" }}
+          {%- set who = p.next.teachers.values()|sum(start=[]) %}{% if who %} ({{ who|join(", ") }}){% endif %}
+        {% else %}No more lessons before conference{% endif %}<br>
+      {% endfor %}
+      {% if plan.plans|length > 1 %}★ First Presidency &amp; Twelve planned:
+        {% for p in plan.plans %}{{ p.abbr }} {{ p.covered }}/{{ p.total }}{% if not loop.last %} · {% endif %}{% endfor %}
+      {% else %}★ {{ plan.plans[0].covered }}/{{ plan.plans[0].total }} First Presidency &amp; Twelve planned{% endif %}
+      {% endif %}
+    </span>
+    <span class="t-cta">Open lesson plan →</span>
+  </a>
+  {% endif %}
 </div>
 
 <div class="cols">

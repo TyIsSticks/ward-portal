@@ -393,3 +393,59 @@ def remove_teacher(conn: sqlite3.Connection, teacher_id: int) -> str:
         return "inactive"
     conn.execute("DELETE FROM teachers WHERE id = ?", (teacher_id,))
     return "deleted"
+
+
+# --- Dashboard ----------------------------------------------------------------
+
+SOON_DAYS = 14   # how far ahead the dashboard nags about missing talks and teachers
+
+
+def dashboard(conn: sqlite3.Connection, today: date | None = None) -> dict:
+    """The next lesson for each plan, how the First Presidency and Twelve are going, and to-dos."""
+    today = today or date.today()
+    year, month = conference_for(today)
+    record = get_conference(conn, year, month)
+    out = {"conf_name": conference_name(year, month), "conf_key": f"{year}-{month:02d}", "loaded": bool(record),
+           "plans": [], "todo": []}
+    if record is None:
+        out["todo"].append({"text": f"Load the {out['conf_name']} conference talks for lesson planning",
+                            "cta": "Load", "href": f"/lessons/talks?conf={out['conf_key']}"})
+        return out
+    by_id = {t["id"]: t for t in talks(conn, record["id"])}
+    required = required_speakers(list(by_id.values()))
+    names = {r["id"]: r["name"] for r in conn.execute("SELECT id, name FROM teachers")}
+    for plan in (["ward"] if is_shared(conn) else list(ORGS)):
+        weeks = plan_weeks(conn, plan, record)
+        lessons = [w for w in weeks if w["status"] == "lesson"]
+        covered = {by_id[t]["speaker"] for w in lessons for t in w["talks"]
+                   if by_id[t]["required"] and by_id[t]["kind"] == "talk"}
+        ahead = [w for w in lessons if w["date"] >= today.isoformat()]
+        nxt = ahead[0] if ahead else None
+        short = "EQ & RS" if plan == "ward" else PLAN_NAMES[plan]
+        out["plans"].append({
+            "plan": plan, "name": short, "abbr": {"eq": "EQ", "rs": "RS"}.get(plan, "EQ & RS"),
+            "covered": len(covered & set(required)), "total": len(required),
+            "next": nxt and {"date": date.fromisoformat(nxt["date"]),
+                             "talks": [by_id[t]["title"] for t in nxt["talks"]],
+                             "teachers": {o: [names[t] for t in ids] for o, ids in nxt["teachers"].items()}},
+        })
+        href = f"/lessons/{plan}?conf={out['conf_key']}"
+        for w in ahead:
+            day = date.fromisoformat(w["date"])
+            if (day - today).days > SOON_DAYS:
+                break
+            when = f"{day:%a, %b} {day.day}"
+            if not w["talks"]:
+                out["todo"].append({"text": f"Pick a talk for {short} on {when}", "cta": "Plan", "href": href})
+            for o, ids in w["teachers"].items():
+                if not ids:
+                    out["todo"].append({"text": f"Find {'an' if o == 'eq' else 'a'} {ORGS[o]} teacher for {when}",
+                                        "cta": "Plan", "href": href})
+        missing = len(required) - len(covered & set(required))
+        open_ahead = sum(1 for w in ahead if not w["talks"])
+        if missing > open_ahead:
+            out["todo"].append({"text": f"{short}: {missing} First Presidency and Twelve speaker{'s' * (missing != 1)} "
+                                        f"left but only {open_ahead} open Sunday{'s' * (open_ahead != 1)}. "
+                                        "Combine some lessons",
+                                "cta": "Plan", "href": href})
+    return out
