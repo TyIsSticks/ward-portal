@@ -17,6 +17,7 @@ from .web import absolute_url, flash, render
 
 router = APIRouter()
 leader = Depends(auth.require_leader)
+viewer = Depends(auth.require_lesson_viewer)   # leaders, plus teachers (read-only)
 
 
 def talks_url(year: int, month: int) -> str:
@@ -43,7 +44,7 @@ def plan_url(plan: str, year: int, month: int) -> str:
 
 
 @router.get("/lessons")
-def landing(conf: str = "", user: dict = leader):
+def landing(conf: str = "", user: dict = viewer):
     year, month = les.parse_conf(conf)
     with db.ward_connect(user["ward"]["id"]) as conn:
         plan = les.plan_for(conn, "eq")
@@ -66,7 +67,7 @@ def save_settings(request: Request, shared: str = Form(""), conf: str = Form("")
 
 
 @router.get("/lessons/talks", response_class=HTMLResponse)
-def talks_page(request: Request, conf: str = "", user: dict = leader):
+def talks_page(request: Request, conf: str = "", user: dict = viewer):
     year, month = les.parse_conf(conf)
     with db.ward_connect(user["ward"]["id"]) as conn:
         record = les.get_conference(conn, year, month)
@@ -178,7 +179,7 @@ def teacher_feed_url(request: Request, ward_id: int, token: str) -> str:
 
 
 @router.get("/lessons/calendar", response_class=HTMLResponse)
-def calendar_page(request: Request, user: dict = leader):
+def calendar_page(request: Request, user: dict = viewer):
     ward_id = user["ward"]["id"]
     with db.ward_connect(ward_id) as conn:
         token = les.feed_token(conn)
@@ -290,7 +291,7 @@ def _conference_or_404(conn, conference_id: int) -> dict:
 
 
 @router.get("/lessons/{plan}", response_class=HTMLResponse)
-def board(plan: str, request: Request, conf: str = "", user: dict = leader):
+def board(plan: str, request: Request, conf: str = "", user: dict = viewer):
     _plan_or_404(plan)
     year, month = les.parse_conf(conf)
     with db.ward_connect(user["ward"]["id"]) as conn:
@@ -300,9 +301,10 @@ def board(plan: str, request: Request, conf: str = "", user: dict = leader):
                                     status_code=303)
         record = les.get_conference(conn, year, month)
         if record is None:
-            flash(request, "info", f"Load the {les.conference_name(year, month)} conference talks first.")
+            flash(request, "info", f"Load the {les.conference_name(year, month)} conference talks first."
+                  if user["leads"] else f"The {les.conference_name(year, month)} talks aren’t loaded yet.")
             return RedirectResponse(talks_url(year, month), status_code=303)
-        state = les.board_state(conn, plan, record)
+        state = les.board_state(conn, plan, record) | {"readonly": not user["leads"]}
     return render(request, "lessons/board.html", user=user, state=state, plan=plan, shared=shared,
                   record=record, prev=les.prev_conference(year, month), next=les.next_conference(year, month),
                   current=les.conference_for(date.today()), org_names=les.ORGS)

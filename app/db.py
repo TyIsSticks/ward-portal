@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS users (
     is_admin      INTEGER NOT NULL DEFAULT 0,    -- site admin: every ward
     is_ward_admin INTEGER NOT NULL DEFAULT 0,    -- manages accounts in their own ward
     is_leader     INTEGER NOT NULL DEFAULT 0,    -- can use Ministering in their ward
+    is_teacher    INTEGER NOT NULL DEFAULT 0,    -- can see (not change) the lesson plan
     display_name  TEXT NOT NULL DEFAULT '',      -- what the portal calls them ("Hi Ty"); empty = username
     created_at    TEXT NOT NULL DEFAULT (datetime('now')),
     -- Bumped on password change so existing sessions are signed out.
@@ -45,6 +46,7 @@ CREATE TABLE IF NOT EXISTS invites (
     is_admin      INTEGER NOT NULL DEFAULT 0,
     is_ward_admin INTEGER NOT NULL DEFAULT 0,
     is_leader     INTEGER NOT NULL DEFAULT 0,
+    is_teacher    INTEGER NOT NULL DEFAULT 0,
     note          TEXT NOT NULL DEFAULT '',
     created_by    TEXT NOT NULL,
     created_at    TEXT NOT NULL DEFAULT (datetime('now')),
@@ -287,6 +289,8 @@ def _migrate_columns(conn: sqlite3.Connection) -> None:
     add("users", "ward_id", "INTEGER REFERENCES wards(id)")
     add("users", "display_name", "TEXT NOT NULL DEFAULT ''")
     add("invites", "is_leader", "INTEGER NOT NULL DEFAULT 0")
+    add("users", "is_teacher", "INTEGER NOT NULL DEFAULT 0")
+    add("invites", "is_teacher", "INTEGER NOT NULL DEFAULT 0")
     add("invites", "is_ward_admin", "INTEGER NOT NULL DEFAULT 0")
     add("invites", "ward_id", "INTEGER REFERENCES wards(id)")
     if _columns(conn, "birthdays") and "missing_since" not in _columns(conn, "birthdays"):

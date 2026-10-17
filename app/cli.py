@@ -1,6 +1,6 @@
 """Accounts and wards from the command line.
 
-    python -m app.cli create-user <username> [--admin | --ward-admin | --leader] [--ward ID]
+    python -m app.cli create-user <username> [--admin | --ward-admin | --leader | --teacher] [--ward ID]
     python -m app.cli set-password <username>
     python -m app.cli list-users
     python -m app.cli create-ward "<name>"
@@ -31,6 +31,7 @@ def main() -> int:
     roles.add_argument("--admin", action="store_true", help="admin of every ward")
     roles.add_argument("--ward-admin", action="store_true", help="manages accounts in their ward")
     roles.add_argument("--leader", action="store_true")
+    roles.add_argument("--teacher", action="store_true", help="can see the lesson plan, not change it")
     create.add_argument("--ward", type=int, help="ward id (see list-wards); defaults to the first ward")
     setpw = sub.add_parser("set-password")
     setpw.add_argument("username")
@@ -54,7 +55,7 @@ def main() -> int:
                     print(f"No ward with id {args.ward}. See: python -m app.cli list-wards")
                     return 1
         role = ("admin" if args.admin else "ward_admin" if args.ward_admin
-                else "leader" if args.leader else "member")
+                else "leader" if args.leader else "teacher" if args.teacher else "member")
         try:
             auth.create_user(args.username, _prompt_password(), role=role, ward_id=args.ward)
         except sqlite3.IntegrityError:

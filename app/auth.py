@@ -50,15 +50,16 @@ def verify_password(password: str, stored: str) -> bool:
 
 
 # Everything but "admin" is scoped to the user's own ward. Admins are site-wide.
-ROLES = ("member", "leader", "ward_admin", "admin")
-ROLE_LABELS = {"member": "Member", "leader": "Leader", "ward_admin": "Ward admin", "admin": "Admin (all wards)"}
+ROLES = ("member", "teacher", "leader", "ward_admin", "admin")
+ROLE_LABELS = {"member": "Member", "teacher": "Teacher", "leader": "Leader", "ward_admin": "Ward admin",
+               "admin": "Admin (all wards)"}
 
 
-def role_flags(role: str) -> tuple[int, int, int]:
-    """(is_admin, is_ward_admin, is_leader) for a role name."""
+def role_flags(role: str) -> tuple[int, int, int, int]:
+    """(is_admin, is_ward_admin, is_leader, is_teacher) for a role name."""
     if role not in ROLES:
         raise ValueError(f"Unknown role {role!r}")
-    return int(role == "admin"), int(role == "ward_admin"), int(role == "leader")
+    return int(role == "admin"), int(role == "ward_admin"), int(role == "leader"), int(role == "teacher")
 
 
 def role_of(row) -> str:
@@ -66,7 +67,9 @@ def role_of(row) -> str:
         return "admin"
     if row["is_ward_admin"]:
         return "ward_admin"
-    return "leader" if row["is_leader"] else "member"
+    if row["is_leader"]:
+        return "leader"
+    return "teacher" if row["is_teacher"] else "member"
 
 
 def default_ward_id(conn) -> int:
@@ -74,12 +77,12 @@ def default_ward_id(conn) -> int:
 
 
 def insert_user(conn, username: str, password: str, role: str = "member", ward_id: int | None = None) -> int:
-    is_admin, is_ward_admin, is_leader = role_flags(role)
+    is_admin, is_ward_admin, is_leader, is_teacher = role_flags(role)
     cur = conn.execute(
-        "INSERT INTO users (username, password_hash, ward_id, is_admin, is_ward_admin, is_leader) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO users (username, password_hash, ward_id, is_admin, is_ward_admin, is_leader, is_teacher) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
         (validate_username(username), hash_password(password), ward_id or default_ward_id(conn),
-         is_admin, is_ward_admin, is_leader),
+         is_admin, is_ward_admin, is_leader, is_teacher),
     )
     return cur.lastrowid
 
@@ -149,7 +152,8 @@ def current_user(request: Request) -> dict | None:
         return None
     with db.connect() as conn:
         row = conn.execute(
-            "SELECT id, username, display_name, ward_id, is_admin, is_ward_admin, is_leader, session_version "
+            "SELECT id, username, display_name, ward_id, is_admin, is_ward_admin, is_leader, is_teacher, "
+            "session_version "
             "FROM users WHERE id = ?", (user_id,)).fetchone()
         if not row or row["session_version"] != request.session.get("sv"):
             return None
@@ -162,6 +166,7 @@ def current_user(request: Request) -> dict | None:
     user["role"] = role_of(row)
     user["role_label"] = ROLE_LABELS[user["role"]]
     user["leads"] = user["role"] in ("leader", "ward_admin", "admin")
+    user["sees_lessons"] = user["leads"] or user["role"] == "teacher"   # teachers see the plan, can't change it
     user["manages"] = user["role"] in ("ward_admin", "admin")  # can manage accounts in the ward
     user["ward"] = dict(ward)
     return user
@@ -182,6 +187,14 @@ def require_leader(request: Request) -> dict:
     user = require_user(request)
     if not user["leads"]:
         raise HTTPException(status_code=403, detail="Leaders only")
+    return user
+
+
+def require_lesson_viewer(request: Request) -> dict:
+    """Leaders (who edit lessons) and teachers (who only see them)."""
+    user = require_user(request)
+    if not user["sees_lessons"]:
+        raise HTTPException(status_code=403, detail="Leaders and teachers only")
     return user
 
 

@@ -280,14 +280,15 @@ Roles (all but Admin are limited to the user's own ward):
 | Role | Can |
 |---|---|
 | Member | see birthdays, upload the Member List |
-| Leader | also Elders Quorum and Relief Society ministering |
+| Teacher | also see the lesson plan, conference talks and lesson calendars (view only) |
+| Leader | also Elders Quorum and Relief Society ministering, and plan lessons |
 | Ward admin | also manage the ward's accounts and calendar link |
 | Admin | everything, in every ward; add wards |
 
 The first admin (or a lost-access recovery) is created from the server:
 
 ```bash
-docker compose exec portal python -m app.cli create-user <name> [--admin | --ward-admin | --leader] [--ward ID]
+docker compose exec portal python -m app.cli create-user <name> [--admin | --ward-admin | --leader | --teacher] [--ward ID]
 docker compose exec portal python -m app.cli set-password <name>
 docker compose exec portal python -m app.cli list-users
 ```

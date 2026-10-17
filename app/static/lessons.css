@@ -110,3 +110,7 @@ button.zone-empty.pick:hover, button.zone-empty.pick:focus-visible { color: var(
 .tchip.other { border-style: dashed; }
 .tchip .conf-tag { flex: none; font-size: .65rem; font-weight: 800; color: var(--muted); border: 1px solid var(--line);
   border-radius: 99px; padding: 0 .35rem; }
+
+/* View only (teachers): names and talks open their details, nothing drags */
+body.readonly .tchip, body.readonly .pchip { cursor: pointer; }
+.w-status.ro { border: 1px solid var(--line); background: var(--soft); white-space: nowrap; }

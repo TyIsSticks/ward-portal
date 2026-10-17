@@ -11,7 +11,7 @@
       Sunday, plus Sundays without a lesson. It updates by itself as the plan changes.
       {% if shared %}Both show the shared plan, each with its own teachers.{% endif %}</div>
   </div>
-  <a class="secondary" href="/lessons/teachers">Teacher calendars</a>
+  {% if user.leads %}<a class="secondary" href="/lessons/teachers">Teacher calendars</a>{% endif %}
 </div>
 
 <div class="cols">
@@ -28,8 +28,10 @@
 <section class="card">
   <p class="muted small">Lessons show as all-day events on Sunday. Both links share one secret, so anyone with either link can
     see both schedules (names and talks only).</p>
+  {% if user.leads %}
   <form method="post" action="/lessons/calendar/regenerate" onsubmit="return confirm('The old links stop working for everyone. Continue?')">
     <button class="link small">Make new links (if one leaked)</button>
   </form>
+  {% endif %}
 </section>
 {% endblock %}

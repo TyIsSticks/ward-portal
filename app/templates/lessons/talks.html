@@ -4,6 +4,7 @@
 {% block title %}{{ conf_name }} talks · {{ ward_name }}{% endblock %}
 {% block content %}
 {% set conf = "%d-%02d"|format(year, month) %}
+{% set edit = user.leads %}{# teachers see the talks; leaders load them and fix the ticks #}
 <div class="page-head">
   <div class="grow">
     <p class="crumbs"><a href="/lessons?conf={{ conf }}">← Lesson plan</a></p>
@@ -28,7 +29,7 @@
       <input type="hidden" name="conf" value="{{ conf }}">
       <div class="row spread" style="margin-top: 0">
         <h2 style="margin: 0">Talks</h2>
-        <button>Save ticks</button>
+        {% if edit %}<button>Save ticks</button>{% endif %}
       </div>
       <p class="muted small">Ticked speakers are in the First Presidency or the Quorum of the Twelve. Each of them needs
         a lesson before the next conference. {% if record.source == "website" %}The ticks come from each speaker’s calling
@@ -40,7 +41,7 @@
         <li class="talk-row{% if t.kind == 'business' %} business{% endif %}">
           {% if t.kind == "talk" %}
           <input type="checkbox" name="speaker" value="{{ t.speaker }}" id="t{{ t.id }}" {% if t.required %}checked{% endif %}
-                 aria-label="{{ t.speaker }} is First Presidency or Twelve">
+                 {% if not edit %}disabled{% endif %} aria-label="{{ t.speaker }} is First Presidency or Twelve">
           {% else %}<span class="badge">Not a lesson</span>{% endif %}
           <div>
             <a href="{{ t.url }}" target="_blank" rel="noopener" class="t-title">{{ t.title }}</a>
@@ -51,8 +52,10 @@
         {% endfor %}
       </ul>
       {% endfor %}
-      <div class="row"><button>Save ticks</button></div>
+      {% if edit %}<div class="row"><button>Save ticks</button></div>{% endif %}
     </form>
+    {% elif not edit %}
+    <section class="card"><p class="muted">The {{ conf_name }} talks aren’t loaded yet. A leader loads them after conference.</p></section>
     {% else %}
     <section class="card gold">
       <h2>Load the {{ conf_name }} talks</h2>
@@ -73,6 +76,7 @@
       <ol class="small">{% for s in required %}<li>{{ s }}</li>{% else %}<li class="muted">None ticked yet.</li>{% endfor %}</ol>
     </section>
     {% endif %}
+    {% if edit %}
     <section class="card" id="load">
       <h2>{{ "Load again" if record else "Upload a PDF instead" }}</h2>
       {% if record %}
@@ -88,6 +92,7 @@
       <p class="muted small">On churchofjesuschrist.org, open <em>General Conference → {{ conf_name }}</em>, choose
         <strong>Print</strong>, and save it as a PDF. Lessons already planned keep their talks when you load again.</p>
     </section>
+    {% endif %}
     {% if loaded %}
     <section class="card">
       <h2>Loaded conferences</h2>

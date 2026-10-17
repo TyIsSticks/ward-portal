@@ -66,6 +66,8 @@
         <a class="tab{% if active == 'eq' %} on{% endif %}" href="/ministering/eq"{% if active == 'eq' %} aria-current="page"{% endif %}>{{ icon("group") }}Elders Quorum</a>
         <a class="tab{% if active == 'rs' %} on{% endif %}" href="/ministering/rs"{% if active == 'rs' %} aria-current="page"{% endif %}>{{ icon("group") }}Relief Society</a>
         <a class="tab{% if active == 'people' %} on{% endif %}" href="/ministering/people"{% if active == 'people' %} aria-current="page"{% endif %}>{{ icon("list") }}People</a>
+        {% endif %}
+        {% if user.sees_lessons %}
         <a class="tab{% if active == 'lessons' %} on{% endif %}" href="/lessons"{% if active == 'lessons' %} aria-current="page"{% endif %}>{{ icon("book") }}Lessons</a>
         {% endif %}
         {% if user.manages %}

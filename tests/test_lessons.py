@@ -520,3 +520,57 @@ def test_after_conference_before_new_talks(client, conf):
         token = les.feed_token(conn)
     feed = client.get(f"/feed/1/lessons/{token}/eq.ics").text
     assert feed.count("DTSTART;VALUE=DATE:20310413") == 1 and "EQ lesson: Light" in feed
+
+
+# --- the Teacher role ---------------------------------------------------------------
+
+def test_teachers_can_see_but_not_change_lessons(client, conf):
+    from app import auth
+    a, b, c, d = conf["talk_ids"]
+    with db.ward_connect(1) as conn:
+        les.save_plan(conn, "eq", conf, [{"date": "2030-10-13", "talks": [b]}], 0, "x")
+    auth.create_user("tia", "a long enough password", role="teacher")
+    login(client, "tia", "a long enough password")
+
+    home = client.get("/").text
+    assert 'href="/lessons"' in home and "Open lesson plan" in home
+    assert "Pick a talk for" not in home   # planning to-dos are for leaders
+    assert 'href="/ministering/eq"' not in home   # still not ministering
+
+    page = client.get("/lessons/eq?conf=2030-10").text
+    assert '"readonly": true' in page and "View only" in page
+    assert 'id="autofill"' not in page and "/lessons/settings" not in page and "GroupMe" not in page
+    talks = client.get("/lessons/talks?conf=2030-10").text
+    assert "Faith" in talks and "Save ticks" not in talks and "Refresh from the website" not in talks
+    assert "disabled" in talks
+    assert "Make new links" not in client.get("/lessons/calendar").text
+    assert "aren’t loaded yet. A leader loads them" in client.get("/lessons/talks?conf=2031-04").text
+
+    # Every change is still leaders only.
+    url = f"/api/lessons/eq/{conf['id']}"
+    assert client.put(url, json={"version": 1, "weeks": []}).status_code == 403
+    assert client.put("/api/lessons/days/2030-11-10", json={"status": "stake_conference"}).status_code == 403
+    assert client.post("/api/lessons/teachers", json={"org": "eq", "name": "X"}).status_code == 403
+    for path in ["/lessons/talks/fetch", "/lessons/talks/required", "/lessons/settings", "/lessons/calendar/regenerate",
+                 "/lessons/teachers", "/groupme/lessons-eq"]:
+        assert client.post(path, data={"conf": "2030-10", "org": "eq", "name": "X"}).status_code == 403, path
+    for path in ["/lessons/teachers", "/lessons/groupme", "/ministering/eq"]:
+        assert client.get(path).status_code == 403, path
+    with db.ward_connect(1) as conn:
+        assert les.plan_weeks(conn, "eq", conf)[0]["talks"] == [b]
+
+
+def test_teacher_role_in_accounts(client):
+    from app import auth, users
+    login(client)
+    assert '<option value="teacher">Teacher</option>' in client.get("/admin/users").text
+    # An invite for a teacher makes a teacher account.
+    with db.connect() as conn:
+        token = users.create_invite(conn, "admin", 1, role="teacher")
+        uid = users.redeem(conn, token, "a long enough password", "tom")
+        assert users.get_user(conn, uid)["role"] == "teacher"
+        users.set_role(conn, uid, "leader")
+        assert users.get_user(conn, uid)["role"] == "leader"
+        users.set_role(conn, uid, "teacher")
+        assert users.get_user(conn, uid)["role"] == "teacher"
+    assert auth.role_flags("teacher") == (0, 0, 0, 1)

@@ -90,7 +90,7 @@ def dashboard(request: Request, user: dict = Depends(auth.require_user)):
             "SELECT *, julianday('now') - julianday(uploaded_at) AS age FROM uploads "
             "WHERE report = 'directory' ORDER BY id DESC LIMIT 1").fetchone()
         orgs = [ministering.org_summary(conn, o) for o in ministering.ORGS] if user["leads"] else []
-        plan = lessons.dashboard(conn) if user["leads"] else None
+        plan = lessons.dashboard(conn) if user["sees_lessons"] else None
 
     moved_in = len(json.loads(last_dir["summary"]).get("roster", {}).get("moved_in", [])) if last_dir else 0
     todo = [{"text": f"Tell {b['name']} happy birthday!" + (f" They turn {b['turns']}." if b["turns"] else ""),
@@ -113,7 +113,7 @@ def dashboard(request: Request, user: dict = Depends(auth.require_user)):
         if o["current"] is None:
             todo.append({"text": f"Import the {o['name']} assignments from LCR", "cta": "Import",
                          "href": f"/ministering/{o['key']}#import"})
-    if plan:
+    if plan and user["leads"]:   # teachers see the lessons, but planning them isn't their job
         todo += plan["todo"]
     if last_dir is None:
         todo.append({"text": "Upload the Member List from LCR", "cta": "Upload", "href": "/upload"})

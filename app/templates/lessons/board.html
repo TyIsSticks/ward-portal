@@ -28,21 +28,26 @@
     </span>
     <span id="save-state" class="muted small" aria-live="polite"></span>
     <span class="spacer"></span>
+    {% if not user.leads %}<span class="badge" title="Teachers can see the plan; leaders change it">View only</span>{% endif %}
+    {% if user.leads %}
     <button type="button" id="autofill" class="secondary sm" title="Put First Presidency and Twelve talks on open Sundays">Fill in <span class="hide-sm">First Presidency &amp; Twelve</span><span class="only-sm">★ talks</span></button>
     <a class="secondary sm hide-sm" href="/lessons/talks?conf={{ conf }}">Conference talks</a>
-    <a class="secondary sm hide-sm" href="/lessons/teachers">Teachers</a>
+    {% endif %}
+    {% if user.leads %}<a class="secondary sm hide-sm" href="/lessons/teachers">Teachers</a>{% endif %}
     <details class="menu les-menu">
       <summary aria-label="Lesson settings">⋯</summary>
       <div class="menu-pop">
+        {% if user.leads %}
         <form method="post" action="/lessons/settings">
           <input type="hidden" name="conf" value="{{ conf }}">
           <input type="hidden" name="shared" value="{{ '' if shared else '1' }}">
           <button type="submit">{{ "Give EQ and RS separate plans" if shared else "EQ and RS teach the same lessons" }}</button>
         </form>
-        <a class="only-sm" href="/lessons/talks?conf={{ conf }}">Conference talks</a>
-        <a class="only-sm" href="/lessons/teachers">Teachers</a>
+        {% endif %}
+        <a class="{{ 'only-sm' if user.leads }}" href="/lessons/talks?conf={{ conf }}">Conference talks</a>
+        {% if user.leads %}<a class="only-sm" href="/lessons/teachers">Teachers</a>{% endif %}
         <a href="/lessons/calendar">Put lessons on your phone</a>
-        <a href="/lessons/groupme">GroupMe reminders</a>
+        {% if user.leads %}<a href="/lessons/groupme">GroupMe reminders</a>{% endif %}
         {% if (record.year, record.month) != current %}<a href="/lessons/{{ plan }}">Go to the current conference</a>{% endif %}
       </div>
     </details>
@@ -76,7 +81,8 @@
   <div id="weeks" class="weeks"></div>
   <p class="legend muted small">
     <span class="talk-demo req">★ First Presidency or Twelve</span> <span class="talk-demo">Other talk</span>
-    · Drag talks and teachers onto Sundays (more than one talk combines them), or tap one for options. Sunday marks apply to the whole ward.
+    {% if user.leads %}· Drag talks and teachers onto Sundays (more than one talk combines them), or tap one for options. Sunday marks apply to the whole ward.
+    {% else %}· Tap a talk to read its summary or open it on the Church website.{% endif %}
   </p>
 </div>
 

@@ -4,6 +4,7 @@
   "use strict";
 
   const S = JSON.parse(document.getElementById("state").textContent);
+  const RO = !!S.readonly;   // teachers: see everything, change nothing (the server enforces it too)
   const SOON_DAYS = 21;   // warn about Sundays this close with nothing planned
   const $ = (sel, root = document) => root.querySelector(sel);
   const elWeeks = $("#weeks");
@@ -102,6 +103,7 @@
   }
 
   function changed() {
+    if (RO) return;
     render();
     scheduleSave();
   }
@@ -231,7 +233,7 @@
     if (!isLesson(w)) cls.push("off");
     if (warns.length) cls.push("has-warn");
     const statusSel = h("select", { class: "w-status", "aria-label": `${label(w.date)}: lesson or not (whole ward)`,
-                                    title: "Applies to the whole ward" },
+                                    title: "Applies to the whole ward", disabled: RO },
       ...Object.entries(S.statuses)
         .filter(([k]) => k !== "fifth_sunday" || w.fifth)
         .map(([k, v]) => h("option", { value: k, selected: k === w.status }, v)));
@@ -242,21 +244,25 @@
         h("div", { class: "w-date" }, label(w.date), when(w.date) ? h("span", { class: "w-when" }, when(w.date)) : null,
           w.overlap && !w.after_next ? h("span", { class: "w-shared", title: `Shared with the ${S.conference.prev_name} plan: its talks can be taught here too` }, "Shared") : null),
         warns.length ? h("span", { class: "g-warn", title: warns.join("\n") }, `⚠ ${warns.length}`) : null,
-        statusSel),
+        RO ? h("span", { class: "w-status ro" }, S.statuses[w.status]) : statusSel),
       isLesson(w) ? null : h("div", { class: "off-note" },
-        h("input", { class: "w-daynote", value: w.day_note, maxlength: 120, placeholder: `${S.statuses[w.status]} (note for the whole ward)`,
+        RO && !w.day_note ? null : h("input", { class: "w-daynote", value: w.day_note, maxlength: 120, readonly: RO,
+          placeholder: `${S.statuses[w.status]} (note for the whole ward)`,
           "aria-label": "Note for the whole ward", onchange: (e) => setDay(w, w.status, e.target.value) })),
       showTalks ? h("div", { class: "zone talks", dataset: { zone: "week", date: w.date } },
         ...w.talks.map(id => chip(id, w.date)),
-        w.talks.length ? null : h("button", { type: "button", class: "zone-empty pick",
-          onclick: (e) => pickTalk(w, e.currentTarget) }, "Drop a talk here, or tap to pick")) : null,
+        w.talks.length ? null : RO ? h("div", { class: "zone-empty" }, "No talk yet")
+          : h("button", { type: "button", class: "zone-empty pick",
+              onclick: (e) => pickTalk(w, e.currentTarget) }, "Drop a talk here, or tap to pick")) : null,
       ...S.orgs.filter(o => isLesson(w) || w.teachers[o].length).map(o =>
         h("div", { class: `zone teach o-${o}`, dataset: { zone: "teach", org: o, date: w.date } },
           h("div", { class: "zone-label" }, teacherLabel(o)),
           ...w.teachers[o].map(id => teacherChip(id, o, w.date)),
-          w.teachers[o].length ? null : h("button", { type: "button", class: "zone-empty pick",
-            onclick: (e) => pickTeacher(w, o, e.currentTarget) }, "Drop a teacher here, or tap to pick"))),
-      isLesson(w) ? h("input", { class: "w-note", value: w.note, maxlength: 200, placeholder: "Note", "aria-label": "Note",
+          w.teachers[o].length ? null : RO ? h("div", { class: "zone-empty" }, "No teacher yet")
+            : h("button", { type: "button", class: "zone-empty pick",
+                onclick: (e) => pickTeacher(w, o, e.currentTarget) }, "Drop a teacher here, or tap to pick"))),
+      isLesson(w) && !(RO && !w.note) ? h("input", { class: "w-note", value: w.note, maxlength: 200, placeholder: "Note",
+        "aria-label": "Note", readonly: RO,
         onchange: (e) => { w.note = e.target.value.trim(); changed(); } }) : null);
   }
 
@@ -295,7 +301,7 @@
         S.orgs.length > 1 ? h("div", { class: "zone-label" }, `${S.org_names[o]} teachers`) : null,
         h("div", { class: "zone tpool", dataset: { zone: "tpool", org: o } },
           ...list.map(t => teacherChip(t.id, o, null)),
-          h("button", { type: "button", class: "add-teacher", onclick: (e) => openAddTeacher(o, e.currentTarget) }, "+ Add teacher")));
+          RO ? null : h("button", { type: "button", class: "add-teacher", onclick: (e) => openAddTeacher(o, e.currentTarget) }, "+ Add teacher")));
     }));
     $("#n-teachers").textContent = [...teachers.values()].filter(t => t.active).length;
   }
@@ -416,7 +422,8 @@
       t.kind === "business" ? h("p", { class: "small muted" }, "Not a lesson talk (sustaining or report)") : null,
       t.summary ? h("p", { class: "small muted" }, t.summary) : null,
       h("a", { href: t.url, target: "_blank", rel: "noopener", class: "small" }, "Read the talk ↗"),
-      h("label", { class: "stack-label" }, from ? "Taught on" : "Add to", sel),
+      RO ? (dates.length ? h("p", { class: "small" }, `Planned for ${dates.map(label).join(", ")}`) : null)
+        : h("label", { class: "stack-label" }, from ? "Taught on" : "Add to", sel),
       !from && dates.length ? h("p", { class: "small muted" }, `Already planned for ${dates.map(label).join(", ")}`) : null);
   }
 
@@ -436,9 +443,9 @@
       h("h3", {}, t.name),
       h("p", { class: "small muted" }, [S.org_names[org], t.moved_out ? "Moved out" : null,
                                         !t.active ? "Off the teacher list" : null].filter(Boolean).join(" · ")),
-      h("label", { class: "stack-label" }, from ? "Teaches on" : "Assign to", sel),
+      RO ? null : h("label", { class: "stack-label" }, from ? "Teaches on" : "Assign to", sel),
       h("p", { class: "small" }, dates.length ? `Teaching ${dates.map(label).join(", ")}` : "No lessons yet this conference"),
-      h("a", { href: "/lessons/teachers", class: "small" }, "Manage teachers"));
+      RO ? null : h("a", { href: "/lessons/teachers", class: "small" }, "Manage teachers"));
   }
 
   // Tapping an empty lane: pick from a list instead of dragging.
@@ -519,7 +526,7 @@
     });
     changed();
   }
-  $("#autofill").addEventListener("click", autofill);
+  $("#autofill")?.addEventListener("click", autofill);   // leaders only
 
   // --- drag and drop (mouse, pen, and touch via long-press) -------------------
   let drag = null;
@@ -531,14 +538,14 @@
     drag = { el, kind: isTeacher ? "teacher" : "talk", id: Number(isTeacher ? el.dataset.teacher : el.dataset.tid),
              org: el.dataset.org || null, from: el.dataset.from || null,
              startX: e.clientX, startY: e.clientY, active: false, pointerId: e.pointerId, touch: e.pointerType === "touch" };
-    if (drag.touch) drag.timer = setTimeout(() => startDrag(e.clientX, e.clientY), 280);
+    if (drag.touch && !RO) drag.timer = setTimeout(() => startDrag(e.clientX, e.clientY), 280);
   });
   document.addEventListener("pointermove", (e) => {
     if (!drag || e.pointerId !== drag.pointerId) return;
     const dist = Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY);
     if (!drag.active) {
       if (drag.touch) { if (dist > 8) { clearTimeout(drag.timer); drag = null; } return; }  // it's a scroll
-      if (dist > 5) startDrag(e.clientX, e.clientY); else return;
+      if (dist > 5 && !RO) startDrag(e.clientX, e.clientY); else return;
     }
     moveGhost(e.clientX, e.clientY);
   });
@@ -642,7 +649,8 @@
   });
 
   render();
-  elSave.textContent = "All changes saved";
+  elSave.textContent = RO ? "" : "All changes saved";
+  document.body.classList.toggle("readonly", RO);
   // Start at the next Sunday rather than at the beginning of the conference's lessons.
   if (nextDate) elWeeks.scrollTop = document.getElementById(`w-${nextDate}`).offsetTop - 8;  // .weeks is position: relative
 })();
