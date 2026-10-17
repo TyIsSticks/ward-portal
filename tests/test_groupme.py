@@ -46,6 +46,18 @@ def test_custom_birthday_messages():
     assert "Ann" in gm.birthday_message(["Ann"], "custom", custom="").title()   # nothing written: a built-in style
 
 
+def test_every_voice_has_all_its_wording():
+    parts = set(gm.VOICES["plain"]) | {"catchphrase"}
+    for key, words in gm.VOICES.items():
+        assert set(words) <= parts and words["name"], key
+        assert set(words["no_lesson"]) == {"fifth_sunday", "stake_conference", "no_second_hour", "conference"}, key
+        for part in ("openers", "headers", "teacher", "no_teacher", "no_talk", "nothing", "signoffs"):
+            assert words[part] and all(isinstance(line, str) and line for line in words[part]), (key, part)
+        assert all("{who}" in line for line in words["teacher"]), key
+        if "catchphrase" in words:   # in every opener, so in every message
+            assert all(words["catchphrase"] in line.lower() for line in words["openers"]), key
+
+
 def test_coming_sunday():
     assert gm.coming_sunday(date(2030, 10, 14)) == date(2030, 10, 20)   # Monday
     assert gm.coming_sunday(date(2030, 10, 20)) == date(2030, 10, 27)   # Sunday: the next one
@@ -65,8 +77,8 @@ def test_lesson_messages_in_every_voice(conf):
                 for seed in range(30):
                     text = gm.lesson_message(conn, "eq", day, random.Random(seed), words)
                     assert expect.lower() in text.lower() and "{" not in text
-                    assert ("roger roger" in text.lower()) == (voice == "droid")
-                    assert ("beep" in text.lower()) == (voice == "beep")
+                    assert words.get("catchphrase", "") in text.lower(), (voice, text)
+                    assert voice == "droid" or "roger roger" not in text.lower()
         planned = gm.lesson_message(conn, "eq", date(2030, 10, 20))
         assert "https://" in planned and "“" in planned
 

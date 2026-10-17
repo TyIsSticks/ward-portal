@@ -17,6 +17,7 @@ from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from . import config, db, lessons as les
+from .groupme_voices import DEFAULT_VOICE, VOICES
 from .reports import birthdays
 
 log = logging.getLogger(__name__)
@@ -254,98 +255,8 @@ def todays_birthdays(conn: sqlite3.Connection, today: date) -> list[str]:
 
 
 # --- Lesson reminders ---------------------------------------------------------
-# A voice is the wording around next Sunday's details. Each list is picked from at random, so
-# Mondays don't get stale. Placeholders: {org}, {when}, and {who} in the teacher lines.
+# The wording comes from a voice (groupme_voices.py); next Sunday's details are filled in here.
 
-VOICES = {
-    "plain": {
-        "name": "Friendly",
-        "openers": ["👋 Hi, {org}!", "Happy Monday, {org}! ☀️", "Good morning, {org}!",
-                    "Hi everyone! Here’s what’s coming up on Sunday."],
-        "headers": ["📅 Sunday, {when}:", "📅 This Sunday ({when}):", "📅 Lesson for Sunday, {when}:"],
-        "teacher": ["🎓 Teacher: {who}", "🎓 Taught by {who}"],
-        "no_teacher": ["🎓 Teacher: still needed. Let the presidency know if you can help!",
-                       "🎓 We still need a teacher. Reply here if you’re willing!"],
-        "no_talk": ["📖 Talk: not picked yet.", "📖 The talk hasn’t been picked yet."],
-        "nothing": ["No lesson is planned for Sunday, {when} yet. More soon!",
-                    "Sunday’s lesson ({when}) isn’t planned yet. Stay tuned."],
-        "no_lesson": {
-            "fifth_sunday": ["Sunday, {when} is a fifth Sunday, so there’s no regular {org} lesson."],
-            "stake_conference": ["Sunday, {when} is stake conference, so there’s no {org} lesson."],
-            "no_second_hour": ["There’s no second hour on Sunday, {when}, so no {org} lesson this week."],
-            "conference": ["General conference is this weekend! No {org} lesson. Enjoy conference. 🙂"],
-        },
-        "signoffs": ["See you Sunday!", "Have a great week!", "Thanks, and see you Sunday! 🙂",
-                     "Have a wonderful week, everyone."],
-    },
-    "droid": {
-        "name": "Battle droid",
-        # Every opener has a "roger roger".
-        "openers": ["🤖 Roger roger.", "🤖 Roger roger. Incoming transmission from command.",
-                    "🤖 Roger roger. Scanning the lesson schedule…", "🤖 Attention, {org} unit. Roger roger.",
-                    "🤖 Uh… roger roger? Yes. Roger roger.", "🤖 Roger roger. Weekly briefing follows.",
-                    "🤖 Roger roger. Clankers, assemble."],
-        "headers": ["📡 Briefing for Sunday, {when}:", "🗓️ Mission for Sunday, {when}:",
-                    "🎯 Target acquired: Sunday, {when}.", "📋 Orders for Sunday, {when}:"],
-        "teacher": ["🎓 Instructor: {who}", "🎓 Commanding officer: {who}", "🎓 Unit leader: {who}"],
-        "no_teacher": ["🎓 Instructor: unassigned. Volunteers will be… volunteered.",
-                       "🎓 Instructor: [CLASSIFIED] (not assigned yet)."],
-        "no_talk": ["📖 Talk: not picked yet. Awaiting orders from the presidency.",
-                    "📖 Talk: [DATA MISSING]. Stand by for orders."],
-        "nothing": ["Orders for Sunday, {when} have not been received yet. Stand by.",
-                    "No lesson on the books for Sunday, {when}. Command is… working on it.",
-                    "Scanning Sunday, {when}… no lesson found. Uh oh."],
-        "no_lesson": {
-            "fifth_sunday": ["Fifth Sunday detected ({when}). No regular {org} lesson. Enjoy your shore leave.",
-                             "Sunday, {when} is a fifth Sunday. Standard lesson protocol suspended."],
-            "stake_conference": ["Stake conference on Sunday, {when}. All units report to the stake center. "
-                                 "No {org} lesson.",
-                                 "Sunday, {when}: stake conference. No {org} lesson. Repeat: NO lesson."],
-            "no_second_hour": ["No second hour on Sunday, {when}. Stand down after sacrament meeting.",
-                               "Sunday, {when}: no second hour. No {org} lesson. Fall back after sacrament meeting."],
-            "conference": ["General conference this weekend! All units report to the couch. 🛋️ No {org} lesson.",
-                           "Sunday, {when} is general conference. Deploy snacks. Listen to the prophet. "
-                           "No {org} lesson."],
-        },
-        "signoffs": ["Read the talk before Sunday. That is an order.", "Report for duty in the second hour.",
-                     "End transmission.", "Move along. Move along. 👋",
-                     "Bring your scriptures. Bring a friend. Do not bring a lightsaber.", "Roger roger. 👍",
-                     "This briefing will now self-destruct. Just kidding. Roger roger."],
-    },
-    "beep": {
-        "name": "Beep-booper",
-        # Every opener has a "beep boop".
-        "openers": ["🤖 BEEP BOOP. Hello, {org} humans!", "🤖 Beep boop! Weekly lesson protocol activated.",
-                    "🤖 *whirr* *click* Beep boop. Good morning, {org}!", "🤖 Boop beep? No wait. BEEP BOOP. 🔧",
-                    "🤖 Beep. Boop. Beep boop. (That means happy Monday.)",
-                    "🤖 Beep boop! Rebooting the week… 100% complete."],
-        "headers": ["💾 Loading Sunday, {when}…", "📟 Computing Sunday, {when}:", "🔍 Scanning Sunday, {when}… found:",
-                    "🖨️ Printing Sunday, {when}:"],
-        "teacher": ["🎓 Human teacher: {who}", "🎓 Teaching unit: {who}", "🎓 Teacher detected: {who} ✅"],
-        "no_teacher": ["🎓 Teacher: ERROR 404. Human volunteer required. Beep?",
-                       "🎓 Teacher: not found. Please insert human. 🪙"],
-        "no_talk": ["📖 Talk: still downloading… ⏳", "📖 Talk: NULL. Beep boop. (Not picked yet.)"],
-        "nothing": ["Computing Sunday, {when}… ERROR: no lesson found. My circuits are confused. 😵‍💫",
-                    "Sunday, {when}: lesson file is empty. Beep… boop… sad beep."],
-        "no_lesson": {
-            "fifth_sunday": ["Fifth Sunday detected ({when}). No regular {org} lesson. Entering sleep mode. 💤",
-                             "Sunday, {when}: fifth Sunday! No {org} lesson. Happy beeps! 🎉"],
-            "stake_conference": ["Sunday, {when}: stake conference. No {org} lesson. Rerouting humans to the "
-                                 "stake center. 🗺️",
-                                 "Stake conference on Sunday, {when}. No {org} lesson. Beep boop, see you there."],
-            "no_second_hour": ["Sunday, {when}: no second hour. No {org} lesson. Powering down after sacrament "
-                               "meeting. 🔌",
-                               "No second hour on Sunday, {when}. {org} lesson.exe will not run."],
-            "conference": ["General conference this weekend! No {org} lesson. Charging batteries on the couch. 🔋🛋️",
-                           "Sunday, {when} is general conference. Downloading wisdom… please stand by. No {org} "
-                           "lesson."],
-        },
-        "signoffs": ["Beep boop. See you Sunday!", "Boop. 🤖", "Have a great week, humans. Beep!",
-                     "End of message. *happy beeping*", "Beep boop beep. (Translation: read the talk!)",
-                     "Shutting down… just kidding. Beep boop! 👋"],
-    },
-}
-DEFAULT_VOICE = "plain"
 
 
 def coming_sunday(today: date) -> date:
