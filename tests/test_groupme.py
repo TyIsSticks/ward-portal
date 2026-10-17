@@ -183,3 +183,27 @@ def test_choosing_and_writing_voices(client, conf, posted):
     client.post("/groupme/birthdays", data={"action": "test"})
     assert posted[-1][1].endswith("Yay Sam Sample!")
     assert "Write at least one" in client.post("/groupme/birthdays", data={"style": "custom", "custom": ""}).text
+
+
+def test_lesson_bot_schedule(client, conf, posted):
+    with db.ward_connect(1) as conn:
+        gm.set_bot_id(conn, "lessons-eq", BOT)
+        gm.set_bot_id(conn, "lessons-rs", BOT)
+        assert gm.schedule(conn, "lessons-eq") == (0, "09:00")   # Monday 9 am until changed
+        assert gm.schedule_label(conn, "lessons-eq") == "every Monday at 9 am"
+    assert gm.time_label("12:00") == "12 pm" and gm.time_label("13:30") == "1:30 pm" and gm.time_label("05:00") == "5 am"
+
+    login(client)
+    r = client.post("/groupme/lessons-eq", data={"day": "5", "time": "19:30"})   # EQ: Saturday 7:30 pm
+    assert "go out every Saturday at 7:30 pm" in r.text
+    page = body(client.get("/lessons/groupme"))
+    assert "Now: every Saturday at 7:30 pm" in page and "Now: every Monday at 9 am" in page   # RS unchanged
+    assert "Pick a day and a time" in client.post("/groupme/lessons-eq", data={"day": "9", "time": "19:30"}).text
+    assert "Pick a day and a time" in client.post("/groupme/lessons-eq", data={"day": "1", "time": "19:15"}).text
+
+    # Saturday Oct 19, 2030: EQ posts from 7:30 pm (about tomorrow); RS waits for Monday.
+    assert gm.run_due(datetime(2030, 10, 19, 19, 0)) == 0
+    assert gm.run_due(datetime(2030, 10, 19, 19, 30)) == 1
+    assert "Oct 20" in posted[-1][1]
+    assert gm.run_due(datetime(2030, 10, 19, 21, 0)) == 0   # once a day
+    assert gm.run_due(datetime(2030, 10, 21, 9, 0)) == 1    # Monday: RS only

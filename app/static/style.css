@@ -332,3 +332,5 @@ details.ward-switch > summary:hover { background: rgba(255,255,255,.2); }
 .bot-sample summary { cursor: pointer; font-size: .8rem; font-weight: 700; color: var(--accent); width: fit-content; }
 .bot-styles textarea { width: 100%; resize: vertical; }
 .bot-styles .sub-field { display: grid; gap: .3rem; font-weight: 700; }
+.bot-when .row { margin: .2rem 0; }
+.bot-when label { display: inline-flex; align-items: center; gap: .4rem; font-weight: 700; }

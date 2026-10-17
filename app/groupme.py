@@ -29,7 +29,9 @@ BOTS = {"birthdays": "Birthday shout-outs",
         "lessons-eq": "Elders Quorum lesson reminders",
         "lessons-rs": "Relief Society lesson reminders"}
 BIRTHDAY_HOUR = 8              # birthday shout-outs go out from 8 am on the day
-LESSON_HOUR = 9                # lesson reminders go out from 9 am on Monday
+LESSON_DAY, LESSON_HOUR = 0, 9  # lesson reminders: Monday at 9 am unless the ward picks another time
+DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]   # date.weekday() order
+TIMES = [f"{h:02d}:{m:02d}" for h in range(5, 23) for m in (0, 30)]                    # 5 am to 10:30 pm
 CHECK_EVERY = 5 * 60           # seconds between checks
 START_DELAY = 30               # let the app finish starting before the first check
 MAX_TRIES = 3                  # failed posts retried per day, so an outage doesn't mean silence
@@ -116,6 +118,32 @@ def set_voice(conn: sqlite3.Connection, key: str, value: str, openers: str | Non
     if value == "custom" and not any(_lines(t) for t in custom_voice(conn, key).values()):
         raise GroupMeError("Write at least one opening or closing line, or pick one of the voices.")
     db.set_ward_setting(conn, f"groupme:{key}:voice", value)
+
+
+def schedule(conn: sqlite3.Connection, key: str) -> tuple[int, str]:
+    """When a lesson bot posts: (weekday, Monday = 0; "HH:MM")."""
+    day = db.get_ward_setting(conn, f"groupme:{key}:day")
+    at = db.get_ward_setting(conn, f"groupme:{key}:time")
+    return (int(day) if day in {str(i) for i in range(7)} else LESSON_DAY,
+            at if at in TIMES else f"{LESSON_HOUR:02d}:00")
+
+
+def set_schedule(conn: sqlite3.Connection, key: str, day: str, at: str) -> None:
+    if day not in {str(i) for i in range(7)} or at not in TIMES:
+        raise GroupMeError("Pick a day and a time.")
+    db.set_ward_setting(conn, f"groupme:{key}:day", day)
+    db.set_ward_setting(conn, f"groupme:{key}:time", at)
+
+
+def time_label(at: str) -> str:
+    """'09:00' -> '9 am', '13:30' -> '1:30 pm'."""
+    h, m = (int(x) for x in at.split(":"))
+    return f"{(h - 1) % 12 + 1}{f':{m:02d}' if m else ''} {'am' if h < 12 else 'pm'}"
+
+
+def schedule_label(conn: sqlite3.Connection, key: str) -> str:
+    day, at = schedule(conn, key)
+    return f"every {DAYS[day]} at {time_label(at)}"
 
 
 def own_voice(conn: sqlite3.Connection, key: str) -> dict:
@@ -319,8 +347,10 @@ def due(conn: sqlite3.Connection, moment: datetime) -> list[tuple[str, str, str]
         if key == "birthdays":
             if moment.hour < BIRTHDAY_HOUR:
                 continue
-        elif moment.weekday() != 0 or moment.hour < LESSON_HOUR:
-            continue
+        else:
+            day, at = schedule(conn, key)
+            if moment.weekday() != day or f"{moment:%H:%M}" < at:
+                continue
         text = preview(conn, key, today)
         if text:
             out.append((key, bid, text))

@@ -9,7 +9,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
-from . import auth, db, groupme, lessons as les, wards
+from . import auth, config, db, groupme, lessons as les, wards
 from .ministering_routes import _json as json_body
 from .reports import conference as gc
 from .reports.birthdays import ReportError
@@ -194,7 +194,8 @@ def groupme_page(request: Request, user: dict = leader):
         bots = {o: _lesson_bot(conn, o, today) for o in les.ORGS}
         shared = les.is_shared(conn)
     return render(request, "lessons/groupme.html", user=user, bots=bots, org_names=les.ORGS, shared=shared,
-                  sunday=groupme.coming_sunday(today), lesson_hour=groupme.LESSON_HOUR,
+                  sunday=groupme.coming_sunday(today), days=groupme.DAYS, timezone=config.TIMEZONE,
+                  times=[(t, groupme.time_label(t)) for t in groupme.TIMES],
                   voices={k: v["name"] for k, v in groupme.VOICES.items()})
 
 
@@ -208,7 +209,9 @@ def _lesson_bot(conn, org: str, today: date) -> dict:
     samples = {v: groupme.lesson_message(conn, org, sunday, words=groupme.VOICES[v]) for v in groupme.VOICES}
     if any(own.values()):
         samples["custom"] = groupme.lesson_message(conn, org, sunday, words=groupme.own_voice(conn, key))
-    return groupme.status(conn, key) | {"voice": groupme.voice(conn, key), "own": starter, "samples": samples}
+    day, at = groupme.schedule(conn, key)
+    return groupme.status(conn, key) | {"voice": groupme.voice(conn, key), "own": starter, "samples": samples,
+                                        "day": day, "time": at, "when": groupme.schedule_label(conn, key)}
 
 
 @router.post("/lessons/calendar/regenerate")

@@ -13,7 +13,8 @@ BACK = {"birthdays": "/birthdays#groupme", "lessons-eq": "/lessons/groupme#eq", 
 @router.post("/groupme/{key}")
 def save(key: str, request: Request, action: str = Form("save"), bot_id: str = Form(""), style: str = Form(""),
          custom: str | None = Form(None), voice: str = Form(""), openers: str | None = Form(None),
-         signoffs: str | None = Form(None), user: dict = Depends(auth.require_user)):
+         signoffs: str | None = Form(None), day: str | None = Form(None), time: str | None = Form(None),
+         user: dict = Depends(auth.require_user)):
     if key not in gm.BOTS:
         raise HTTPException(status_code=404, detail="Not found")
     if not (user["manages"] if key == "birthdays" else user["leads"]):
@@ -36,8 +37,10 @@ def save(key: str, request: Request, action: str = Form("save"), bot_id: str = F
                     gm.set_style(conn, style, custom)
                 elif key != "birthdays" and voice:
                     gm.set_voice(conn, key, voice, openers, signoffs)
+                if key != "birthdays" and day is not None and time is not None:
+                    gm.set_schedule(conn, key, day, time)
                 when = (f"at {gm.BIRTHDAY_HOUR} am on each birthday" if key == "birthdays"
-                        else f"every Monday at {gm.LESSON_HOUR} am")
+                        else gm.schedule_label(conn, key))
                 flash(request, "ok", f"Saved. {name} go out {when}.")
     except gm.GroupMeError as exc:
         flash(request, "error", str(exc))

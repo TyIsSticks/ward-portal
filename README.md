@@ -18,7 +18,8 @@ A small self-hosted portal for working with LCR report exports.
   Includes warnings, priority tags, companion history from past imports, Draft / Proposed / Approved
   status, and a printable **Changes for LCR** checklist. See [Ministering](#ministering).
 - **GroupMe bots:** a birthday bot wishes people happy birthday in the group chat, and a lesson bot
-  posts next Sunday's lesson every Monday, each in a built-in voice or your own words. See
+  posts the coming Sunday's lesson once a week (Monday 9 am, or a day and time you pick), each in a
+  built-in voice or your own words. See
   [GroupMe bots](#groupme-bots).
 - **Lessons** (leaders): plan Elders Quorum and Relief Society lessons from the latest general
   conference on a drag-and-drop board of Sundays. The talks come straight from the Church website
@@ -230,14 +231,16 @@ away; *Turn off* stops it (the chosen wording is kept).
   droid*, *Mix it up*, or *Write your own* (messages separated by a blank line, with `{names}` for
   the birthday person; one is picked at random). The page shows a sample of each. People flagged as
   possibly moved out are skipped, and only first and last names are used (never ages).
-- **Lesson reminders** (Lessons → ⋯ → *GroupMe reminders*, its own page for leaders): every Monday at 9 am it posts the
+- **Lesson reminders** (Lessons → ⋯ → *GroupMe reminders*, its own page for leaders): once a week it posts the
   coming Sunday's talk, a link to read it and the teacher, or why there's no lesson (fifth Sunday,
   stake conference, no second hour, general conference, or nothing planned yet). Pick a voice:
   *Friendly* (the default), *Battle droid* (every message says "roger roger"), *Beep-booper*,
   *Pirate captain*, *Sports broadcaster*, *Mission control*, *Medieval herald*, *Nature documentary*,
   *Weather forecaster*, *Dramatic narrator*, *Game show host*, or *Write your own*
   opening and closing lines around the lesson details (`{org}` and `{when}` fill in). The wording is
-  shuffled each week. Elders Quorum and Relief Society can each have a bot. The voices live in
+  shuffled each week. Elders Quorum and Relief Society can each have a bot, each with its own
+  **day and time** (*When it posts*: any day, 5 am to 10:30 pm in half hours; Monday at 9 am to
+  start). It's always about the coming Sunday, so posting on a Sunday covers next week's lesson. The voices live in
   `app/groupme_voices.py`; delete a block there to drop one.
 
 Times use `TZ` (default `America/Denver`). The app checks every few minutes, so a message still goes
