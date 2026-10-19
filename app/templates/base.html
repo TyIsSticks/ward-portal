@@ -63,8 +63,7 @@
         <a class="tab{% if active == 'home' %} on{% endif %}" href="/"{% if active == 'home' %} aria-current="page"{% endif %}>{{ icon("home") }}Home</a>
         <a class="tab{% if active == 'birthdays' %} on{% endif %}" href="/birthdays"{% if active == 'birthdays' %} aria-current="page"{% endif %}>{{ icon("cake") }}Birthdays</a>
         {% if user.leads %}
-        <a class="tab{% if active == 'eq' %} on{% endif %}" href="/ministering/eq"{% if active == 'eq' %} aria-current="page"{% endif %}>{{ icon("group") }}Elders Quorum</a>
-        <a class="tab{% if active == 'rs' %} on{% endif %}" href="/ministering/rs"{% if active == 'rs' %} aria-current="page"{% endif %}>{{ icon("group") }}Relief Society</a>
+        <a class="tab{% if active == 'ministering' %} on{% endif %}" href="/ministering"{% if active == 'ministering' %} aria-current="page"{% endif %}>{{ icon("group") }}Ministering</a>
         <a class="tab{% if active == 'people' %} on{% endif %}" href="/ministering/people"{% if active == 'people' %} aria-current="page"{% endif %}>{{ icon("list") }}People</a>
         {% endif %}
         {% if user.sees_lessons %}
@@ -96,6 +95,13 @@
       }));
       mark();
     })();
+    // Phones: the tab row scrolls sideways; start with the current tab in view.
+    document.querySelectorAll(".tabs .tab.on").forEach(t => {
+      const row = t.parentElement;
+      if (row.scrollWidth <= row.clientWidth) return;
+      const r = t.getBoundingClientRect(), box = row.getBoundingClientRect();
+      row.scrollLeft += r.left - box.left - (box.width - r.width) / 2;
+    });
     // Close the account menu when clicking elsewhere.
     document.addEventListener("click", (e) => {
       for (const d of document.querySelectorAll("details.menu[open]")) if (!d.contains(e.target)) d.open = false;

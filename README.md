@@ -12,8 +12,8 @@ A small self-hosted portal for working with LCR report exports.
   step-by-step phone guides on the dashboard. People missing from a new upload are **flagged, not
   deleted**. The dashboard lists them as "Possibly moved out" with *Keep* / *Remove birthday*
   buttons, and the flag clears if they show up again.
-- **Ministering** (leaders): separate **Elders Quorum** and **Relief Society** pages (they're
-  separate in LCR). Each has a drag-and-drop board of districts → groups → ministers and assigned
+- **Ministering** (leaders): one **Ministering** tab with an **Elders Quorum** / **Relief Society**
+  switch (they're separate in LCR). Each has a drag-and-drop board of districts → groups → ministers and assigned
   people, saved as layouts (start from the current assignments, from scratch, or from a copy).
   Includes warnings, priority tags, companion history from past imports, Draft / Proposed / Approved
   status, and a printable **Changes for LCR** checklist. See [Ministering](#ministering).
@@ -94,8 +94,9 @@ and the session key. Back up the whole folder.
 
 ## Ministering
 
-Elders Quorum and Relief Society each have their own page, imports, layouts and change list.
-Any Leader can see and edit both.
+Elders Quorum and Relief Society each have their own page, imports, layouts and change list. The
+**Ministering** tab opens whichever one you looked at last; the switch at the top flips between
+them. Any Leader can see and edit both.
 
 Typical cycle (for either organization):
 

@@ -5,9 +5,6 @@
 .cal-nav.sm { width: 30px; height: 30px; font-size: .95rem; }
 
 /* EQ | RS switch */
-.seg-links { display: inline-flex; background: var(--card); border: 1px solid var(--line); border-radius: 99px; padding: 3px; }
-.seg-links a { padding: .25rem .8rem; border-radius: 99px; text-decoration: none; font-weight: 700; font-size: .85rem; color: var(--muted); }
-.seg-links a[aria-current="page"] { background: var(--accent); color: var(--accent-ink); }
 
 .les-menu > summary { background: var(--card); color: var(--ink); border: 1px solid var(--line); width: 34px; height: 34px; }
 

@@ -1,12 +1,19 @@
 {% extends "base.html" %}
 {% from "_icons.html" import icon %}
-{% set active = org %}
+{% set active = "ministering" %}
 {% set hero = true %}
 {% block title %}{{ org_name }} ministering · {{ ward_name }}{% endblock %}
 {% block hero %}
 <div class="brand-row" style="align-items: flex-end; margin-top: 8px">
   <div class="grow" style="flex: 1 1 300px">
-    <h1 class="hero-title" style="margin: 0">{{ org_name }}</h1>
+    <div class="row" style="gap: 10px 14px; flex-wrap: wrap; align-items: center">
+      <h1 class="hero-title" style="margin: 0">Ministering</h1>
+      <div class="seg-links" role="group" aria-label="Organization">
+        {% for key, name in orgs.items() %}
+        <a href="/ministering/{{ key }}"{% if key == org %} aria-current="page"{% endif %}>{{ name }}</a>
+        {% endfor %}
+      </div>
+    </div>
     <div class="hero-sub">
       {% if current %}{{ summary.groups }} groups in LCR · {{ summary.unassigned }} people not assigned ·
         {{ summary.nonminister }} {{ "brothers" if org == "eq" else "sisters" }} not ministering

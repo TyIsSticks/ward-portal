@@ -535,7 +535,7 @@ def test_teachers_can_see_but_not_change_lessons(client, conf):
     home = client.get("/").text
     assert 'href="/lessons"' in home and "Open lesson plan" in home
     assert "Pick a talk for" not in home   # planning to-dos are for leaders
-    assert 'href="/ministering/eq"' not in home   # still not ministering
+    assert 'href="/ministering"' not in home   # still not ministering
 
     page = client.get("/lessons/eq?conf=2030-10").text
     assert '"readonly": true' in page and "View only" in page

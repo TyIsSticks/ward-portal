@@ -499,3 +499,15 @@ def test_migrates_layouts_to_elders_quorum(tmp_path, monkeypatch):
         # Approved before the LCR check existed: counts as done, so the upgrade doesn't nag.
         assert m.org_summary(c, "eq")["to_check"] == []
         assert m.get_layout(c, 2)["verified_at"]
+
+
+def test_one_ministering_tab_remembers_the_org(client, conn):
+    _leader(client)
+    home = client.get("/").text
+    assert 'href="/ministering"' in home and ">Elders Quorum</a>" not in home.split('aria-label="Main"')[1].split("</nav>")[0]
+    r = client.get("/ministering", follow_redirects=False)
+    assert r.headers["location"] == "/ministering/eq"   # first visit
+    page = client.get("/ministering/rs").text
+    assert '<a href="/ministering/eq">Elders Quorum</a>' in page
+    assert '<a href="/ministering/rs" aria-current="page">Relief Society</a>' in page
+    assert client.get("/ministering", follow_redirects=False).headers["location"] == "/ministering/rs"

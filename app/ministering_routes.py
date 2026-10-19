@@ -64,10 +64,13 @@ def _org_or_404(org: str) -> str:
     return org
 
 
+LAST_ORG = "ministering_org"   # cookie: the organization this browser looked at last
+
+
 @router.get("/ministering")
-def landing(user: dict = leader):
-    # The dashboard's Elders Quorum and Relief Society tiles replaced this page.
-    return RedirectResponse("/", status_code=303)
+def landing(request: Request, user: dict = leader):
+    org = request.cookies.get(LAST_ORG)
+    return RedirectResponse(f"/ministering/{org if org in m.ORGS else 'eq'}", status_code=303)
 
 
 @router.post("/ministering/layouts/{layout_id}/delete")
@@ -225,8 +228,10 @@ def org_index(org: str, request: Request, user: dict = leader):
     with db.ward_connect(user["ward"]["id"]) as conn:
         layouts = m.list_layouts(conn, org)
         summary = m.org_summary(conn, org)
-    return render(request, "ministering/index.html", user=user, layouts=layouts, current=summary["current"],
-                  summary=summary, org=org, org_name=m.ORGS[org])
+    response = render(request, "ministering/index.html", user=user, layouts=layouts, current=summary["current"],
+                      summary=summary, org=org, org_name=m.ORGS[org], orgs=m.ORGS)
+    response.set_cookie(LAST_ORG, org, max_age=365 * 86400, httponly=True, samesite="lax")
+    return response
 
 
 @router.post("/ministering/{org}/layouts")
