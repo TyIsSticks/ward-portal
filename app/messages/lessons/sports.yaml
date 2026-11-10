@@ -1,0 +1,60 @@
+# A lesson reminder voice. One line is picked at random from each list.
+# To add a line, add another - "..." row. Keep the double quotes.
+# Fill-ins: {org} is the organization, {when} is the date, like Oct 20.
+# Wards have the file name (sports) saved, so don't rename this file.
+
+name: "Sports broadcaster"
+order: 5  # position in the list on the settings page
+catchphrase: "folks"  # every opener must contain this, in any case
+
+# The first line of every message.
+openers:
+  - "🏈 WELCOME BACK to Monday Lesson Center, folks!"
+  - "🎙️ Hello and welcome, folks, to another week of {org} action!"
+  - "📣 What a week it’s gonna be, folks!"
+  - "🏟️ We’re LIVE, folks, with your {org} preview!"
+
+# Above the lesson details.
+headers:
+  - "📺 Sunday’s matchup ({when}):"
+  - "🗓️ Game day: Sunday, {when}."
+  - "📊 The Sunday preview ({when}):"
+
+# Names the teacher. Every line needs {who}.
+teacher:
+  - "🎓 Starting at teacher: {who}"
+  - "🎓 Taking the field: {who}"
+  - "🎓 Our MVP this week: {who}"
+
+# When nobody is assigned to teach yet.
+no_teacher:
+  - "🎓 The roster spot is OPEN, folks! Who’s coming off the bench?"
+  - "🎓 No starter named yet. Coach is looking down the bench… 👀"
+
+# When no talk has been picked yet.
+no_talk:
+  - "📖 Talk: the play hasn’t been called yet."
+  - "📖 Talk: still in the huddle."
+
+# When nothing at all is planned for that Sunday.
+nothing:
+  - "Sunday, {when}: no lesson on the schedule yet. We’ll have updates after the break!"
+  - "The lineup for Sunday, {when} isn’t out yet. Stay tuned!"
+
+# Replaces the lesson details on Sundays with no lesson.
+no_lesson:
+  fifth_sunday:
+    - "Sunday, {when} is a fifth Sunday. It’s a BYE WEEK for the {org}!"
+  stake_conference:
+    - "Sunday, {when}: it’s an AWAY GAME at the stake center! No {org} lesson."
+  no_second_hour:
+    - "Short game this Sunday ({when}): no second hour, no {org} lesson."
+  conference:
+    - "It’s CHAMPIONSHIP WEEKEND, folks: general conference! No {org} lesson. 🏆"
+
+# The last line of every message.
+signoffs:
+  - "Back to you in the studio! 🎙️"
+  - "That’s all for now, folks. See you Sunday!"
+  - "Don’t touch that dial! 📺"
+  - "And that’s the ballgame. See you Sunday! ⚾"

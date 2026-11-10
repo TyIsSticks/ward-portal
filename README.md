@@ -241,8 +241,13 @@ away; *Turn off* stops it (the chosen wording is kept).
   opening and closing lines around the lesson details (`{org}` and `{when}` fill in). The wording is
   shuffled each week. Elders Quorum and Relief Society can each have a bot, each with its own
   **day and time** (*When it posts*: any day, 5 am to 10:30 pm in half hours; Monday at 9 am to
-  start). It's always about the coming Sunday, so posting on a Sunday covers next week's lesson. The voices live in
-  `app/groupme_voices.py`; delete a block there to drop one.
+  start). It's always about the coming Sunday, so posting on a Sunday covers next week's lesson.
+
+The wording lives in YAML files, one per choice: `app/messages/lessons/` for the voices and
+`app/messages/birthdays/` for the birthday styles. To add lines, add `- "..."` rows to a list. To add
+a voice or style, copy a file and give it a new name; delete a file to drop one (a ward that picked
+it goes back to the default). Rebuild to apply changes (`docker compose up -d --build`). A file with
+a mistake stops the app at startup and the log names the file and the problem, so run `pytest` first.
 
 Times use `TZ` (default `America/Denver`). The app checks every few minutes, so a message still goes
 out if the server was down at the usual time, and posts at most once a day per bot. A failed post is

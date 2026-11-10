@@ -5,6 +5,7 @@ from datetime import date, datetime
 import pytest
 
 from app import auth, db, groupme as gm, lessons as les
+from app.groupme_messages import MessageFileError, load_styles, load_voices
 from tests.conftest import login
 from tests.test_lessons import add_people, conf  # noqa: F401  (fixture)
 
@@ -56,6 +57,47 @@ def test_every_voice_has_all_its_wording():
         assert all("{who}" in line for line in words["teacher"]), key
         if "catchphrase" in words:   # in every opener, so in every message
             assert all(words["catchphrase"] in line.lower() for line in words["openers"]), key
+
+
+def test_the_lists_keep_their_order():
+    assert list(gm.VOICES)[:3] == ["plain", "droid", "beep"] and list(gm.STYLES)[:2] == ["trailer", "saga"]
+
+
+def write_style(root, stem, text):
+    (root / "birthdays").mkdir(exist_ok=True)
+    (root / "birthdays" / f"{stem}.yaml").write_text(text, encoding="utf-8")
+
+
+def test_a_new_message_file_is_a_new_choice(tmp_path):
+    write_style(tmp_path, "zed", 'name: "Zed"\nmessages:\n  - "Hi {names}: happy day"\n')           # no order: last
+    write_style(tmp_path, "abc", 'name: "Abc"\nmessages:\n  - "Yo"\n  - |-\n    Two\n\n    lines\n')
+    write_style(tmp_path, "top", 'name: "Top"\norder: 1\nmessages:\n  - "First"\n')
+    styles = load_styles(tmp_path)
+    assert list(styles) == ["top", "abc", "zed"]
+    assert styles["zed"] == ("Zed", ["Hi {names}: happy day"]) and styles["abc"][1] == ["Yo", "Two\n\nlines"]
+
+
+@pytest.mark.parametrize("stem,text,complaint", [
+    ("bad", 'name: "X"\nmessages:\n  - Teacher: {who}\n', "messages"),      # no quotes: YAML reads a mapping
+    ("bad", 'name: "X"\nmessages:\n  - *dramatic\n', "not valid YAML"),     # no quotes: YAML reads an alias
+    ("bad", 'name: "X"\nmessages:\n  - ""\n', "messages"),
+    ("bad", 'name: "X"\nmessages: []\n', "messages"),
+    ("bad", 'name: "X"\norder: soon\nmessages:\n  - "Hi"\n', "order"),
+    ("bad", 'messages:\n  - "Hi"\n', "name"),
+    ("custom", 'name: "X"\nmessages:\n  - "Hi"\n', "built-in choice"),
+])
+def test_a_bad_message_file_is_named(tmp_path, stem, text, complaint):
+    write_style(tmp_path, stem, text)
+    with pytest.raises(MessageFileError, match=complaint) as err:
+        load_styles(tmp_path)
+    assert f"{stem}.yaml" in str(err.value)
+
+
+def test_a_voice_file_needs_all_its_wording(tmp_path):
+    (tmp_path / "lessons").mkdir()
+    (tmp_path / "lessons" / "plain.yaml").write_text('name: "X"\nopeners:\n  - "Hi"\n', encoding="utf-8")
+    with pytest.raises(MessageFileError, match="headers"):
+        load_voices(tmp_path)
 
 
 def test_coming_sunday():

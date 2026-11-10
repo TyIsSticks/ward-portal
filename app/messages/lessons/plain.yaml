@@ -1,0 +1,58 @@
+# A lesson reminder voice. One line is picked at random from each list.
+# To add a line, add another - "..." row. Keep the double quotes.
+# Fill-ins: {org} is the organization, {when} is the date, like Oct 20.
+# Wards have the file name (plain) saved, so don't rename this file.
+
+name: "Friendly"
+order: 1  # position in the list on the settings page
+
+# The first line of every message.
+openers:
+  - "👋 Hi, {org}!"
+  - "Happy Monday, {org}! ☀️"
+  - "Good morning, {org}!"
+  - "Hi everyone! Here’s what’s coming up on Sunday."
+
+# Above the lesson details.
+headers:
+  - "📅 Sunday, {when}:"
+  - "📅 This Sunday ({when}):"
+  - "📅 Lesson for Sunday, {when}:"
+
+# Names the teacher. Every line needs {who}.
+teacher:
+  - "🎓 Teacher: {who}"
+  - "🎓 Taught by {who}"
+
+# When nobody is assigned to teach yet.
+no_teacher:
+  - "🎓 Teacher: still needed. Let the presidency know if you can help!"
+  - "🎓 We still need a teacher. Reply here if you’re willing!"
+
+# When no talk has been picked yet.
+no_talk:
+  - "📖 Talk: not picked yet."
+  - "📖 The talk hasn’t been picked yet."
+
+# When nothing at all is planned for that Sunday.
+nothing:
+  - "No lesson is planned for Sunday, {when} yet. More soon!"
+  - "Sunday’s lesson ({when}) isn’t planned yet. Stay tuned."
+
+# Replaces the lesson details on Sundays with no lesson.
+no_lesson:
+  fifth_sunday:
+    - "Sunday, {when} is a fifth Sunday, so there’s no regular {org} lesson."
+  stake_conference:
+    - "Sunday, {when} is stake conference, so there’s no {org} lesson."
+  no_second_hour:
+    - "There’s no second hour on Sunday, {when}, so no {org} lesson this week."
+  conference:
+    - "General conference is this weekend! No {org} lesson. Enjoy conference. 🙂"
+
+# The last line of every message.
+signoffs:
+  - "See you Sunday!"
+  - "Have a great week!"
+  - "Thanks, and see you Sunday! 🙂"
+  - "Have a wonderful week, everyone."

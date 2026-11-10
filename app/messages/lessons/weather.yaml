@@ -1,0 +1,60 @@
+# A lesson reminder voice. One line is picked at random from each list.
+# To add a line, add another - "..." row. Keep the double quotes.
+# Fill-ins: {org} is the organization, {when} is the date, like Oct 20.
+# Wards have the file name (weather) saved, so don't rename this file.
+
+name: "Weather forecaster"
+order: 9  # position in the list on the settings page
+catchphrase: "forecast"  # every opener must contain this, in any case
+
+# The first line of every message.
+openers:
+  - "☀️ Good morning! Here’s your {org} forecast."
+  - "🌤️ Time for the Monday forecast, {org}!"
+  - "🌈 It’s your weekly {org} forecast!"
+  - "⛅ Let’s check the forecast, {org}."
+
+# Above the lesson details.
+headers:
+  - "📍 Sunday, {when}: 100% chance of a great lesson."
+  - "📍 The outlook for Sunday, {when}:"
+  - "📍 Sunday, {when}, with a high of inspiration:"
+
+# Names the teacher. Every line needs {who}.
+teacher:
+  - "🎓 Bringing the sunshine: {who}"
+  - "🎓 On the radar: {who} will teach."
+  - "🎓 Teacher in the forecast: {who}"
+
+# When nobody is assigned to teach yet.
+no_teacher:
+  - "🎓 Teacher: scattered volunteers possible. Could be you! 🌦️"
+  - "🎓 No teacher on the radar yet. Volunteers welcome."
+
+# When no talk has been picked yet.
+no_talk:
+  - "📖 Talk: forecast pending."
+  - "📖 Talk: still a bit cloudy (not picked yet)."
+
+# When nothing at all is planned for that Sunday.
+nothing:
+  - "Sunday, {when}: clear skies, no lesson in sight… yet."
+  - "The outlook for Sunday, {when} is foggy. No lesson planned yet. 🌫️"
+
+# Replaces the lesson details on Sundays with no lesson.
+no_lesson:
+  fifth_sunday:
+    - "Sunday, {when} is a fifth Sunday. Calm conditions: no regular {org} lesson. 😎"
+  stake_conference:
+    - "A front is moving in from the stake center! Sunday, {when} is stake conference. No {org} lesson."
+  no_second_hour:
+    - "Sunday, {when}: no second hour. Expect early clearing after sacrament meeting. No {org} lesson."
+  conference:
+    - "General conference this weekend! 100% chance of couch. No {org} lesson. 🛋️"
+
+# The last line of every message.
+signoffs:
+  - "That’s your forecast. See you Sunday! ☀️"
+  - "Back to you! 🌤️"
+  - "Stay dry, and see you Sunday. ☔"
+  - "Have a sunny week!"

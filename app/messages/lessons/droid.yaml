@@ -1,0 +1,84 @@
+# A lesson reminder voice. One line is picked at random from each list.
+# To add a line, add another - "..." row. Keep the double quotes.
+# Fill-ins: {org} is the organization, {when} is the date, like Oct 20.
+# Wards have the file name (droid) saved, so don't rename this file.
+
+name: "Battle droid"
+order: 2  # position in the list on the settings page
+catchphrase: "roger roger"  # every opener must contain this, in any case
+
+# The first line of every message.
+openers:
+  - "🤖 Roger roger."
+  - "🤖 Roger roger. Incoming transmission from command."
+  - "🤖 Roger roger. Scanning the lesson schedule…"
+  - "🤖 Attention, {org} unit. Roger roger."
+  - "🤖 Uh… roger roger? Yes. Roger roger."
+  - "🤖 Roger roger. Weekly briefing follows."
+  - "🤖 Roger roger. Clankers, assemble."
+  - "🤖 Uh oh. I mean… roger roger."
+  - "🤖 Okay, okay! Roger roger."
+  - "🤖 Wha…? Oh. Roger roger."
+  - "🤖 Roger roger. Why do I always get the Monday assignments?"
+
+# Above the lesson details.
+headers:
+  - "📡 Briefing for Sunday, {when}:"
+  - "🗓️ Mission for Sunday, {when}:"
+  - "🎯 Target acquired: Sunday, {when}."
+  - "📋 Orders for Sunday, {when}:"
+
+# Names the teacher. Every line needs {who}.
+teacher:
+  - "🎓 Instructor: {who}"
+  - "🎓 Commanding officer: {who}"
+  - "🎓 Unit leader: {who}"
+
+# When nobody is assigned to teach yet.
+no_teacher:
+  - "🎓 Instructor: unassigned. Volunteers will be… volunteered."
+  - "🎓 Instructor: [CLASSIFIED] (not assigned yet)."
+  - "🎓 Instructor: none. Uh oh."
+  - "🎓 Instructor: … wha…? Nobody? Uh oh."
+
+# When no talk has been picked yet.
+no_talk:
+  - "📖 Talk: not picked yet. Awaiting orders from the presidency."
+  - "📖 Talk: [DATA MISSING]. Stand by for orders."
+  - "📖 Talk: uh oh. Not picked yet."
+
+# When nothing at all is planned for that Sunday.
+nothing:
+  - "Orders for Sunday, {when} have not been received yet. Stand by."
+  - "No lesson on the books for Sunday, {when}. Command is… working on it."
+  - "Scanning Sunday, {when}… no lesson found. Uh oh."
+  - "Sunday, {when}: no lesson planned. Uh oh. Uh oh. UH OH."
+
+# Replaces the lesson details on Sundays with no lesson.
+no_lesson:
+  fifth_sunday:
+    - "Fifth Sunday detected ({when}). No regular {org} lesson. Enjoy your shore leave."
+    - "Sunday, {when} is a fifth Sunday. Standard lesson protocol suspended."
+  stake_conference:
+    - "Stake conference on Sunday, {when}. All units report to the stake center. No {org} lesson."
+    - "Sunday, {when}: stake conference. No {org} lesson. Repeat: NO lesson."
+  no_second_hour:
+    - "No second hour on Sunday, {when}. Stand down after sacrament meeting."
+    - "Sunday, {when}: no second hour. No {org} lesson. Fall back after sacrament meeting."
+  conference:
+    - "General conference this weekend! All units report to the couch. 🛋️ No {org} lesson."
+    - "Sunday, {when} is general conference. Deploy snacks. Listen to the prophet. No {org} lesson."
+
+# The last line of every message.
+signoffs:
+  - "Read the talk before Sunday. That is an order."
+  - "Report for duty in the second hour."
+  - "End transmission."
+  - "Move along. Move along. 👋"
+  - "Bring your scriptures. Bring a friend. Do not bring a lightsaber."
+  - "Roger roger. 👍"
+  - "This briefing will now self-destruct. Just kidding. Roger roger."
+  - "Okay, okay. See you Sunday."
+  - "Uh oh. I forgot the sign-off. Roger roger?"
+  - "Copy, copy. End transmission."
+  - "Hey, you’re not permitted in the second hour… without your scriptures."

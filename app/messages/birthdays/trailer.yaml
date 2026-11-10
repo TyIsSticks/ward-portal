@@ -1,0 +1,43 @@
+# A birthday message style. One message is picked at random.
+# To add a one-line message, add another - "..." row and keep the double quotes.
+# For several lines, use - |- and indent the text under it, like the ones in trailer.yaml.
+# Fill-ins: {names} Ann Apple and Bo Birch, {NAMES} the same in capitals, {legend} legend or legends,
+# {s} the verb ending (continue{s}), {is} is or are, {has} has or have, {was} was or were.
+# Wards have the file name (trailer) saved, so don't rename this file.
+
+name: "Movie trailer"
+order: 1  # position in the list on the Birthdays page
+
+messages:
+  - |-
+    🎬 IN A WORLD… where the cake is plentiful and the candles are many…
+
+    ONE WARD dared to celebrate.
+
+    {NAMES}.
+
+    THE BIRTHDAY.
+
+    Now showing everywhere. 🍿🎂
+
+  - |-
+    🎥 From the ward that brought you funeral potatoes and the 20-minute closing hymn…
+    comes a story of courage. Of frosting. Of one more lap around the sun.
+
+    Starring {names}.
+
+    Happy birthday! Rated E for Everyone Eats Cake. 🎂
+
+  - |-
+    🎞️ They said it couldn’t be done. They said another year was impossible.
+
+    But {names} just did it AGAIN.
+
+    Coming soon… no wait, it’s TODAY. The {legend} continue{s}. Happy birthday! 🎂🔥
+
+  - |-
+    🎬 *epic music swells*
+
+    One ward. One calendar. One very special day.
+
+    {names}… this is YOUR day. Happy birthday! 🎂✨

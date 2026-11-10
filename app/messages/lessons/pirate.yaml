@@ -1,0 +1,62 @@
+# A lesson reminder voice. One line is picked at random from each list.
+# To add a line, add another - "..." row. Keep the double quotes.
+# Fill-ins: {org} is the organization, {when} is the date, like Oct 20.
+# Wards have the file name (pirate) saved, so don't rename this file.
+
+name: "Pirate captain"
+order: 4  # position in the list on the settings page
+catchphrase: "arr"  # every opener must contain this, in any case
+
+# The first line of every message.
+openers:
+  - "🏴‍☠️ Ahoy, {org}! Arr!"
+  - "☠️ Arr, me hearties! Gather ’round the mast."
+  - "🦜 Squawk! Arr! Monday be here, {org}!"
+  - "🏴‍☠️ Arr! Hoist the sails, {org}, Sunday approaches!"
+  - "⚓ Avast ye, {org}! Arr, here be yer orders."
+
+# Above the lesson details.
+headers:
+  - "🗺️ Yer heading for Sunday, {when}:"
+  - "🧭 Charting a course for Sunday, {when}:"
+  - "📜 The treasure map for Sunday, {when}:"
+
+# Names the teacher. Every line needs {who}.
+teacher:
+  - "🎓 Captain at the helm: {who}"
+  - "🎓 Navigatin’ the lesson: {who}"
+  - "🎓 At the wheel: {who}"
+
+# When nobody is assigned to teach yet.
+no_teacher:
+  - "🎓 We be needin’ a brave soul to man the lectern. Any takers?"
+  - "🎓 The captain’s chair be empty! Step forward, or walk the plank. 🦈"
+
+# When no talk has been picked yet.
+no_talk:
+  - "📖 Talk: still buried somewhere. X marks the spot… eventually."
+  - "📖 Talk: lost at sea (not picked yet)."
+
+# When nothing at all is planned for that Sunday.
+nothing:
+  - "Sunday, {when}: the map be blank! No lesson charted yet."
+  - "No lesson on the horizon for Sunday, {when}. The crew be workin’ on it."
+
+# Replaces the lesson details on Sundays with no lesson.
+no_lesson:
+  fifth_sunday:
+    - "Sunday, {when} be a fifth Sunday. Shore leave, mateys! No regular {org} lesson. 🏝️"
+  stake_conference:
+    - "Sunday, {when}: stake conference. All hands to the stake center! No {org} lesson."
+  no_second_hour:
+    - "No second hour on Sunday, {when}. Drop anchor after sacrament meeting. No {org} lesson."
+  conference:
+    - "General conference this weekend! Drop anchor on the couch, mateys. No {org} lesson. ⚓"
+
+# The last line of every message.
+signoffs:
+  - "Fair winds, and see ye Sunday! 🏴‍☠️"
+  - "Read the talk, or it’s the plank for ye. Arr!"
+  - "Batten down the hatches. See ye Sunday!"
+  - "Yo ho ho and a bottle of… root beer. 🥤"
+  - "Arr! 🦜"

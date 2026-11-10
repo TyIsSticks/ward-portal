@@ -1,0 +1,60 @@
+# A lesson reminder voice. One line is picked at random from each list.
+# To add a line, add another - "..." row. Keep the double quotes.
+# Fill-ins: {org} is the organization, {when} is the date, like Oct 20.
+# Wards have the file name (drama) saved, so don't rename this file.
+
+name: "Dramatic narrator"
+order: 10  # position in the list on the settings page
+catchphrase: "dramatic"  # every opener must contain this, in any case
+
+# The first line of every message.
+openers:
+  - "🎭 *dramatic music* Previously, on {org}…"
+  - "🎬 *dramatic pause* A new week dawns for the {org}."
+  - "🌩️ *dramatic thunder* Monday has arrived."
+  - "🎻 *dramatic violin* Nothing could prepare the {org} for what was coming…"
+
+# Above the lesson details.
+headers:
+  - "⚡ Sunday, {when}. One lesson. No turning back."
+  - "⚡ This Sunday ({when}), everything changes:"
+  - "⚡ It all comes down to Sunday, {when}:"
+
+# Names the teacher. Every line needs {who}.
+teacher:
+  - "🎓 One teacher dared to answer the call: {who}"
+  - "🎓 Starring {who} as… the teacher."
+  - "🎓 Destiny has chosen {who}."
+
+# When nobody is assigned to teach yet.
+no_teacher:
+  - "🎓 Who will teach? *gasp* No one knows."
+  - "🎓 The teacher’s chair sits empty… waiting… for a hero."
+
+# When no talk has been picked yet.
+no_talk:
+  - "📖 The talk? Still a mystery. 🕵️"
+  - "📖 Talk: to be revealed…"
+
+# When nothing at all is planned for that Sunday.
+nothing:
+  - "Sunday, {when}… the lesson plan is blank. What does it mean?! 😱"
+  - "No lesson for Sunday, {when}. Yet. The plot thickens."
+
+# Replaces the lesson details on Sundays with no lesson.
+no_lesson:
+  fifth_sunday:
+    - "Sunday, {when}: a fifth Sunday. No regular {org} lesson. A plot twist no one saw coming."
+  stake_conference:
+    - "Sunday, {when}: stake conference. The {org} journeys to the stake center. No lesson."
+  no_second_hour:
+    - "Sunday, {when}: no second hour. The {org} lesson… cancelled. *gasp*"
+  conference:
+    - "General conference this weekend. The season finale. No {org} lesson. 🍿"
+
+# The last line of every message.
+signoffs:
+  - "Find out what happens… THIS SUNDAY."
+  - "To be continued… 🎬"
+  - "Don’t miss the next episode."
+  - "*dramatic music fades*"

@@ -1,0 +1,60 @@
+# A lesson reminder voice. One line is picked at random from each list.
+# To add a line, add another - "..." row. Keep the double quotes.
+# Fill-ins: {org} is the organization, {when} is the date, like Oct 20.
+# Wards have the file name (gameshow) saved, so don't rename this file.
+
+name: "Game show host"
+order: 11  # position in the list on the settings page
+catchphrase: "come on dow"  # every opener must contain this, in any case
+
+# The first line of every message.
+openers:
+  - "🎰 Come on dowwwn! It’s time to play WHAT’S THE LESSON?!"
+  - "🎉 {org}, come on down! You’re the next contestant!"
+  - "🎤 Come on down, {org}! Let’s see what’s behind door number Sunday!"
+  - "✨ Come on down! It’s the {org} weekly showcase!"
+
+# Above the lesson details.
+headers:
+  - "🚪 Behind door number one: Sunday, {when}!"
+  - "🎁 Today’s prize: Sunday, {when}:"
+  - "🏆 The showcase for Sunday, {when}:"
+
+# Names the teacher. Every line needs {who}.
+teacher:
+  - "🎓 And our contestant is {who}!"
+  - "🎓 Give it up for {who}! 👏"
+  - "🎓 Our lucky teacher: {who}!"
+
+# When nobody is assigned to teach yet.
+no_teacher:
+  - "🎓 We still need a contestant! Will it be YOU?! 🫵"
+  - "🎓 Teacher: the wheel is still spinning…"
+
+# When no talk has been picked yet.
+no_talk:
+  - "📖 Talk: still behind the curtain!"
+  - "📖 Talk: the envelope, please… (not picked yet)."
+
+# When nothing at all is planned for that Sunday.
+nothing:
+  - "Behind door number Sunday ({when})… nothing yet! *sad trombone* 🎺"
+  - "Sunday, {when}: no lesson yet. Spin again!"
+
+# Replaces the lesson details on Sundays with no lesson.
+no_lesson:
+  fifth_sunday:
+    - "Sunday, {when} is a fifth Sunday. Bonus round: no regular {org} lesson! 🎉"
+  stake_conference:
+    - "Sunday, {when}: stake conference! The whole studio audience heads to the stake center. No {org} lesson."
+  no_second_hour:
+    - "Sunday, {when}: no second hour. Lightning round! No {org} lesson. ⚡"
+  conference:
+    - "General conference this weekend: the GRAND PRIZE! No {org} lesson. 🏆"
+
+# The last line of every message.
+signoffs:
+  - "Thanks for playing! See you Sunday!"
+  - "Don’t forget to read the talk! 🎤"
+  - "And remember: everybody wins on Sunday! 🎁"
+  - "Tune in next week!"

@@ -1,0 +1,60 @@
+# A lesson reminder voice. One line is picked at random from each list.
+# To add a line, add another - "..." row. Keep the double quotes.
+# Fill-ins: {org} is the organization, {when} is the date, like Oct 20.
+# Wards have the file name (nature) saved, so don't rename this file.
+
+name: "Nature documentary"
+order: 8  # position in the list on the settings page
+catchphrase: "observe"  # every opener must contain this, in any case
+
+# The first line of every message.
+openers:
+  - "🌿 *whispers* Here we observe the {org} in its natural Monday habitat…"
+  - "🦎 *hushed* If we stay very still, we can observe the {org} preparing for Sunday."
+  - "🌍 *softly* We observe a remarkable sight: a new week begins for the {org}."
+  - "🐘 *whispers* Few have been able to observe the {org} this closely…"
+
+# Above the lesson details.
+headers:
+  - "🔭 On Sunday, {when}, the herd will gather for:"
+  - "📹 Our cameras reveal the plan for Sunday, {when}:"
+  - "🌄 The migration toward Sunday, {when}:"
+
+# Names the teacher. Every line needs {who}.
+teacher:
+  - "🎓 Leading the herd: {who}"
+  - "🎓 A rare sighting: {who} will teach."
+  - "🎓 The teacher, in full display: {who}"
+
+# When nobody is assigned to teach yet.
+no_teacher:
+  - "🎓 The teacher… remains elusive. 🐾"
+  - "🎓 No teacher has been spotted in the wild. Perhaps… you?"
+
+# When no talk has been picked yet.
+no_talk:
+  - "📖 The talk has not yet emerged from its cocoon. 🐛"
+  - "📖 Talk: still in hibernation."
+
+# When nothing at all is planned for that Sunday.
+nothing:
+  - "Sunday, {when}: the lesson has not yet been spotted. We wait… patiently."
+  - "No lesson has been observed for Sunday, {when}. Remarkable."
+
+# Replaces the lesson details on Sundays with no lesson.
+no_lesson:
+  fifth_sunday:
+    - "Sunday, {when} is a fifth Sunday. The {org} rests, as nature intended. 🦥"
+  stake_conference:
+    - "Sunday, {when}: the great migration to the stake center. No {org} lesson. 🦬"
+  no_second_hour:
+    - "No second hour on Sunday, {when}. The herd disperses after sacrament meeting."
+  conference:
+    - "General conference this weekend. The {org} gathers at the watering hole… the couch. No lesson. 🛋️"
+
+# The last line of every message.
+signoffs:
+  - "Truly… magnificent. 🌿"
+  - "And so, the cycle continues. See you Sunday."
+  - "*nature music swells* 🎻"
+  - "Remarkable creatures. See you Sunday."

@@ -17,7 +17,7 @@ from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from . import config, db, lessons as les
-from .groupme_voices import DEFAULT_VOICE, VOICES
+from .groupme_messages import DEFAULT_VOICE, STYLES, VOICES
 from .reports import birthdays
 
 log = logging.getLogger(__name__)
@@ -202,44 +202,7 @@ def post(bot: str, text: str) -> None:
 
 
 # --- Birthday messages --------------------------------------------------------
-# {names} "Ann Apple and Bo Birch", {NAMES} shouted, {s} verb ending, {is}/{has}/{was}, {legend}(s).
-
-STYLES = {
-    "trailer": ("Movie trailer", [
-        "🎬 IN A WORLD… where the cake is plentiful and the candles are many…\n\n"
-        "ONE WARD dared to celebrate.\n\n{NAMES}.\n\nTHE BIRTHDAY.\n\nNow showing everywhere. 🍿🎂",
-        "🎥 From the ward that brought you funeral potatoes and the 20-minute closing hymn…\n"
-        "comes a story of courage. Of frosting. Of one more lap around the sun.\n\n"
-        "Starring {names}.\n\nHappy birthday! Rated E for Everyone Eats Cake. 🎂",
-        "🎞️ They said it couldn’t be done. They said another year was impossible.\n\n"
-        "But {names} just did it AGAIN.\n\nComing soon… no wait, it’s TODAY. The {legend} continue{s}. "
-        "Happy birthday! 🎂🔥",
-        "🎬 *epic music swells*\n\nOne ward. One calendar. One very special day.\n\n"
-        "{names}… this is YOUR day. Happy birthday! 🎂✨",
-    ]),
-    "saga": ("Epic saga", [
-        "📜 Hear ye, hear ye! Let the trumpets sound from every steeple: on this day {names} {has} "
-        "completed another glorious lap around the sun! May the cake be vast, the candles many, and the "
-        "singing only slightly off-key. 🎂⚔️",
-        "🐉 Sing, O bards, of {names}, who braved another year of potlucks, ministering visits and "
-        "chairs to stack, and emerged VICTORIOUS! Raise your goblets of Martinelli’s! 🥂🎂",
-        "🏰 Long ago, in a ward not so far away, {names} {was} born. The prophecy foretold that this "
-        "day would return every year. TODAY IS THAT DAY. Happy birthday! 👑🎂",
-    ]),
-    "hype": ("Stadium announcer", [
-        "🏟️ LAAAADIES AND GENTLEMEN! Put your hands together for today’s birthday {legend}… "
-        "{NAMES}!!! 🎉🎂🔥",
-        "📣 AND THE CROWD GOES WIIIILD! {names} just leveled up another year and {is} looking "
-        "UNSTOPPABLE! Happy birthday!! 🏆🎂",
-        "🎤 It’s game day, folks! {names} {is} officially one year more legendary. Everybody in the "
-        "chat, let’s hear it: HAPPY BIRTHDAY! 🙌🎂",
-    ]),
-    "droid": ("Battle droid", [
-        "🤖 Roger roger. Scanning ward records… birthday detected: {names}. Deploying cake. 🎂",
-        "🤖 Attention all units: {names} {is} now one year older. Orders are to celebrate. Roger roger. 🎉",
-        "🤖 Roger roger. Happy birthday, {names}. This message will not self-destruct. 🎂",
-    ]),
-}
+# The wording comes from a style (app/messages/birthdays/); the names are filled in here.
 
 
 def short_name(display: str) -> str:
@@ -283,7 +246,7 @@ def todays_birthdays(conn: sqlite3.Connection, today: date) -> list[str]:
 
 
 # --- Lesson reminders ---------------------------------------------------------
-# The wording comes from a voice (groupme_voices.py); next Sunday's details are filled in here.
+# The wording comes from a voice (app/messages/lessons/); next Sunday's details are filled in here.
 
 
 

@@ -1,0 +1,14 @@
+# A birthday message style. One message is picked at random.
+# To add a one-line message, add another - "..." row and keep the double quotes.
+# For several lines, use - |- and indent the text under it, like the ones in trailer.yaml.
+# Fill-ins: {names} Ann Apple and Bo Birch, {NAMES} the same in capitals, {legend} legend or legends,
+# {s} the verb ending (continue{s}), {is} is or are, {has} has or have, {was} was or were.
+# Wards have the file name (saga) saved, so don't rename this file.
+
+name: "Epic saga"
+order: 2  # position in the list on the Birthdays page
+
+messages:
+  - "📜 Hear ye, hear ye! Let the trumpets sound from every steeple: on this day {names} {has} completed another glorious lap around the sun! May the cake be vast, the candles many, and the singing only slightly off-key. 🎂⚔️"
+  - "🐉 Sing, O bards, of {names}, who braved another year of potlucks, ministering visits and chairs to stack, and emerged VICTORIOUS! Raise your goblets of Martinelli’s! 🥂🎂"
+  - "🏰 Long ago, in a ward not so far away, {names} {was} born. The prophecy foretold that this day would return every year. TODAY IS THAT DAY. Happy birthday! 👑🎂"

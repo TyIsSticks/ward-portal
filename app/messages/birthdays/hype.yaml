@@ -1,0 +1,14 @@
+# A birthday message style. One message is picked at random.
+# To add a one-line message, add another - "..." row and keep the double quotes.
+# For several lines, use - |- and indent the text under it, like the ones in trailer.yaml.
+# Fill-ins: {names} Ann Apple and Bo Birch, {NAMES} the same in capitals, {legend} legend or legends,
+# {s} the verb ending (continue{s}), {is} is or are, {has} has or have, {was} was or were.
+# Wards have the file name (hype) saved, so don't rename this file.
+
+name: "Stadium announcer"
+order: 3  # position in the list on the Birthdays page
+
+messages:
+  - "🏟️ LAAAADIES AND GENTLEMEN! Put your hands together for today’s birthday {legend}… {NAMES}!!! 🎉🎂🔥"
+  - "📣 AND THE CROWD GOES WIIIILD! {names} just leveled up another year and {is} looking UNSTOPPABLE! Happy birthday!! 🏆🎂"
+  - "🎤 It’s game day, folks! {names} {is} officially one year more legendary. Everybody in the chat, let’s hear it: HAPPY BIRTHDAY! 🙌🎂"

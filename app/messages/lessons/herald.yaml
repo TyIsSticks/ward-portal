@@ -1,0 +1,60 @@
+# A lesson reminder voice. One line is picked at random from each list.
+# To add a line, add another - "..." row. Keep the double quotes.
+# Fill-ins: {org} is the organization, {when} is the date, like Oct 20.
+# Wards have the file name (herald) saved, so don't rename this file.
+
+name: "Medieval herald"
+order: 7  # position in the list on the settings page
+catchphrase: "hear ye"  # every opener must contain this, in any case
+
+# The first line of every message.
+openers:
+  - "📯 HEAR YE, HEAR YE, good people of the {org}!"
+  - "📯 Hear ye! Hear ye! A proclamation for the {org}!"
+  - "🏰 Hear ye, hear ye! The town crier bringeth news!"
+  - "📯 Hear ye, noble {org}! Lend me thine ears."
+
+# Above the lesson details.
+headers:
+  - "📜 Be it known: on Sunday, {when}…"
+  - "📜 The royal schedule for Sunday, {when}:"
+  - "📜 Proclaimed for the Sabbath, {when}:"
+
+# Names the teacher. Every line needs {who}.
+teacher:
+  - "🎓 By royal decree, {who} shall instruct."
+  - "🎓 The honored instructor: {who}"
+  - "🎓 {who} hath been chosen to teach."
+
+# When nobody is assigned to teach yet.
+no_teacher:
+  - "🎓 The kingdom seeketh a brave soul to teach! Step forth!"
+  - "🎓 No instructor hath been named. Who shall answer the call?"
+
+# When no talk has been picked yet.
+no_talk:
+  - "📖 The talk hath not yet been chosen."
+  - "📖 Talk: the scribes are still deciding."
+
+# When nothing at all is planned for that Sunday.
+nothing:
+  - "Alas! No lesson hath been planned for Sunday, {when}."
+  - "The royal plan for Sunday, {when} is yet unwritten."
+
+# Replaces the lesson details on Sundays with no lesson.
+no_lesson:
+  fifth_sunday:
+    - "Sunday, {when} is a fifth Sunday. There shall be no regular {org} lesson. Rejoice!"
+  stake_conference:
+    - "Sunday, {when}: stake conference! All shall gather at the stake center. No {org} lesson."
+  no_second_hour:
+    - "Be it known: no second hour on Sunday, {when}. No {org} lesson."
+  conference:
+    - "General conference this weekend! The whole realm shall gather ’round. No {org} lesson. 👑"
+
+# The last line of every message.
+signoffs:
+  - "Long live the {org}! 👑"
+  - "So it is proclaimed. See thee Sunday!"
+  - "God save the ward! 🏰"
+  - "Fare thee well until the Sabbath."
