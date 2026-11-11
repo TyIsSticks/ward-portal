@@ -4,7 +4,7 @@ from datetime import date, timedelta
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Form, Request, UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -34,6 +34,13 @@ app.add_middleware(
     https_only=config.COOKIE_SECURE,
 )
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+def _favicon():
+    return FileResponse(BASE / "static" / "favicon.ico", media_type="image/x-icon")
+
+
 app.include_router(admin.router)
 app.include_router(ministering_routes.router)
 app.include_router(lessons_routes.router)
