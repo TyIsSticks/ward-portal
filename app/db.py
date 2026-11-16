@@ -180,7 +180,7 @@ CREATE TABLE IF NOT EXISTS talks (
 -- Ward-wide marks on a Sunday. Fifth Sundays have no lesson unless reopened with 'lesson'.
 CREATE TABLE IF NOT EXISTS lesson_days (
     date   TEXT PRIMARY KEY,                -- YYYY-MM-DD, always a Sunday
-    status TEXT NOT NULL CHECK (status IN ('lesson', 'stake_conference', 'no_second_hour')),
+    status TEXT NOT NULL CHECK (status IN ('lesson', 'stake_conference', 'no_second_hour', 'fifth_sunday')),
     note   TEXT NOT NULL DEFAULT ''
 );
 
@@ -299,6 +299,14 @@ def _migrate_columns(conn: sqlite3.Connection) -> None:
     # Lesson plan versions were per conference; conferences now share Sundays, so they're per plan
     # (kept in ward_settings). Only edit-conflict counters were in this table.
     conn.execute("DROP TABLE IF EXISTS lesson_boards")
+    # A fifth Sunday can carry a note, so its mark needs to be allowed in lesson_days.
+    row = conn.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'lesson_days'").fetchone()
+    if row and "fifth_sunday" not in row["sql"]:
+        conn.execute("ALTER TABLE lesson_days RENAME TO lesson_days_old")
+        conn.execute("CREATE TABLE lesson_days (date TEXT PRIMARY KEY, status TEXT NOT NULL CHECK (status IN "
+                     "('lesson', 'stake_conference', 'no_second_hour', 'fifth_sunday')), note TEXT NOT NULL DEFAULT '')")
+        conn.execute("INSERT INTO lesson_days SELECT date, status, note FROM lesson_days_old")
+        conn.execute("DROP TABLE lesson_days_old")
     # Layouts made before Relief Society support were all elders quorum.
     add("layouts", "org", "TEXT NOT NULL DEFAULT 'eq'")
     if _columns(conn, "layouts") and "approved_at" not in _columns(conn, "layouts"):

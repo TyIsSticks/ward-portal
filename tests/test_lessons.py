@@ -578,3 +578,16 @@ def test_teacher_role_in_accounts(client):
         users.set_role(conn, uid, "teacher")
         assert users.get_user(conn, uid)["role"] == "teacher"
     assert auth.role_flags("teacher") == (0, 0, 0, 1)
+
+
+def test_old_lesson_days_table_is_upgraded_for_fifth_sunday_notes():
+    import sqlite3
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    c.execute("CREATE TABLE lesson_days (date TEXT PRIMARY KEY, status TEXT NOT NULL CHECK "
+              "(status IN ('lesson', 'stake_conference', 'no_second_hour')), note TEXT NOT NULL DEFAULT '')")
+    c.execute("INSERT INTO lesson_days VALUES ('2030-11-10', 'stake_conference', 'Stake')")
+    db._migrate_columns(c)
+    c.execute("INSERT INTO lesson_days VALUES ('2030-12-29', 'fifth_sunday', 'Party')")
+    assert [tuple(r) for r in c.execute("SELECT * FROM lesson_days ORDER BY date")] == \
+        [("2030-11-10", "stake_conference", "Stake"), ("2030-12-29", "fifth_sunday", "Party")]
