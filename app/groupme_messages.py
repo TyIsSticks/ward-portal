@@ -16,6 +16,7 @@ RESERVED = {"mix", "custom"}  # choices on the settings forms that aren't files
 LAST = 10_000                 # where a file with no `order` goes
 
 VOICE_LISTS = ("openers", "headers", "teacher", "no_teacher", "no_talk", "nothing", "signoffs")
+MIDWEEK_LISTS = ("openers", "headers", "nothing", "signoffs")   # a voice's own wording for the mid-week reminder
 NO_LESSON = ("fifth_sunday", "stake_conference", "no_second_hour", "conference")
 
 
@@ -31,6 +32,11 @@ def _check_lines(value, path: Path, where: str) -> None:
 def _check_voice(data: dict, path: Path) -> None:
     for part in VOICE_LISTS:
         _check_lines(data.get(part), path, part)
+    midweek = data.get("midweek")
+    if not isinstance(midweek, dict):
+        raise MessageFileError(f'{path}: "midweek" is missing.')
+    for part in MIDWEEK_LISTS:
+        _check_lines(midweek.get(part), path, f"midweek: {part}")
     no_lesson = data.get("no_lesson")
     if not isinstance(no_lesson, dict):
         raise MessageFileError(f'{path}: "no_lesson" is missing.')

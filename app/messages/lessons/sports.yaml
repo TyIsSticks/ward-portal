@@ -58,3 +58,24 @@ signoffs:
   - "That’s all for now, folks. See you Sunday!"
   - "Don’t touch that dial! 📺"
   - "And that’s the ballgame. See you Sunday! ⚾"
+
+# The optional mid-week reminder (a second post later in the week) has its own wording.
+# It reuses the teacher, no_talk and no_lesson lines above. Fill-ins work the same way.
+midweek:
+  openers:
+    - "🏈 It’s midweek, folks! Time for a quick update!"
+    - "🎙️ We’re back, folks, with the midweek report!"
+    - "📣 Halfway through the week, folks!"
+    - "🏟️ Midweek check-in, folks, live from the studio!"
+  headers:
+    - "📺 The Sunday matchup is getting close ({when}):"
+    - "🗓️ Game day is coming: Sunday, {when}."
+    - "📊 Scouting report for Sunday ({when}):"
+  nothing:
+    - "Sunday, {when}: still no lesson on the schedule. Updates after the break!"
+    - "Still no lineup for Sunday, {when}. Stay tuned!"
+  signoffs:
+    - "Get some practice in before Sunday! 🏆"
+    - "Back to you in the studio! 🎙️"
+    - "Don’t touch that dial! 📺"
+    - "That’s the midweek report, folks."

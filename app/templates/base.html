@@ -8,7 +8,8 @@
   <meta name="theme-color" content="#1E4D3B">
   <script>
     // Apply the saved theme before first paint. "system" (or nothing saved) follows the device.
-    try { const t = localStorage.getItem("theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
+    try { const t = localStorage.getItem("theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+      const c = localStorage.getItem("palette"); if (c && c !== "forest") document.documentElement.dataset.palette = c; } catch (e) {}
   </script>
   <link rel="icon" href="/static/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png">
@@ -53,6 +54,15 @@
                 <button type="button" data-theme-choice="system">System</button><button type="button" data-theme-choice="light">Light</button><button type="button" data-theme-choice="dark">Dark</button>
               </div>
             </div>
+            <div class="theme-pick" role="group" aria-label="Colors">
+              <span class="small muted">Colors</span>
+              <div class="palette-pick">
+                <button type="button" data-palette-choice="forest" style="--sw:#1E4D3B"><span class="dot"></span>Forest</button>
+                <button type="button" data-palette-choice="rose" style="--sw:#C23A6B"><span class="dot"></span>Rose</button>
+                <button type="button" data-palette-choice="lavender" style="--sw:#7557B0"><span class="dot"></span>Lavender</button>
+                <button type="button" data-palette-choice="ocean" style="--sw:#2F6D9A"><span class="dot"></span>Ocean</button>
+              </div>
+            </div>
             <a href="/account">Account &amp; password</a>
             {% if user.manages %}<a href="/admin/users">Users</a>{% endif %}
             {% if user.is_admin %}<a href="/admin/wards">Wards</a>{% endif %}
@@ -94,6 +104,18 @@
         const t = b.dataset.themeChoice;
         if (t === "system") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
         try { t === "system" ? localStorage.removeItem("theme") : localStorage.setItem("theme", t); } catch (e) {}
+        mark();
+      }));
+      mark();
+    })();
+    // Color palette: saved on this device, like the theme.
+    (() => {
+      const buttons = document.querySelectorAll("[data-palette-choice]");
+      const mark = () => buttons.forEach(b => b.setAttribute("aria-pressed", String(b.dataset.paletteChoice === (document.documentElement.dataset.palette || "forest"))));
+      buttons.forEach(b => b.addEventListener("click", () => {
+        const c = b.dataset.paletteChoice;
+        if (c === "forest") delete document.documentElement.dataset.palette; else document.documentElement.dataset.palette = c;
+        try { c === "forest" ? localStorage.removeItem("palette") : localStorage.setItem("palette", c); } catch (e) {}
         mark();
       }));
       mark();

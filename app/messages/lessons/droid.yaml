@@ -82,3 +82,25 @@ signoffs:
   - "Uh oh. I forgot the sign-off. Roger roger?"
   - "Copy, copy. End transmission."
   - "Hey, you’re not permitted in the second hour… without your scriptures."
+
+# The optional mid-week reminder (a second post later in the week) has its own wording.
+# It reuses the teacher, no_talk and no_lesson lines above. Fill-ins work the same way.
+midweek:
+  openers:
+    - "🤖 Roger roger. Midweek status report."
+    - "🤖 Roger roger. Checking in, midweek."
+    - "🤖 Uh… roger roger? Is it midweek already?"
+    - "🤖 Roger roger. Reminder transmission incoming."
+    - "🤖 Roger roger. Clankers, stay on schedule."
+  headers:
+    - "📡 Reminder for Sunday, {when}:"
+    - "🗓️ Mission still scheduled for Sunday, {when}:"
+    - "📋 Orders unchanged for Sunday, {when}:"
+  nothing:
+    - "Orders for Sunday, {when} still have not been received. Uh oh."
+    - "Still no lesson on the books for Sunday, {when}. Command is… still working on it."
+  signoffs:
+    - "Review the briefing before Sunday. That is an order."
+    - "End transmission."
+    - "Roger roger. 👍"
+    - "Okay, okay. See you Sunday."

@@ -58,3 +58,24 @@ signoffs:
   - "And so, the cycle continues. See you Sunday."
   - "*nature music swells* 🎻"
   - "Remarkable creatures. See you Sunday."
+
+# The optional mid-week reminder (a second post later in the week) has its own wording.
+# It reuses the teacher, no_talk and no_lesson lines above. Fill-ins work the same way.
+midweek:
+  openers:
+    - "🌿 *whispers* Midweek: we observe the {org} going about its week…"
+    - "🦎 *hushed* Here, we observe the {org} at midweek."
+    - "🌍 *softly* We observe a quiet moment, midweek, among the {org}."
+    - "🐘 *whispers* The herd must now be observed… preparing."
+  headers:
+    - "🔭 Soon, the herd will gather again, Sunday, {when}:"
+    - "📹 Our cameras confirm the plan for Sunday, {when}:"
+    - "🌄 The migration approaches: Sunday, {when}:"
+  nothing:
+    - "Sunday, {when}: still no lesson has been spotted. We wait… patiently."
+    - "Still no lesson observed for Sunday, {when}. Fascinating."
+  signoffs:
+    - "Magnificent. See you Sunday. 🌿"
+    - "And so the week continues."
+    - "*nature music swells* 🎻"
+    - "Remarkable creatures."

@@ -211,8 +211,12 @@ def _lesson_bot(conn, org: str, today: date) -> dict:
     if any(own.values()):
         samples["custom"] = groupme.lesson_message(conn, org, sunday, words=groupme.own_voice(conn, key))
     day, at = groupme.schedule(conn, key)
+    extra = groupme.midweek(conn, key)
+    mid = {v: groupme.lesson_message(conn, org, sunday, words=groupme.VOICES[v], midweek=True) for v in groupme.VOICES}
     return groupme.status(conn, key) | {"voice": groupme.voice(conn, key), "own": starter, "samples": samples,
-                                        "day": day, "time": at, "when": groupme.schedule_label(conn, key)}
+                                        "day": day, "time": at, "midweek": extra, "mid_samples": mid,
+                                        "day2": extra[0] if extra else (day + 3) % 7, "time2": extra[1] if extra else at,
+                                        "when": groupme.schedule_label(conn, key)}
 
 
 @router.post("/lessons/calendar/regenerate")

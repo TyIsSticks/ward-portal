@@ -206,6 +206,10 @@ def test_sunday_marks(client):
     with db.ward_connect(1) as conn:
         assert les.set_day(conn, "2030-12-29", "lesson") == {"status": "lesson", "note": ""}   # reopen a fifth Sunday
         assert les.set_day(conn, "2030-12-29", "fifth_sunday") == {"status": "fifth_sunday", "note": ""}
+        # A note on a fifth Sunday is kept (it used to be dropped when the status was left at the default).
+        assert les.set_day(conn, "2030-12-29", "fifth_sunday", "Ward party") == {"status": "fifth_sunday", "note": "Ward party"}
+        assert les.day_marks(conn, [date(2030, 12, 29)])["2030-12-29"]["note"] == "Ward party"
+        assert les.set_day(conn, "2030-12-29", "fifth_sunday", "")["note"] == ""
         assert les.set_day(conn, "2030-11-10", "stake_conference", "  Stake   conf ") == \
             {"status": "stake_conference", "note": "Stake conf"}
         assert les.set_day(conn, "2030-11-10", "lesson")["status"] == "lesson"

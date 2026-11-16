@@ -33,7 +33,7 @@ name in the header and add wards on the **Wards** page.
 
 **Layout:** the dashboard is a hub with a tile per area (Birthdays, Elders Quorum, Relief Society, Lessons)
 and a to-do list. Uploads live behind the **Upload report** button in the header. Each person can
-pick a **System / Light / Dark** theme from the account menu (top right). System follows their device.
+pick a **System / Light / Dark** theme and a color palette (Forest, Rose, Lavender or Ocean) from the account menu (top right). System follows their device; both choices are saved on that device.
 
 Stack: FastAPI · SQLite · Jinja templates · Docker Compose · exposed via Tailscale Funnel.
 
@@ -141,7 +141,7 @@ member, Needs extra care, Returning, Less active; they're also in the warnings u
 assigned), **green** for people left out on purpose (Moving records and the Leader tags), and a plain
 flag for anything else (Limited contact).
 
-Companion history (“↺”) comes from past imports, so it appears once you've imported more than once.
+Companion history (“↺”) comes from past imports, so it appears once you've imported more than once. Only the current import and one past import are kept per organization (the older ones are deleted when you import again); drafts are never deleted.
 
 ## Lessons
 
@@ -241,7 +241,7 @@ away; *Turn off* stops it (the chosen wording is kept).
   opening and closing lines around the lesson details (`{org}` and `{when}` fill in). The wording is
   shuffled each week. Elders Quorum and Relief Society can each have a bot, each with its own
   **day and time** (*When it posts*: any day, 5 am to 10:30 pm in half hours; Monday at 9 am to
-  start). It's always about the coming Sunday, so posting on a Sunday covers next week's lesson.
+  start). It's always about the coming Sunday, so posting on a Sunday covers next week's lesson. Tick **Also send a mid-week reminder** to pick a second day and time; it uses each voice's own `midweek:` wording (opening, header, "nothing yet" and closing lines) in the YAML files.
 
 The wording lives in YAML files, one per choice: `app/messages/lessons/` for the voices and
 `app/messages/birthdays/` for the birthday styles. To add lines, add `- "..."` rows to a list. To add

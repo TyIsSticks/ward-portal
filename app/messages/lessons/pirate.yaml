@@ -60,3 +60,24 @@ signoffs:
   - "Batten down the hatches. See ye Sunday!"
   - "Yo ho ho and a bottle of… root beer. 🥤"
   - "Arr! 🦜"
+
+# The optional mid-week reminder (a second post later in the week) has its own wording.
+# It reuses the teacher, no_talk and no_lesson lines above. Fill-ins work the same way.
+midweek:
+  openers:
+    - "🏴‍☠️ Ahoy, {org}! Midweek, arr!"
+    - "☠️ Arr! Halfway through the voyage, me hearties!"
+    - "🦜 Squawk! Arr! Midweek check, {org}!"
+    - "⚓ Avast ye, {org}! Arr, a reminder from the crow’s nest."
+  headers:
+    - "🗺️ Still headin’ for Sunday, {when}:"
+    - "🧭 The course holds for Sunday, {when}:"
+    - "📜 Yer treasure map, Sunday, {when}:"
+  nothing:
+    - "Sunday, {when}: the map be still blank! No lesson charted yet."
+    - "No lesson on the horizon yet for Sunday, {when}. The crew works on it."
+  signoffs:
+    - "Study yer map, or it’s the plank! Arr!"
+    - "Fair winds till Sunday! 🏴‍☠️"
+    - "Yo ho ho! 🦜"
+    - "Batten down the hatches, see ye Sunday!"

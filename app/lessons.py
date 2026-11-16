@@ -195,7 +195,7 @@ def set_day(conn: sqlite3.Connection, iso: str, status: str, note: str = "") -> 
     if status not in STATUSES or (status == "fifth_sunday" and day.day <= 28):
         raise LessonError("Unknown status.")
     note = " ".join(str(note or "").split())[:120]
-    if status == "fifth_sunday" or (status == "lesson" and day.day <= 28 and not note):
+    if status == auto_status(day) and not note:
         conn.execute("DELETE FROM lesson_days WHERE date = ?", (iso,))   # back to the default
     else:
         conn.execute("INSERT INTO lesson_days (date, status, note) VALUES (?, ?, ?) "

@@ -8,7 +8,7 @@
     <p class="crumbs"><a href="/lessons">← Lesson plan</a></p>
     <h1>GroupMe reminders</h1>
     <div class="sub">A GroupMe bot posts the coming Sunday’s lesson (talk, link and teacher) to the group chat once a
-      week, on the day and at the time you pick, or says why there’s no lesson. Each organization can have its own bot.
+      week (or twice, with a mid-week reminder), on the day and at the time you pick, or says why there’s no lesson. Each organization can have its own bot.
       {% if shared %}Both use the shared plan, each with its own teachers.{% endif %}</div>
   </div>
 </div>
@@ -30,6 +30,23 @@
           {% for value, label in times %}<option value="{{ value }}"{% if value == bot.time %} selected{% endif %}>{{ label }}</option>{% endfor %}
         </select></label>
       </div>
+      <label class="check"><input type="checkbox" name="midweek" value="1"{% if bot.midweek %} checked{% endif %}>
+        Also send a mid-week reminder</label>
+      <div class="row">
+        <label>on <select name="day2" aria-label="Mid-week day">
+          {% for d in days %}<option value="{{ loop.index0 }}"{% if loop.index0 == bot.day2 %} selected{% endif %}>{{ d }}</option>{% endfor %}
+        </select></label>
+        <label>at <select name="time2" aria-label="Mid-week time">
+          {% for value, label in times %}<option value="{{ value }}"{% if value == bot.time2 %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select></label>
+      </div>
+      <details class="bot-sample"><summary>See a mid-week sample</summary>
+        <div class="bot-msg">{{ bot.mid_samples[bot.voice] or bot.mid_samples.plain }}</div></details>
+      {% if bot.configured and bot.midweek %}
+      <button class="secondary" name="action" value="test-midweek"
+              onclick="return confirm('Post a mid-week test message to the group chat now?')">Send a mid-week test</button>
+      {% endif %}
+      <p class="muted small">The mid-week reminder is optional and has its own wording in each voice. Pick two different days.</p>
       <p class="muted small">Now: {{ bot.when }}. It’s always about the coming Sunday (posting on a Sunday means next
         week’s lesson). Times are {{ timezone }}.</p>
     </fieldset>

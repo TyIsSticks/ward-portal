@@ -128,11 +128,32 @@ def schedule(conn: sqlite3.Connection, key: str) -> tuple[int, str]:
             at if at in TIMES else f"{LESSON_HOUR:02d}:00")
 
 
-def set_schedule(conn: sqlite3.Connection, key: str, day: str, at: str) -> None:
-    if day not in {str(i) for i in range(7)} or at not in TIMES:
+def midweek(conn: sqlite3.Connection, key: str) -> tuple[int, str] | None:
+    """The optional second, mid-week reminder: (weekday, "HH:MM"), or None while it's off."""
+    day = db.get_ward_setting(conn, f"groupme:{key}:day2")
+    if day not in {str(i) for i in range(7)}:
+        return None
+    at = db.get_ward_setting(conn, f"groupme:{key}:time2")
+    return int(day), at if at in TIMES else schedule(conn, key)[1]
+
+
+def set_schedule(conn: sqlite3.Connection, key: str, day: str, at: str, day2: str = "", at2: str = "") -> None:
+    """Save the main day and time, and the mid-week reminder's (`day2` empty = no mid-week reminder)."""
+    days = {str(i) for i in range(7)}
+    if day not in days or at not in TIMES:
         raise GroupMeError("Pick a day and a time.")
+    if day2:
+        if day2 not in days or (at2 or at) not in TIMES:
+            raise GroupMeError("Pick a day and a time for the mid-week reminder.")
+        if day2 == day:
+            raise GroupMeError("Pick two different days for the two reminders.")
     db.set_ward_setting(conn, f"groupme:{key}:day", day)
     db.set_ward_setting(conn, f"groupme:{key}:time", at)
+    if day2:
+        db.set_ward_setting(conn, f"groupme:{key}:day2", day2)
+        db.set_ward_setting(conn, f"groupme:{key}:time2", at2 or at)
+    else:
+        conn.execute("DELETE FROM ward_settings WHERE key IN (?, ?)", (f"groupme:{key}:day2", f"groupme:{key}:time2"))
 
 
 def time_label(at: str) -> str:
@@ -143,7 +164,9 @@ def time_label(at: str) -> str:
 
 def schedule_label(conn: sqlite3.Connection, key: str) -> str:
     day, at = schedule(conn, key)
-    return f"every {DAYS[day]} at {time_label(at)}"
+    label = f"every {DAYS[day]} at {time_label(at)}"
+    extra = midweek(conn, key)
+    return f"{label} and {DAYS[extra[0]]} at {time_label(extra[1])}" if extra else label
 
 
 def own_voice(conn: sqlite3.Connection, key: str) -> dict:
@@ -256,10 +279,15 @@ def coming_sunday(today: date) -> date:
 
 
 def lesson_message(conn: sqlite3.Connection, org: str, sunday: date, rng: random.Random | None = None,
-                   words: dict | None = None) -> str:
-    """Next Sunday's lesson (talks, links, teacher) or why there isn't one, in a voice (`words`)."""
+                   words: dict | None = None, midweek: bool = False) -> str:
+    """Next Sunday's lesson (talks, links, teacher) or why there isn't one, in a voice (`words`).
+
+    A mid-week reminder uses the voice's own opening, header, "nothing yet" and closing lines.
+    """
     rng = rng or random.Random()
     words = words or VOICES[DEFAULT_VOICE]
+    if midweek:
+        words = words | words["midweek"]
     fmt = {"org": les.ORGS[org], "when": f"{sunday:%b} {sunday.day}"}
 
     def say(part, **extra):
@@ -293,17 +321,19 @@ def lesson_message(conn: sqlite3.Connection, org: str, sunday: date, rng: random
 
 # --- What to send ---------------------------------------------------------------
 
-def preview(conn: sqlite3.Connection, key: str, today: date) -> str | None:
-    """The message this bot would send for `today` (lessons: for the coming Sunday)."""
+def preview(conn: sqlite3.Connection, key: str, today: date, midweek: bool = False) -> str | None:
+    """The message this bot would send for `today` (lessons: for the coming Sunday, or the mid-week one)."""
     if key == "birthdays":
         return birthday_message(todays_birthdays(conn, today), style(conn), custom=custom_birthdays(conn))
-    return lesson_message(conn, key.removeprefix("lessons-"), coming_sunday(today), words=lesson_voice(conn, key))
+    return lesson_message(conn, key.removeprefix("lessons-"), coming_sunday(today), words=lesson_voice(conn, key),
+                          midweek=midweek)
 
 
 def due(conn: sqlite3.Connection, moment: datetime) -> list[tuple[str, str, str]]:
     """(key, bot id, text) for every bot of this ward that should post now."""
     today, out = moment.date(), []
     for key in BOTS:
+        is_midweek = False
         bid = bot_id(conn, key)
         if not bid or _done_today(conn, key, today):
             continue
@@ -312,9 +342,12 @@ def due(conn: sqlite3.Connection, moment: datetime) -> list[tuple[str, str, str]
                 continue
         else:
             day, at = schedule(conn, key)
+            extra = midweek(conn, key)
+            if extra and moment.weekday() == extra[0]:
+                (day, at), is_midweek = extra, True
             if moment.weekday() != day or f"{moment:%H:%M}" < at:
                 continue
-        text = preview(conn, key, today)
+        text = preview(conn, key, today, midweek=is_midweek)
         if text:
             out.append((key, bid, text))
     return out
@@ -342,12 +375,12 @@ def run_due(moment: datetime | None = None) -> int:
     return sent
 
 
-def send_test(conn: sqlite3.Connection, key: str, today: date) -> None:
+def send_test(conn: sqlite3.Connection, key: str, today: date, midweek: bool = False) -> None:
     """Post what the bot would send now, marked as a test (birthdays use a sample name if nobody has one today)."""
     bid = bot_id(conn, key)
     if not bid:
         raise GroupMeError("Add the bot ID first.")
-    text = preview(conn, key, today) or birthday_message(["Sam Sample"], style(conn), custom=custom_birthdays(conn))
+    text = preview(conn, key, today, midweek=midweek) or birthday_message(["Sam Sample"], style(conn), custom=custom_birthdays(conn))
     post(bid, f"🧪 Test from the ward portal:\n\n{text}")
 
 

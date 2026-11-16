@@ -511,3 +511,17 @@ def test_one_ministering_tab_remembers_the_org(client, conn):
     assert '<a href="/ministering/eq">Elders Quorum</a>' in page
     assert '<a href="/ministering/rs" aria-current="page">Relief Society</a>' in page
     assert client.get("/ministering", follow_redirects=False).headers["location"] == "/ministering/rs"
+
+
+def test_only_one_past_import_is_kept(conn):
+    def run(*names):
+        return m.finish_import(conn, m.match_names(conn, report_of((list(names), ["Dunn, Di"]))), {}, "a", "eq")
+    first = run("Able, Al", "Baker, Bo")
+    second = run("Able, Al", "Cole, Cy")
+    draft = m.create_layout(conn, "eq", "My plan", "current", "a")
+    other_org = m.finish_import(conn, m.match_names(conn, report_of((["Dunn, Di"], ["Ford, Fay"]))), {}, "a", "rs")
+    third = run("Able, Al", "Baker, Bo")
+    ids = {l["id"] for l in m.list_layouts(conn, "eq")}
+    assert first not in ids                      # two imports back: deleted
+    assert {second, third, draft} <= ids         # past import, current import and the draft stay
+    assert m.get_layout(conn, other_org)         # other org untouched

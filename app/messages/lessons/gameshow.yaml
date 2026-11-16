@@ -58,3 +58,24 @@ signoffs:
   - "Don’t forget to read the talk! 🎤"
   - "And remember: everybody wins on Sunday! 🎁"
   - "Tune in next week!"
+
+# The optional mid-week reminder (a second post later in the week) has its own wording.
+# It reuses the teacher, no_talk and no_lesson lines above. Fill-ins work the same way.
+midweek:
+  openers:
+    - "🎰 Come on dowwwn! It’s the midweek bonus round!"
+    - "🎉 {org}, come on down for a midweek update!"
+    - "🎤 Come on down! Time for a midweek reminder!"
+    - "✨ Come on down, {org}! Halfway to the showcase!"
+  headers:
+    - "🚪 Still behind door number one: Sunday, {when}!"
+    - "🎁 Reminder, the grand prize: Sunday, {when}:"
+    - "🏆 The showcase is coming: Sunday, {when}:"
+  nothing:
+    - "Sunday, {when}: the door is still locked. No lesson yet! *sad trombone* 🎺"
+    - "Still no lesson for Sunday, {when}. Spin again!"
+  signoffs:
+    - "Study up, contestants! See you Sunday!"
+    - "Thanks for playing! 🎤"
+    - "The showcase is almost here! 🎁"
+    - "Stay tuned!"

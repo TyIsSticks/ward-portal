@@ -1,20 +1,50 @@
-/* Ward Portal: "Forest header band" theme. */
+/* Ward Portal: colour palettes (data-palette on <html>) x light/dark (data-theme, or the device setting).
+   Each palette sets its light values plus --d-* values that dark mode swaps in. */
 :root {
-  --band: #1E4D3B; --band-2: #2E6B53; --band-ink: #fff; --band-muted: #BFD9CB; --tab-ink: #D7E8DF;
+  --brand: #1E4D3B; --band: #1E4D3B; --band-2: #2E6B53; --band-ink: #fff; --band-muted: #BFD9CB; --tab-ink: #D7E8DF;
   --bg: #F3F6F4; --card: #fff; --ink: #1B2A22; --muted: #4E5F56; --line: #DCE5DF; --soft: #E7EEEA;
-  --accent: #1E4D3B; --accent-ink: #fff; --flag-need: #E2A21B; --flag-skip: #1E9E55; --flag-skip-ink: #fff; --cta: #C2540A; --gold: #F2B33D;
+  --accent: #1E4D3B; --accent-ink: #fff; --cta: #C2540A;
+  --d-band: #163A2C; --d-band-2: #24573F; --d-band-muted: #A9CBB9;
+  --d-bg: #101613; --d-card: #18211C; --d-ink: #E6EEE9; --d-muted: #A3B3AA; --d-line: #2A3730; --d-soft: #222D27;
+  --d-accent: #7FCBA4; --d-accent-ink: #0E1C15; --d-cta: #E07A35;
+  --flag-need: #E2A21B; --flag-skip: #1E9E55; --flag-skip-ink: #fff; --gold: #F2B33D;
   --ok: #DFF1E7; --err: #FBE4E4; --err-ink: #A1242B; --warn-bg: #FFF4D6; --warn-ink: #7A4B00;
   --bday-bg: #FFE9D6; --bday: #8A3A08; --eq-bg: #DCEAFB; --eq: #1F4E99; --rs-bg: #F9E1EA; --rs: #9B2457;
   --les-bg: #E3F1E6; --les: #22663F;
   --radius: 20px;
   color-scheme: light;
 }
-/* Theme: follows the device unless the viewer picked Light or Dark (data-theme on <html>). */
+:root[data-palette="rose"] {
+  --brand: #9D3A62; --band: #9D3A62; --band-2: #B8527D; --band-muted: #F6CADB; --tab-ink: #FBE3EC;
+  --bg: #FDF4F7; --ink: #2E1A23; --muted: #6E4D5C; --line: #F0D9E2; --soft: #F9E6ED;
+  --accent: #A8325F; --cta: #C23A6B;
+  --d-band: #5A1F3A; --d-band-2: #7A2E50; --d-band-muted: #E8B3C9;
+  --d-bg: #1A1015; --d-card: #261820; --d-ink: #F5E6EC; --d-muted: #C4A3B2; --d-line: #3A2530; --d-soft: #2F1D26;
+  --d-accent: #F29BBD; --d-accent-ink: #2A0F1C; --d-cta: #EE6B9A;
+}
+:root[data-palette="lavender"] {
+  --brand: #5B3F94; --band: #5B3F94; --band-2: #7557B0; --band-muted: #D9CCF0; --tab-ink: #ECE4FA;
+  --bg: #F6F3FB; --ink: #221B33; --muted: #5C5273; --line: #E2DBF0; --soft: #EEE8F8;
+  --accent: #5B3F94; --cta: #B93C86;
+  --d-band: #36255C; --d-band-2: #4A3478; --d-band-muted: #C9B8EA;
+  --d-bg: #14101C; --d-card: #1E1829; --d-ink: #EDE8F7; --d-muted: #B2A7C8; --d-line: #302842; --d-soft: #272036;
+  --d-accent: #B9A0F0; --d-accent-ink: #1A1030; --d-cta: #E070B0;
+}
+:root[data-palette="ocean"] {
+  --brand: #1D4E75; --band: #1D4E75; --band-2: #2F6D9A; --band-muted: #BFD8EC; --tab-ink: #D8E8F4;
+  --bg: #F2F6FA; --ink: #14222E; --muted: #4A5D6D; --line: #D8E3EC; --soft: #E6EEF5;
+  --accent: #1D4E75;
+  --d-band: #13354F; --d-band-2: #1F4D72; --d-band-muted: #A5C6E0;
+  --d-bg: #0F151B; --d-card: #17202A; --d-ink: #E4EDF5; --d-muted: #9FB1C1; --d-line: #263543; --d-soft: #202C38;
+  --d-accent: #7DB8E8; --d-accent-ink: #0A1A28;
+}
+/* Dark: follows the device unless the viewer picked Light or Dark (data-theme on <html>). */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --band: #163A2C; --band-2: #24573F; --band-muted: #A9CBB9;
-    --bg: #101613; --card: #18211C; --ink: #E6EEE9; --muted: #A3B3AA; --line: #2A3730; --soft: #222D27;
-    --accent: #7FCBA4; --accent-ink: #0E1C15; --flag-need: #F0B75D; --flag-skip: #4CC77E; --flag-skip-ink: #0E1C15; --cta: #E07A35;
+    --band: var(--d-band); --band-2: var(--d-band-2); --band-muted: var(--d-band-muted);
+    --bg: var(--d-bg); --card: var(--d-card); --ink: var(--d-ink); --muted: var(--d-muted); --line: var(--d-line); --soft: var(--d-soft);
+    --accent: var(--d-accent); --accent-ink: var(--d-accent-ink); --cta: var(--d-cta);
+    --flag-need: #F0B75D; --flag-skip: #4CC77E; --flag-skip-ink: #0E1C15;
     --ok: #1C3327; --err: #3A1F21; --err-ink: #F5A3A8; --warn-bg: #3A2C14; --warn-ink: #F0C27A;
     --bday-bg: #3A2414; --bday: #F3B98A; --eq-bg: #16263D; --eq: #9CC2F2; --rs-bg: #3A1C29; --rs: #F0A6C4;
     --les-bg: #17301F; --les: #93D6AE;
@@ -22,9 +52,10 @@
   }
 }
 :root[data-theme="dark"] {
-    --band: #163A2C; --band-2: #24573F; --band-muted: #A9CBB9;
-    --bg: #101613; --card: #18211C; --ink: #E6EEE9; --muted: #A3B3AA; --line: #2A3730; --soft: #222D27;
-    --accent: #7FCBA4; --accent-ink: #0E1C15; --flag-need: #F0B75D; --flag-skip: #4CC77E; --flag-skip-ink: #0E1C15; --cta: #E07A35;
+    --band: var(--d-band); --band-2: var(--d-band-2); --band-muted: var(--d-band-muted);
+    --bg: var(--d-bg); --card: var(--d-card); --ink: var(--d-ink); --muted: var(--d-muted); --line: var(--d-line); --soft: var(--d-soft);
+    --accent: var(--d-accent); --accent-ink: var(--d-accent-ink); --cta: var(--d-cta);
+    --flag-need: #F0B75D; --flag-skip: #4CC77E; --flag-skip-ink: #0E1C15;
     --ok: #1C3327; --err: #3A1F21; --err-ink: #F5A3A8; --warn-bg: #3A2C14; --warn-ink: #F0C27A;
     --bday-bg: #3A2414; --bday: #F3B98A; --eq-bg: #16263D; --eq: #9CC2F2; --rs-bg: #3A1C29; --rs: #F0A6C4;
     --les-bg: #17301F; --les: #93D6AE;
@@ -49,7 +80,7 @@ svg.i { width: 18px; height: 18px; flex: none; }
 .brand-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .brand { display: flex; align-items: center; gap: 12px; color: var(--band-ink); text-decoration: none;
          font-family: Outfit, sans-serif; font-weight: 700; font-size: 1.2rem; }
-.mark { width: 42px; height: 42px; border-radius: 14px; background: var(--gold); color: #1E4D3B;
+.mark { width: 42px; height: 42px; border-radius: 14px; background: var(--gold); color: var(--brand);
         display: grid; place-items: center; font-family: Outfit, sans-serif; font-weight: 800; font-size: 1rem; flex: none; }
 .brand-row .spacer { flex: 1; }
 .btn-cta, a.btn-cta { display: inline-flex; align-items: center; gap: 8px; background: var(--cta); color: #fff;
@@ -73,7 +104,7 @@ details.menu .menu-pop { position: absolute; right: 0; top: 48px; z-index: 30; m
 .tab { display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 99px;
        color: var(--tab-ink); text-decoration: none; font-weight: 700; font-size: .95rem; }
 .tab:hover { background: rgba(255,255,255,.12); color: #fff; }
-.tab.on { background: #fff; color: #1E4D3B; }
+.tab.on { background: #fff; color: var(--brand); }
 
 /* EQ / RS switch (lessons and ministering) */
 .seg-links { display: inline-flex; background: var(--card); border: 1px solid var(--line); border-radius: 99px; padding: 3px; }
@@ -81,7 +112,7 @@ details.menu .menu-pop { position: absolute; right: 0; top: 48px; z-index: 30; m
 .seg-links a[aria-current="page"] { background: var(--accent); color: var(--accent-ink); }
 .band .seg-links { background: var(--band-2); border-color: transparent; }
 .band .seg-links a { color: var(--tab-ink); }
-.band .seg-links a[aria-current="page"] { background: #fff; color: #1E4D3B; }
+.band .seg-links a[aria-current="page"] { background: #fff; color: var(--brand); }
 
 .band.hero { padding-bottom: 92px; }
 .hero-title { margin: 10px 0 0; color: #fff; font-size: 2.4rem; }
@@ -266,7 +297,7 @@ a.badge { text-decoration: none; }
 .datebox b { font-family: Outfit, sans-serif; font-size: 1.3rem; }
 .subscribe { display: flex; flex-direction: column; gap: 12px; }
 .subscribe .btn-cta { justify-content: center; }
-.subscribe .btn-cta.light { background: #fff; color: #1E4D3B; }
+.subscribe .btn-cta.light { background: #fff; color: var(--brand); }
 details.guide { background: var(--bg); border-radius: 14px; padding: .8rem 1rem; margin-top: .6rem; }
 details.guide summary { cursor: pointer; font-weight: 800; }
 details.guide ol { margin: .6rem 0 .3rem; padding-left: 1.3rem; }
@@ -312,6 +343,11 @@ table.who td { vertical-align: top; }
 
 /* Theme picker in the account menu */
 .theme-pick { padding: 6px 10px 10px; border-bottom: 1px solid var(--line); margin-bottom: 6px; display: grid; gap: 6px; }
+.palette-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.palette-pick button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 4px;
+  border-radius: 99px; border: 2px solid transparent; background: var(--bg); color: var(--ink); font: inherit; font-size: .8rem; cursor: pointer; }
+.palette-pick button[aria-pressed="true"] { border-color: var(--accent); }
+.palette-pick .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--sw); flex: none; }
 .theme-pick .seg { display: flex; background: var(--bg); border-radius: 99px; padding: 3px; }
 .menu-pop .theme-pick .seg button { flex: 1; text-align: center; padding: 6px 4px; border-radius: 99px; font-size: .85rem;
   color: var(--muted); background: transparent; }

@@ -58,3 +58,24 @@ signoffs:
   - "To be continued… 🎬"
   - "Don’t miss the next episode."
   - "*dramatic music fades*"
+
+# The optional mid-week reminder (a second post later in the week) has its own wording.
+# It reuses the teacher, no_talk and no_lesson lines above. Fill-ins work the same way.
+midweek:
+  openers:
+    - "🎭 *dramatic music returns* Meanwhile, midweek…"
+    - "🎬 *dramatic pause* The week is half over, {org}."
+    - "🌩️ *dramatic thunder* Sunday draws near."
+    - "🎻 *dramatic violin* Previously, on {org}… and now, the midweek twist."
+  headers:
+    - "⚡ Sunday, {when}. The hour approaches."
+    - "⚡ Only days remain until Sunday, {when}:"
+    - "⚡ The plot thickens for Sunday, {when}:"
+  nothing:
+    - "Sunday, {when}… the lesson plan is STILL blank. Who will save us?! 😱"
+    - "No lesson yet for Sunday, {when}. The suspense grows."
+  signoffs:
+    - "The climax comes… THIS SUNDAY."
+    - "Stay tuned. 🎬"
+    - "*dramatic music swells*"
+    - "Don’t miss the finale."

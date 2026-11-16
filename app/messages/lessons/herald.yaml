@@ -58,3 +58,24 @@ signoffs:
   - "So it is proclaimed. See thee Sunday!"
   - "God save the ward! 🏰"
   - "Fare thee well until the Sabbath."
+
+# The optional mid-week reminder (a second post later in the week) has its own wording.
+# It reuses the teacher, no_talk and no_lesson lines above. Fill-ins work the same way.
+midweek:
+  openers:
+    - "📯 HEAR YE, HEAR YE! A midweek proclamation for the {org}!"
+    - "📯 Hear ye! The town crier returneth, {org}!"
+    - "🏰 Hear ye, noble {org}! Half the week hath passed."
+    - "📯 Hear ye, hear ye! A gentle reminder from the crown."
+  headers:
+    - "📜 Remember, good people, Sunday, {when}:"
+    - "📜 The royal reminder for Sunday, {when}:"
+    - "📜 Draweth near, the Sabbath of {when}:"
+  nothing:
+    - "Alas! Still no lesson hath been planned for Sunday, {when}."
+    - "The royal plan for Sunday, {when} remaineth unwritten."
+  signoffs:
+    - "So it is proclaimed, again. 👑"
+    - "Prepare thyselves for the Sabbath!"
+    - "Fare thee well, until Sunday."
+    - "God save the ward! 🏰"

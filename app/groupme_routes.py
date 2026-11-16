@@ -14,6 +14,7 @@ BACK = {"birthdays": "/birthdays#groupme", "lessons-eq": "/lessons/groupme#eq", 
 def save(key: str, request: Request, action: str = Form("save"), bot_id: str = Form(""), style: str = Form(""),
          custom: str | None = Form(None), voice: str = Form(""), openers: str | None = Form(None),
          signoffs: str | None = Form(None), day: str | None = Form(None), time: str | None = Form(None),
+         midweek: str | None = Form(None), day2: str = Form(""), time2: str = Form(""),
          user: dict = Depends(auth.require_user)):
     if key not in gm.BOTS:
         raise HTTPException(status_code=404, detail="Not found")
@@ -25,8 +26,8 @@ def save(key: str, request: Request, action: str = Form("save"), bot_id: str = F
             if action == "remove":
                 gm.remove(conn, key)
                 flash(request, "ok", f"Turned off {name.lower()}. You can delete the bot in GroupMe too.")
-            elif action == "test":
-                gm.send_test(conn, key, gm.now().date())
+            elif action in ("test", "test-midweek"):
+                gm.send_test(conn, key, gm.now().date(), midweek=action == "test-midweek")
                 flash(request, "ok", "Sent a test message. Check the group chat.")
             else:
                 if bot_id.strip():
@@ -38,7 +39,7 @@ def save(key: str, request: Request, action: str = Form("save"), bot_id: str = F
                 elif key != "birthdays" and voice:
                     gm.set_voice(conn, key, voice, openers, signoffs)
                 if key != "birthdays" and day is not None and time is not None:
-                    gm.set_schedule(conn, key, day, time)
+                    gm.set_schedule(conn, key, day, time, day2 if midweek else "", time2)
                 when = (f"at {gm.BIRTHDAY_HOUR} am on each birthday" if key == "birthdays"
                         else gm.schedule_label(conn, key))
                 flash(request, "ok", f"Saved. {name} go out {when}.")

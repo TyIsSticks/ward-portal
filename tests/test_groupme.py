@@ -55,6 +55,10 @@ def test_every_voice_has_all_its_wording():
         for part in ("openers", "headers", "teacher", "no_teacher", "no_talk", "nothing", "signoffs"):
             assert words[part] and all(isinstance(line, str) and line for line in words[part]), (key, part)
         assert all("{who}" in line for line in words["teacher"]), key
+        assert set(words["midweek"]) == {"openers", "headers", "nothing", "signoffs"}, key
+        assert all(line for part in words["midweek"].values() for line in part), key
+        if "catchphrase" in words:
+            assert all(words["catchphrase"] in line.lower() for line in words["midweek"]["openers"]), key
         if "catchphrase" in words:   # in every opener, so in every message
             assert all(words["catchphrase"] in line.lower() for line in words["openers"]), key
 
@@ -249,3 +253,39 @@ def test_lesson_bot_schedule(client, conf, posted):
     assert "Oct 20" in posted[-1][1]
     assert gm.run_due(datetime(2030, 10, 19, 21, 0)) == 0   # once a day
     assert gm.run_due(datetime(2030, 10, 21, 9, 0)) == 1    # Monday: RS only
+
+
+def test_midweek_reminder_is_opt_in_and_uses_its_own_wording(client, posted):
+    with db.ward_connect(1) as conn:
+        gm.set_bot_id(conn, "lessons-eq", BOT)
+        gm.set_schedule(conn, "lessons-eq", "0", "09:00")          # Monday only
+        assert gm.midweek(conn, "lessons-eq") is None
+    assert gm.run_due(datetime(2030, 10, 16, 12, 0)) == 0           # Wednesday: nothing, it's off
+    with db.ward_connect(1) as conn:
+        gm.set_schedule(conn, "lessons-eq", "0", "09:00", "2", "18:00")
+        assert gm.midweek(conn, "lessons-eq") == (2, "18:00")
+        assert gm.schedule_label(conn, "lessons-eq") == "every Monday at 9 am and Wednesday at 6 pm"
+        with pytest.raises(gm.GroupMeError):
+            gm.set_schedule(conn, "lessons-eq", "0", "09:00", "0", "18:00")   # same day twice
+    assert gm.run_due(datetime(2030, 10, 16, 17, 0)) == 0           # before 6 pm
+    assert gm.run_due(datetime(2030, 10, 16, 18, 5)) == 1
+    assert gm.run_due(datetime(2030, 10, 16, 19, 0)) == 0           # once that day
+    assert gm.run_due(datetime(2030, 10, 14, 9, 5)) == 1            # Monday still posts
+    with db.ward_connect(1) as conn:
+        mid = gm.lesson_message(conn, "eq", date(2030, 10, 20), random.Random(1), midweek=True)
+        words = gm.VOICES["plain"]["midweek"]
+        assert any(mid.startswith(fill) for fill in (gm.fill(o, {"org": "Elders Quorum"}) for o in words["openers"]))
+        gm.set_schedule(conn, "lessons-eq", "0", "09:00")           # saving without a mid-week day turns it off
+        assert gm.midweek(conn, "lessons-eq") is None
+
+
+def test_midweek_settings_form(client):
+    login(client, "admin")
+    r = client.post("/groupme/lessons-eq", data={"bot_id": BOT, "day": "0", "time": "09:00", "midweek": "1",
+                                                 "day2": "3", "time2": "19:00"}, follow_redirects=True)
+    assert "Thursday at 7 pm" in r.text
+    page = body(client.get("/lessons/groupme"))
+    assert "mid-week" in page.lower()
+    r = client.post("/groupme/lessons-eq", data={"day": "0", "time": "09:00", "day2": "3", "time2": "19:00"},
+                    follow_redirects=True)
+    assert "Thursday" not in r.text.split("go out")[1].split("<")[0]   # box unticked: off

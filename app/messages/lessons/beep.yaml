@@ -67,3 +67,24 @@ signoffs:
   - "End of message. *happy beeping*"
   - "Beep boop beep. (Translation: read the talk!)"
   - "Shutting down… just kidding. Beep boop! 👋"
+
+# The optional mid-week reminder (a second post later in the week) has its own wording.
+# It reuses the teacher, no_talk and no_lesson lines above. Fill-ins work the same way.
+midweek:
+  openers:
+    - "🤖 Beep boop. Midweek system check."
+    - "🤖 BEEP BOOP. Midweek reminder protocol activated."
+    - "🤖 Beep boop! Halfway through the week. 📶"
+    - "🤖 *whirr* Beep boop. Gentle midweek ping."
+  headers:
+    - "💾 Reminder: Sunday, {when} is loading…"
+    - "📟 Sunday, {when} data retrieved:"
+    - "🔍 Rescanning Sunday, {when}… found:"
+  nothing:
+    - "Rescanning Sunday, {when}… still no lesson found. Beep… boop… sad beep."
+    - "Sunday, {when}: lesson file still empty. Boop. 😵‍💫"
+  signoffs:
+    - "Beep boop. Study before Sunday!"
+    - "Midweek ping complete. Boop. 🤖"
+    - "Have a great week, humans. Beep!"
+    - "Beep boop. (Translation: have you read the talk yet?)"

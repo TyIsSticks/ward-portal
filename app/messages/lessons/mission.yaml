@@ -58,3 +58,24 @@ signoffs:
   - "Mission Control out."
   - "All systems go. See you Sunday!"
   - "Over and out. 📡"
+
+# The optional mid-week reminder (a second post later in the week) has its own wording.
+# It reuses the teacher, no_talk and no_lesson lines above. Fill-ins work the same way.
+midweek:
+  openers:
+    - "🚀 Mission Control to {org}: midweek check-in."
+    - "🛰️ This is Mission Control. Midweek status update."
+    - "📡 Mission Control here. We’re halfway to launch."
+    - "🚀 Mission Control, checking in. Systems nominal."
+  headers:
+    - "🗓️ Launch still on for Sunday, {when}:"
+    - "🛰️ Flight plan unchanged for Sunday, {when}:"
+    - "📋 Midweek briefing, Sunday, {when}:"
+  nothing:
+    - "Sunday, {when}: still no flight plan on file. Holding at T-minus."
+    - "Mission Control still has no lesson on file for Sunday, {when}. Standing by."
+  signoffs:
+    - "Prep for launch. See you Sunday. 🚀"
+    - "Mission Control out."
+    - "All systems go."
+    - "Over and out. 📡"

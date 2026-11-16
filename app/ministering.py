@@ -216,6 +216,8 @@ def finish_import(conn, payload: dict, resolutions: dict[str, int | None], creat
         for g in d["groups"]]} for d in payload["districts"]]
 
     check_org(org)
+    # Keep only one past import: the one being replaced. Anything older goes (drafts are never touched).
+    conn.execute("DELETE FROM layouts WHERE kind = 'imported' AND is_current = 0 AND org = ?", (org,))
     conn.execute("UPDATE layouts SET is_current = 0 WHERE kind = 'imported' AND org = ?", (org,))
     today = date.today()
     layout_id = conn.execute(

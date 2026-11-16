@@ -58,3 +58,24 @@ signoffs:
   - "Back to you! 🌤️"
   - "Stay dry, and see you Sunday. ☔"
   - "Have a sunny week!"
+
+# The optional mid-week reminder (a second post later in the week) has its own wording.
+# It reuses the teacher, no_talk and no_lesson lines above. Fill-ins work the same way.
+midweek:
+  openers:
+    - "🌤️ Midweek forecast update, {org}!"
+    - "☀️ Time for the midweek forecast!"
+    - "⛅ Let’s check the forecast again, {org}."
+    - "🌈 Your midweek forecast, {org}!"
+  headers:
+    - "📍 Sunday, {when}: still a 100% chance of a great lesson."
+    - "📍 The outlook is holding for Sunday, {when}:"
+    - "📍 Here’s the latest on Sunday, {when}:"
+  nothing:
+    - "Sunday, {when}: still foggy. No lesson planned yet. 🌫️"
+    - "Sunday, {when}: clear skies, still no lesson in sight."
+  signoffs:
+    - "That’s the forecast. See you Sunday! ☀️"
+    - "Back to you! 🌤️"
+    - "Stay dry. ☔"
+    - "Have a sunny rest of the week!"

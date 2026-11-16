@@ -56,3 +56,24 @@ signoffs:
   - "Have a great week!"
   - "Thanks, and see you Sunday! 🙂"
   - "Have a wonderful week, everyone."
+
+# The optional mid-week reminder (a second post later in the week) has its own wording.
+# It reuses the teacher, no_talk and no_lesson lines above. Fill-ins work the same way.
+midweek:
+  openers:
+    - "👋 Hi, {org}! A midweek reminder."
+    - "Hi {org}! Quick midweek nudge. 🙂"
+    - "Happy midweek, {org}! ☀️"
+    - "Hi everyone! Just a reminder about Sunday."
+  headers:
+    - "📅 Sunday, {when} is coming up:"
+    - "📅 Don’t forget Sunday ({when}):"
+    - "📅 Here’s the lesson for Sunday, {when}:"
+  nothing:
+    - "Nothing is planned for Sunday, {when} yet. More soon!"
+    - "Sunday’s lesson ({when}) still isn’t planned. Stay tuned."
+  signoffs:
+    - "Take a look before Sunday!"
+    - "Have a great rest of your week!"
+    - "Hope to see you Sunday! 🙂"
+    - "Thanks, everyone. See you Sunday!"
