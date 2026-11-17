@@ -525,3 +525,12 @@ def test_only_one_past_import_is_kept(conn):
     assert first not in ids                      # two imports back: deleted
     assert {second, third, draft} <= ids         # past import, current import and the draft stay
     assert m.get_layout(conn, other_org)         # other org untouched
+
+
+def test_past_imports_can_be_deleted_but_not_the_current_one(conn):
+    old = m.finish_import(conn, m.match_names(conn, report_of((["Able, Al"], ["Dunn, Di"]))), {}, "a", "eq")
+    new = m.finish_import(conn, m.match_names(conn, report_of((["Baker, Bo"], ["Dunn, Di"]))), {}, "a", "eq")
+    with pytest.raises(m.LayoutError):
+        m.delete_layout(conn, new)
+    m.delete_layout(conn, old)
+    assert m.get_layout(conn, old) is None and m.get_layout(conn, new)

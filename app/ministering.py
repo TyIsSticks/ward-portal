@@ -369,8 +369,8 @@ def update_meta(conn, layout_id: int, name: str | None = None, status: str | Non
 
 def delete_layout(conn, layout_id: int) -> None:
     layout = get_layout(conn, layout_id)
-    if layout is None or layout["kind"] != "draft":
-        raise LayoutError("Only draft layouts can be deleted.")
+    if layout is None or not (layout["kind"] == "draft" or (layout["kind"] == "imported" and not layout["is_current"])):
+        raise LayoutError("Only drafts and past imports can be deleted. The current import stays.")
     conn.execute("DELETE FROM layouts WHERE id = ?", (layout_id,))
 
 

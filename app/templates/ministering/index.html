@@ -52,6 +52,12 @@
       </form>
       {% else %}
       <span class="muted">Read-only</span>
+      {% if not l.is_current %}
+      <form method="post" action="/ministering/layouts/{{ l.id }}/delete" data-name="{{ l.name }}" class="inline"
+            onsubmit="return confirm('Delete the past import “' + this.dataset.name + '”? This can’t be undone.')">
+        <button class="link danger">Delete</button>
+      </form>
+      {% endif %}
       {% endif %}
     </div>
   </article>
