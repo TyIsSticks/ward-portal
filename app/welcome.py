@@ -1,4 +1,4 @@
-"""Move-in welcome checklist: introduced in sacrament meeting, ministers assigned, calling considered.
+"""Move-in welcome checklist: contacted, ministers assigned, calling considered.
 
 A person lands on the list when the Member List shows them moving in (see ministering.sync_people).
 Two steps are ticked by hand. "Ministers assigned" is never stored: it's read from the current
@@ -9,7 +9,7 @@ import sqlite3
 from . import ministering as m
 
 # The steps ticked by hand: column on the welcome table -> label.
-STEPS = {"introduced": "Introduced in sacrament meeting", "calling": "Calling considered"}
+STEPS = {"contacted": "Contacted", "calling": "Calling considered"}
 ADULT = 18   # ministers are assigned from this age (same cutoff as Who ministers to whom)
 
 
@@ -54,9 +54,9 @@ def checklist(conn: sqlite3.Connection) -> dict:
             ministers = "unknown"
         else:
             ministers = "yes" if r["person_id"] in ministered else "no"
-        row = {"person": person, "added_at": r["added_at"], "introduced_at": r["introduced_at"],
+        row = {"person": person, "added_at": r["added_at"], "contacted_at": r["contacted_at"],
                "calling_at": r["calling_at"], "ministers": ministers}
-        complete = row["introduced_at"] and row["calling_at"] and ministers in ("yes", "na")
+        complete = row["contacted_at"] and row["calling_at"] and ministers in ("yes", "na")
         rows["done" if complete else "open"].append(row)
     rows["done"] = rows["done"][:20]
     return rows
@@ -67,7 +67,7 @@ def summary(conn: sqlite3.Connection) -> dict:
     open_rows = checklist(conn)["open"]
     return {"open": len(open_rows),
             "no_ministers": sum(r["ministers"] == "no" for r in open_rows),
-            "to_welcome": sum(not (r["introduced_at"] and r["calling_at"]) for r in open_rows)}
+            "to_welcome": sum(not (r["contacted_at"] and r["calling_at"]) for r in open_rows)}
 
 
 def set_step(conn: sqlite3.Connection, person_id: int, step: str, done: bool) -> None:

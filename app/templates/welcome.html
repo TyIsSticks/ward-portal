@@ -21,7 +21,7 @@
     </div>
     <div class="muted small">Moved in {{ r.added_at[:10] }}</div>
     <ul class="checks">
-      {{ step_row(r, "introduced", steps["introduced"]) }}
+      {{ step_row(r, "contacted", steps["contacted"]) }}
       <li class="{{ 'done' if r.ministers in ('yes', 'na') }}">
         {% if r.ministers == "yes" %}<span class="tick" aria-hidden="true">✓</span><span class="grow">Ministers assigned</span>
         {% elif r.ministers == "na" %}<span class="tick" aria-hidden="true">–</span><span class="grow muted">Under 18, no ministers needed</span>

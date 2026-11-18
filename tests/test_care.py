@@ -46,7 +46,7 @@ def test_checking_everything_completes_a_move_in(conn):
     m.sync_people(conn, ROSTER + [member("New, Nia", "F", 5, 5, 1990)])
     nia = ids(conn)["New, Nia"]
     m.finish_import(conn, m.match_names(conn, report_of((["Dunn, Di", "Ford, Fay"], ["New, Nia"]))), {}, "a", "rs")
-    welcome.set_step(conn, nia, "introduced", True)
+    welcome.set_step(conn, nia, "contacted", True)
     assert welcome.summary(conn) == {"open": 1, "no_ministers": 0, "to_welcome": 1}
     welcome.set_step(conn, nia, "calling", True)
     rows = welcome.checklist(conn)
@@ -80,8 +80,8 @@ def test_welcome_page_and_to_do(client, conn):
     assert "1 move-in has no ministers yet" in page.text and "1 move-in still to welcome" in page.text
     r = client.get("/welcome")
     assert r.status_code == 200 and "New, Nia".replace("New, Nia", "Nia New") in r.text and "No ministers yet" in r.text
-    client.post(f"/welcome/{nia}/step", data={"step": "introduced", "done": "1"})
-    assert "Introduced in sacrament meeting" in client.get("/welcome").text
+    client.post(f"/welcome/{nia}/step", data={"step": "contacted", "done": "1"})
+    assert "Contacted" in client.get("/welcome").text
     assert client.post(f"/welcome/{nia}/step", data={"step": "bogus"}).status_code == 200   # flashes, doesn't crash
     client.post(f"/welcome/{nia}/dismiss")
     assert "Nobody to welcome" in client.get("/welcome").text
@@ -222,3 +222,15 @@ def test_interviews_stay_in_their_ward(client, conn):
         other = c.execute("SELECT id FROM wards WHERE name = 'Other Ward'").fetchone()[0]
     client.post(f"/admin/wards/{other}/switch")
     assert client.get(f"/interviews/{interview_id}").status_code == 404
+
+
+def test_old_welcome_table_is_upgraded(tmp_path):
+    """The first version had an introduced_at column; it becomes contacted_at, with old ticks cleared."""
+    import sqlite3
+    conn = sqlite3.connect(tmp_path / "old.db")
+    conn.row_factory = sqlite3.Row
+    conn.execute("CREATE TABLE welcome (person_id INTEGER PRIMARY KEY, added_at TEXT, introduced_at TEXT, "
+                 "calling_at TEXT, dismissed_at TEXT)")
+    conn.execute("INSERT INTO welcome VALUES (1, 'x', '2026-11-01', '2026-11-02', NULL)")
+    db._migrate_columns(conn)
+    assert conn.execute("SELECT contacted_at, calling_at FROM welcome").fetchone()[:] == (None, "2026-11-02")

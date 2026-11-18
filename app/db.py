@@ -216,7 +216,7 @@ CREATE TABLE IF NOT EXISTS teachers (
 CREATE TABLE IF NOT EXISTS welcome (
     person_id     INTEGER PRIMARY KEY REFERENCES people(id) ON DELETE CASCADE,
     added_at      TEXT NOT NULL DEFAULT (datetime('now')),
-    introduced_at TEXT,      -- introduced in sacrament meeting
+    contacted_at  TEXT,      -- someone has reached out to them
     calling_at    TEXT,      -- a calling has been considered
     dismissed_at  TEXT       -- taken off the list by hand
 );
@@ -338,6 +338,10 @@ def _migrate_columns(conn: sqlite3.Connection) -> None:
                      "('lesson', 'stake_conference', 'no_second_hour', 'fifth_sunday')), note TEXT NOT NULL DEFAULT '')")
         conn.execute("INSERT INTO lesson_days SELECT date, status, note FROM lesson_days_old")
         conn.execute("DROP TABLE lesson_days_old")
+    # The welcome step "introduced in sacrament meeting" became "contacted"; an old tick doesn't mean the new one.
+    if "introduced_at" in _columns(conn, "welcome"):
+        conn.execute("ALTER TABLE welcome RENAME COLUMN introduced_at TO contacted_at")
+        conn.execute("UPDATE welcome SET contacted_at = NULL")
     # Layouts made before Relief Society support were all elders quorum.
     add("layouts", "org", "TEXT NOT NULL DEFAULT 'eq'")
     if _columns(conn, "layouts") and "approved_at" not in _columns(conn, "layouts"):

@@ -26,8 +26,8 @@ A small self-hosted portal for working with LCR report exports.
   (or a printed PDF), First Presidency and Twelve talks are tracked until each has a lesson, and
   stake conference, fifth Sundays and "no second hour" weeks are skipped. See [Lessons](#lessons).
 
-- **Move-in welcome** (leaders): a checklist for everyone who moves in: introduced in sacrament
-  meeting, ministers assigned (ticks itself from the LCR import) and calling considered. The to-do
+- **Move-in welcome** (leaders): a checklist for everyone who moves in: contacted,
+  ministers assigned (ticks itself from the LCR import) and calling considered. The to-do
   list says how many still need ministers or a welcome. See [Move-in welcome](#move-in-welcome).
 - **Ministering interviews** (leaders): who has had their quarterly interview, and a place to write
   notes during it. Next time, last time's notes and follow-ups are on the page. See
@@ -162,7 +162,7 @@ Companion history (“↺”) comes from past imports, so it appears once you've
 **People → Move-in welcome** (leaders). When a new Member List shows someone moving in, they're added
 here with a short checklist:
 
-- **Introduced in sacrament meeting** and **Calling considered:** tick them by hand (*Undo* if you
+- **Contacted** and **Calling considered:** tick them by hand (*Undo* if you
   tick one by mistake).
 - **Ministers assigned:** ticks itself once the person has ministers in the current Elders Quorum
   or Relief Society import. Under-18s don't need ministers, and until something has been imported
