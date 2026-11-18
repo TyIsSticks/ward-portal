@@ -4,7 +4,8 @@
 {% block content %}
 <div class="row spread">
   <h1 style="margin: 0">People <span class="muted">({{ people|selectattr("active")|list|length }})</span></h1>
-  {% if imported %}<a href="/ministering/assignments">Who ministers to whom (printable) →</a>{% endif %}
+  <span class="row" style="margin: 0"><a href="/welcome">Move-in welcome →</a>
+  {% if imported %}<a href="/ministering/assignments">Who ministers to whom (printable) →</a>{% endif %}</span>
 </div>
 <section class="card">
   <div class="row">

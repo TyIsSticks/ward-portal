@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% set active = "ministering" %}
+{% block title %}Interview · {{ ward_name }}{% endblock %}
+{% block content %}
+<div class="row spread">
+  <a href="/ministering/{{ org }}/interviews">← {{ org_name }} interviews</a>
+</div>
+<div class="page-head">
+  <div class="grow">
+    <h1>{{ "Edit interview" if interview else "Ministering interview" }}</h1>
+    <div class="sub">{{ ministers|map(attribute="display")|join(" & ") }} · {{ org_name }}</div>
+  </div>
+</div>
+{% if error %}<div class="flash error" role="alert">{{ error }}</div>{% endif %}
+
+{% include "ministering/_interview_history.html" %}
+
+<section class="card">
+  <form method="post" action="{{ '/interviews/' ~ interview.id if interview else '/interviews/new' }}" class="stack">
+    {% if not interview %}<input type="hidden" name="org" value="{{ org }}">{% endif %}
+    <fieldset class="choices">
+      <legend>Who was interviewed</legend>
+      {% for p in ministers %}
+      <label><input type="checkbox" name="m" value="{{ p.id }}" checked> {{ p.display }}</label>
+      {% endfor %}
+    </fieldset>
+    <label>Date <input type="date" name="held_on" required max="{{ today.isoformat() }}"
+        value="{{ values.held_on or (interview.held_on if interview else today.isoformat()) }}"></label>
+    <label>What we talked about
+      <textarea name="notes" rows="8" maxlength="{{ max_text }}"
+        placeholder="Needs they mentioned, who they’re visiting, what’s going well, concerns…">{{ values.notes if "notes" in values else (interview.notes if interview else "") }}</textarea></label>
+    <label>To follow up next time
+      <textarea name="follow_up" rows="4" maxlength="{{ max_text }}"
+        placeholder="Anything to ask about, check on or do before the next interview">{{ values.follow_up if "follow_up" in values else (interview.follow_up if interview else "") }}</textarea></label>
+    <p class="muted small">Only leaders can see these notes. They aren’t printed or sent anywhere.</p>
+    <div class="row" style="margin: 0"><button>Save</button></div>
+  </form>
+  {% if interview %}
+  <form method="post" action="/interviews/{{ interview.id }}/delete" class="inline"
+        onsubmit="return confirm('Delete this interview and its notes? This can’t be undone.')">
+    <button class="link danger">Delete this interview</button>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

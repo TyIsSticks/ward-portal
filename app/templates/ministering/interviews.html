@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% set active = "ministering" %}
+{% block title %}{{ org_name }} interviews · {{ ward_name }}{% endblock %}
+{% macro link(g) -%}/interviews/new?org={{ org }}{% for p in g.minister_ids %}&m={{ p }}{% endfor %}{%- endmacro %}
+{% block content %}
+<div class="page-head">
+  <div class="grow">
+    <div class="row" style="gap: 10px 14px; margin: 0">
+      <h1>Interviews</h1>
+      <div class="seg-links" role="group" aria-label="Organization">
+        {% for key, name in orgs.items() %}<a href="/ministering/{{ key }}/interviews"{% if key == org %} aria-current="page"{% endif %}>{{ name }}</a>{% endfor %}
+      </div>
+    </div>
+    <div class="sub">
+      {% if status.current %}{{ status.quarter.label }} · {{ status.done }} of {{ status.total }} companionships interviewed
+        {% if status.days_left >= 0 %}· {{ status.days_left }} day{{ "s" if status.days_left != 1 }} left in the quarter{% endif %}
+      {% else %}Import the current {{ org_name }} assignments to see who’s due.{% endif %}
+    </div>
+  </div>
+  <a href="/ministering/{{ org }}">← {{ org_name }} ministering</a>
+</div>
+
+{% if not status.current %}
+<section class="card"><p class="muted">Interviews are listed by companionship, from what’s in LCR now.
+  <a href="/ministering/{{ org }}#import">Import the {{ org_name }} assignments</a> first.</p></section>
+{% else %}
+{% if status.total and status.done == status.total %}<div class="flash ok">Everyone has been interviewed this quarter. 🎉</div>{% endif %}
+{% for d in status.districts %}
+<section class="card">
+  <h2>{{ d.name }}{% if d.supervisor %} <span class="muted small">· {{ d.supervisor }}</span>{% endif %}</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Ministers</th><th>This quarter</th><th>Last interview</th><th></th></tr></thead>
+    <tbody>
+    {% for g in d.groups %}
+      <tr>
+        <td>{{ g.ministers|map(attribute="display")|join(" & ") }}</td>
+        <td>{% if g.done %}<span class="badge verified">Done {{ g.done_on }}</span>{% else %}<span class="badge proposed">Due</span>{% endif %}</td>
+        <td>{% if g.last %}<a href="/interviews/{{ g.last.id }}">{{ g.last.held_on }}</a>
+          {% if g.last.follow_up %}<div class="muted small">Follow up: {{ g.last.follow_up|truncate(90) }}</div>{% endif %}
+          {% else %}<span class="muted">Never</span>{% endif %}</td>
+        <td class="actions"><a class="button-link" href="{{ link(g) }}">{{ "Log another" if g.done else "Log interview" }}</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endfor %}
+{% endif %}
+
+{% if recent %}
+<section class="card">
+  <h2>Recent interviews</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Date</th><th>Ministers</th><th>Recorded by</th></tr></thead>
+    <tbody>
+    {% for i in recent %}
+      <tr><td><a href="/interviews/{{ i.id }}">{{ i.held_on }}</a></td>
+          <td>{{ i.ministers|map(attribute="display")|join(" & ") }}</td>
+          <td class="muted">{{ i.updated_by or i.created_by }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</section>
+{% endif %}
+<p class="muted small">A companionship counts as done for the quarter once every minister was in an interview
+  held in that quarter ({{ status.quarter.label }}), so a new companion makes it due again. Reminders start
+  {{ remind_days }} days before the quarter ends.</p>
+{% endblock %}

@@ -26,6 +26,15 @@ A small self-hosted portal for working with LCR report exports.
   (or a printed PDF), First Presidency and Twelve talks are tracked until each has a lesson, and
   stake conference, fifth Sundays and "no second hour" weeks are skipped. See [Lessons](#lessons).
 
+- **Move-in welcome** (leaders): a checklist for everyone who moves in: introduced in sacrament
+  meeting, ministers assigned (ticks itself from the LCR import) and calling considered. The to-do
+  list says how many still need ministers or a welcome. See [Move-in welcome](#move-in-welcome).
+- **Ministering interviews** (leaders): who has had their quarterly interview, and a place to write
+  notes during it. Next time, last time's notes and follow-ups are on the page. See
+  [Interviews](#ministering-interviews).
+- **Status & backups** (admins): a page showing stale uploads and failing bots, plus nightly backups
+  you can download. See [Status and backups](#status-and-backups).
+
 **Multiple wards:** each ward has its own members, birthdays, calendar link, and Elders Quorum and
 Relief Society ministering, stored in its own database file (`data/wards/ward-<id>.db`). Accounts
 belong to one ward and only see that ward. Admins see every ward: they switch wards from the ward
@@ -44,6 +53,9 @@ LCR exports are *For Church Use Only*.
 - Uploaded files are parsed in memory and never written to disk.
 - Stored per person: **name, gender, birth date**, and any ministering tags leaders add.
   Phones, emails and addresses in the exports are discarded.
+- **Ministering interview notes** are the one thing leaders type in that can be sensitive. They're free
+  text, visible only to leaders, never printed, never sent to GroupMe, and they stay in the ward's own
+  database. They're also in every backup, so keep downloaded backups private.
 - The calendar feeds (birthdays, lessons, each teacher's lessons) are the only unauthenticated
   routes, and each lives at an unguessable URL that can be regenerated.
 - Lesson plans store teacher names (typed, or picked from the roster) and nothing else about them.
@@ -89,8 +101,10 @@ git pull && docker compose up -d --build
 
 ### Backups
 
-Everything lives in `./data`: `portal.db` (accounts and wards), `wards/` (one database per ward)
-and the session key. Back up the whole folder.
+Everything lives in `./data`: `portal.db` (accounts and wards), `wards/` (one database per ward),
+`backups/` and the session key. The portal also makes its own nightly backups; see
+[Status and backups](#status-and-backups). Keep a copy of `./data` (or a downloaded backup)
+somewhere other than this machine.
 
 ## Ministering
 
@@ -142,6 +156,43 @@ assigned), **green** for people left out on purpose (Moving records and the Lead
 flag for anything else (Limited contact).
 
 Companion history (“↺”) comes from past imports, so it appears once you've imported more than once. Only the current import and one past import are kept per organization (the older ones are deleted when you import again); drafts are never deleted.
+
+## Move-in welcome
+
+**People → Move-in welcome** (leaders). When a new Member List shows someone moving in, they're added
+here with a short checklist:
+
+- **Introduced in sacrament meeting** and **Calling considered:** tick them by hand (*Undo* if you
+  tick one by mistake).
+- **Ministers assigned:** ticks itself once the person has ministers in the current Elders Quorum
+  or Relief Society import. Under-18s don't need ministers, and until something has been imported
+  the line says so instead of guessing.
+
+A move-in is "done" once all three are ticked, and moves to *All done*. *Take off the list* hides
+someone who doesn't need it. The dashboard to-do list says how many move-ins have no ministers yet
+and how many still need a welcome. People already tagged *New move-in* from before this feature
+are added the first time the page or dashboard is opened.
+
+## Ministering interviews
+
+**Ministering → Interviews** (leaders; Elders Quorum and Relief Society each have their own list).
+It lists every companionship in the current LCR import by district, with whether they've had their
+interview this quarter (January–March, April–June, and so on), their last interview and what you
+wanted to follow up on.
+
+**Log interview** opens a page with two parts:
+
+- **Last time** at the top: the previous interview's *To follow up* and *We talked about* notes
+  (older ones fold underneath). It looks at everyone who was in the interview, so it still shows up
+  when a companion has changed.
+- A form for today's interview: the date, who was interviewed, **What we talked about** and **To
+  follow up next time**. *Save* keeps you on the page, so you can add to it during the interview.
+  Open an interview from the list to edit or delete it.
+
+A companionship counts as done for the quarter once every one of its ministers was in an interview
+held that quarter, so a new companion makes it due again. From 35 days before the quarter ends, the
+dashboard to-do list says how many are still due. The notes are leaders-only; see
+[Privacy](#privacy).
 
 ## Lessons
 
@@ -253,6 +304,35 @@ Times use `TZ` (default `America/Denver`). The app checks every few minutes, so 
 out if the server was down at the usual time, and posts at most once a day per bot. A failed post is
 retried up to three times that day; the last result shows on the settings card. Set
 `GROUPME_ENABLED=false` to stop all posting (e.g. on a copy of the data).
+
+## Status and backups
+
+**Status** (account menu; ward admins and admins) shows what fails quietly: when the Member List and
+the ministering reports were last uploaded (flagged after 3 weeks), and whether each GroupMe bot's
+last post worked, with the error if it didn't. A bot that is failing also appears in the to-do list on
+the dashboard. Admins also see the server: disk space, the last backup, and a **Test the public
+link** button when `PUBLIC_URL` is set in `.env` (it asks your Funnel address for its health page from
+the server, so a failure can also mean the server can't reach its own public address).
+
+**Backups** (admins, on the Status page). Around 3 am each night the portal makes a zip of every
+database in `data/backups` (the last 14 are kept, plus 10 made with **Back up now**). It uses
+SQLite's backup, so it's consistent while the app runs. The session key isn't included. These sit on the same
+disk as the data, so **download one now and then** (or copy `./data` elsewhere); they hold everything,
+interview notes and password hashes included. Set `BACKUP_ENABLED=false` to turn the nightly backup off.
+
+Restoring replaces everything, so it's done from the server (not the web page), with the portal stopped.
+A copy of what's replaced is saved first as a *Before a restore* backup, and the backup is checked
+before anything is touched:
+
+```bash
+docker compose stop portal
+docker compose run --rm portal python -m app.cli restore-backup /data/backups/<file>.zip
+docker compose start portal
+```
+
+To restore a file you downloaded, copy it into `data/backups` first. `python -m app.cli backup`
+makes one from the command line (handy for a cron job that copies it elsewhere), and `list-backups`
+lists them.
 
 ## Wards
 

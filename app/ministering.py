@@ -97,6 +97,7 @@ def sync_people(conn: sqlite3.Connection, members: list[directory.Member]) -> di
             if not first_import:
                 moved_in.append(m.name)
                 conn.execute("INSERT INTO person_tags (person_id, tag) VALUES (?, 'New move-in')", (cur.lastrowid,))
+                conn.execute("INSERT OR IGNORE INTO welcome (person_id) VALUES (?)", (cur.lastrowid,))
             continue
         seen.add(p["id"])
         if not p["active"]:

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% set active = "people" %}
+{% block title %}Move-in welcome · {{ ward_name }}{% endblock %}
+{% macro step_row(r, key, label) -%}
+  {%- set at = r[key ~ "_at"] -%}
+  <li class="{{ 'done' if at }}">
+    <span class="tick" aria-hidden="true">{{ "✓" if at else "☐" }}</span>
+    <span class="grow">{{ label }}{% if at %} <span class="muted small">· {{ at[:10] }}</span>{% endif %}</span>
+    <form method="post" action="/welcome/{{ r.person.id }}/step" class="inline">
+      <input type="hidden" name="step" value="{{ key }}"><input type="hidden" name="done" value="{{ 0 if at else 1 }}">
+      <button class="link">{{ "Undo" if at else "Mark done" }}</button>
+    </form>
+  </li>
+{%- endmacro %}
+{% macro person(r, finished=false) -%}
+  <section class="card welcome" id="p{{ r.person.id }}">
+    <div class="row spread" style="margin: 0">
+      <h2 style="margin: 0">{{ r.person.display }}</h2>
+      <span><span class="gender g-{{ r.person.gender }}">{{ r.person.gender }}</span>
+        {% if r.person.age is not none %}<span class="muted small">age {{ r.person.age }}</span>{% endif %}</span>
+    </div>
+    <div class="muted small">Moved in {{ r.added_at[:10] }}</div>
+    <ul class="checks">
+      {{ step_row(r, "introduced", steps["introduced"]) }}
+      <li class="{{ 'done' if r.ministers in ('yes', 'na') }}">
+        {% if r.ministers == "yes" %}<span class="tick" aria-hidden="true">✓</span><span class="grow">Ministers assigned</span>
+        {% elif r.ministers == "na" %}<span class="tick" aria-hidden="true">–</span><span class="grow muted">Under 18, no ministers needed</span>
+        {% elif r.ministers == "no" %}<span class="tick" aria-hidden="true">☐</span><span class="grow">No ministers yet</span>
+          <a href="/ministering/{{ 'eq' if r.person.gender == 'M' else 'rs' }}">Open ministering →</a>
+        {% else %}<span class="tick" aria-hidden="true">?</span><span class="grow muted">Import ministering assignments to check ministers</span>
+          <a href="/ministering">Import →</a>{% endif %}
+      </li>
+      {{ step_row(r, "calling", steps["calling"]) }}
+    </ul>
+    <form method="post" action="/welcome/{{ r.person.id }}/dismiss" class="inline"
+          onsubmit="return confirm('Take {{ r.person.display|e }} off the welcome list?')">
+      <button class="link">Take off the list</button>
+    </form>
+  </section>
+{%- endmacro %}
+{% block content %}
+<div class="page-head">
+  <div class="grow">
+    <h1>Move-in welcome</h1>
+    <div class="sub">People who moved in, and what’s left to do for each. “Ministers assigned” ticks itself from the
+      latest LCR import; the other two are yours to tick.</div>
+  </div>
+  <a href="/ministering/people">← People</a>
+</div>
+
+{% if rows.open %}
+<div class="cols">{% for r in rows.open %}{{ person(r) }}{% endfor %}</div>
+{% elif rows.done %}
+<section class="card"><p class="muted">Everyone who moved in has been welcomed. 🎉</p></section>
+{% else %}
+<section class="card"><p class="muted">Nobody to welcome right now. People show up here when a new Member List
+  shows them moving in.</p></section>
+{% endif %}
+
+{% if rows.done %}
+<details class="guide" style="margin-top: 22px">
+  <summary>All done ({{ rows.done|length }})</summary>
+  <div class="cols" style="margin-top: 14px">{% for r in rows.done %}{{ person(r, true) }}{% endfor %}</div>
+</details>
+{% endif %}
+{% endblock %}

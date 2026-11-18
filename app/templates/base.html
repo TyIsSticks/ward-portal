@@ -64,7 +64,7 @@
               </div>
             </div>
             <a href="/account">Account &amp; password</a>
-            {% if user.manages %}<a href="/admin/users">Users</a>{% endif %}
+            {% if user.manages %}<a href="/admin/users">Users</a><a href="/admin/status">Status{% if user.is_admin %} &amp; backups{% endif %}</a>{% endif %}
             {% if user.is_admin %}<a href="/admin/wards">Wards</a>{% endif %}
             <form method="post" action="/logout"><button type="submit">Sign out</button></form>
           </div>

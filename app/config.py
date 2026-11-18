@@ -17,6 +17,10 @@ MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 TIMEZONE = os.environ.get("TZ", "America/Denver")
 # Set to false to stop the GroupMe bots from posting (e.g. on a test copy of the data).
 GROUPME_ENABLED = os.environ.get("GROUPME_ENABLED", "true").lower() != "false"
+# Nightly backups of the databases into data/backups. Set to false to turn them off.
+BACKUP_ENABLED = os.environ.get("BACKUP_ENABLED", "true").lower() != "false"
+# The address people use to reach the portal (e.g. the Tailscale Funnel URL); lets admins test it.
+PUBLIC_URL = os.environ.get("PUBLIC_URL", "")
 
 
 def secret_key() -> str:

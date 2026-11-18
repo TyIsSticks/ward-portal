@@ -1,0 +1,24 @@
+{# Earlier interviews with these ministers, newest first. Expects `past` and `ministers`. #}
+{% macro entry(i) %}
+  <div class="past-head muted small">Recorded by {{ i.updated_by or i.created_by }} · <a href="/interviews/{{ i.id }}">Open</a></div>
+  {% if i.follow_up %}<div class="note follow"><span class="note-label">To follow up</span>{{ i.follow_up }}</div>{% endif %}
+  {% if i.notes %}<div class="note"><span class="note-label">We talked about</span>{{ i.notes }}</div>{% endif %}
+  {% if not i.follow_up and not i.notes %}<p class="muted small">No notes were taken.</p>{% endif %}
+{% endmacro %}
+<section class="card" id="history">
+  <h2>Last time</h2>
+  {% if past %}
+  <div class="past">
+    <p><strong>{{ past[0].held_on }}</strong> · {{ past[0].ministers|map(attribute="display")|join(" & ") }}</p>
+    {{ entry(past[0]) }}
+  </div>
+  {% for i in past[1:] %}
+  <details class="guide past">
+    <summary>{{ i.held_on }} · {{ i.ministers|map(attribute="display")|join(" & ") }}</summary>
+    {{ entry(i) }}
+  </details>
+  {% endfor %}
+  {% else %}
+  <p class="muted">No earlier interviews with {{ "this companionship" if ministers|length > 1 else "them" }} are recorded yet.</p>
+  {% endif %}
+</section>

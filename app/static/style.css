@@ -386,3 +386,22 @@ details.ward-switch > summary:hover { background: rgba(255,255,255,.2); }
 .bot-styles .sub-field { display: grid; gap: .3rem; font-weight: 700; }
 .bot-when .row { margin: .2rem 0; }
 .bot-when label { display: inline-flex; align-items: center; gap: .4rem; font-weight: 700; }
+
+/* --- Welcome checklist, interviews, status --------------------------------- */
+.checks { list-style: none; margin: .8rem 0; padding: 0; }
+.checks li { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; padding: .5rem 0; border-top: 1px solid var(--line); }
+.checks li:first-child { border-top: 0; }
+.checks .tick { width: 1.3rem; text-align: center; font-weight: 800; }
+.checks li.done .tick { color: var(--accent); }
+.checks .grow { flex: 1 1 10rem; }
+.note { background: var(--bg); border-radius: 12px; padding: .7rem .9rem; margin: .5rem 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.note.follow { border-left: 4px solid var(--gold); }
+.note-label { display: block; font-size: .75rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: .2rem; }
+.past + .past { margin-top: .6rem; }
+form textarea { width: 100%; resize: vertical; }
+.badge.ok { background: var(--ok); color: var(--ink); }
+.badge.warn { background: var(--flag-need); color: #3A2600; }
+.badge.bad { background: var(--err); color: var(--err-ink); }
+.health { display: grid; grid-template-columns: auto 1fr; gap: .5rem 1rem; align-items: baseline; margin: 0; }
+.health dt { font-weight: 700; }
+.health dd { margin: 0; overflow-wrap: anywhere; }

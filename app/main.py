@@ -8,8 +8,8 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import (admin, auth, config, db, groupme, groupme_routes, lessons, lessons_routes, ministering,
-               ministering_routes, wards)
+from . import (admin, auth, backup, config, db, groupme, groupme_routes, health, interviews, interviews_routes,
+               lessons, lessons_routes, ministering, ministering_routes, ops_routes, wards, welcome, welcome_routes)
 from .reports import birthdays, conference, detect, directory
 from .reports import ministering as ministering_report
 from .web import BASE, absolute_url, flash, render
@@ -18,10 +18,14 @@ from .web import BASE, absolute_url, flash, render
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     db.init()
-    bots = asyncio.create_task(groupme.run_forever()) if config.GROUPME_ENABLED else None
+    tasks = []
+    if config.GROUPME_ENABLED:
+        tasks.append(asyncio.create_task(groupme.run_forever()))
+    if config.BACKUP_ENABLED:
+        tasks.append(asyncio.create_task(backup.run_forever()))
     yield
-    if bots:
-        bots.cancel()
+    for task in tasks:
+        task.cancel()
 
 
 app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
@@ -45,6 +49,9 @@ app.include_router(admin.router)
 app.include_router(ministering_routes.router)
 app.include_router(lessons_routes.router)
 app.include_router(groupme_routes.router)
+app.include_router(welcome_routes.router)
+app.include_router(interviews_routes.router)
+app.include_router(ops_routes.router)
 
 
 @app.exception_handler(auth.LoginRequired)
@@ -98,6 +105,10 @@ def dashboard(request: Request, user: dict = Depends(auth.require_user)):
             "WHERE report = 'directory' ORDER BY id DESC LIMIT 1").fetchone()
         orgs = [ministering.org_summary(conn, o) for o in ministering.ORGS] if user["leads"] else []
         plan = lessons.dashboard(conn) if user["sees_lessons"] else None
+        today = date.today()
+        welcoming = welcome.summary(conn) if user["leads"] else None
+        interviews_due = [(o, interviews.due_soon(conn, o, today)) for o in ministering.ORGS] if user["leads"] else []
+        quiet_failures = health.problems(conn, user["is_admin"]) if user["manages"] else []
 
     moved_in = len(json.loads(last_dir["summary"]).get("roster", {}).get("moved_in", [])) if last_dir else 0
     todo = [{"text": f"Tell {b['name']} happy birthday!" + (f" They turn {b['turns']}." if b["turns"] else ""),
@@ -122,6 +133,19 @@ def dashboard(request: Request, user: dict = Depends(auth.require_user)):
                          "href": f"/ministering/{o['key']}#import"})
     if plan and user["leads"]:   # teachers see the lessons, but planning them isn't their job
         todo += plan["todo"]
+    if welcoming and welcoming["no_ministers"]:
+        n = welcoming["no_ministers"]
+        todo.append({"text": f"{n} move-in{'s' if n != 1 else ''} {'have' if n != 1 else 'has'} no ministers yet",
+                     "cta": "Review", "href": "/welcome"})
+    if welcoming and welcoming["to_welcome"]:
+        n = welcoming["to_welcome"]
+        todo.append({"text": f"{n} move-in{'s' if n != 1 else ''} still to welcome", "cta": "Open", "href": "/welcome"})
+    for org, due in interviews_due:
+        if due:
+            todo.append({"text": f"{due} {ministering.ORGS[org]} companionship{'s' if due != 1 else ''} still "
+                                 f"need{'' if due != 1 else 's'} a ministering interview this quarter",
+                         "cta": "Open", "href": f"/ministering/{org}/interviews"})
+    todo += quiet_failures
     if last_dir is None:
         todo.append({"text": "Upload the Member List from LCR", "cta": "Upload", "href": "/upload"})
     elif last_dir["age"] > 21:

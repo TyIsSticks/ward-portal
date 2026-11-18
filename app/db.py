@@ -211,6 +211,36 @@ CREATE TABLE IF NOT EXISTS teachers (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Move-in welcome checklist: one row per person who moved in. "Ministers assigned" isn't stored;
+-- it's read from the current LCR imports.
+CREATE TABLE IF NOT EXISTS welcome (
+    person_id     INTEGER PRIMARY KEY REFERENCES people(id) ON DELETE CASCADE,
+    added_at      TEXT NOT NULL DEFAULT (datetime('now')),
+    introduced_at TEXT,      -- introduced in sacrament meeting
+    calling_at    TEXT,      -- a calling has been considered
+    dismissed_at  TEXT       -- taken off the list by hand
+);
+
+-- Ministering interviews. Companionships are rebuilt on every LCR import, so an interview is tied to
+-- the people who were interviewed (interview_ministers), not to a companionship row.
+CREATE TABLE IF NOT EXISTS interviews (
+    id         INTEGER PRIMARY KEY,
+    org        TEXT NOT NULL CHECK (org IN ('eq', 'rs')),
+    held_on    TEXT NOT NULL,                    -- YYYY-MM-DD
+    notes      TEXT NOT NULL DEFAULT '',         -- what was talked about
+    follow_up  TEXT NOT NULL DEFAULT '',         -- what to bring up next time
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_by TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS interview_ministers (
+    interview_id INTEGER NOT NULL REFERENCES interviews(id) ON DELETE CASCADE,
+    person_id    INTEGER NOT NULL REFERENCES people(id),
+    PRIMARY KEY (interview_id, person_id)
+);
+
 CREATE TABLE IF NOT EXISTS lesson_teachers (
     org        TEXT NOT NULL CHECK (org IN ('eq', 'rs')),
     date       TEXT NOT NULL,
@@ -223,7 +253,8 @@ CREATE TABLE IF NOT EXISTS lesson_teachers (
 # Ward tables in an order that respects foreign keys (parents first).
 WARD_TABLES = ["people", "person_tags", "layouts", "districts", "companionships", "companionship_members",
                "pending_imports", "birthdays", "uploads", "ward_settings", "conferences", "talks",
-               "lesson_days", "lesson_talks", "lesson_notes", "teachers", "lesson_teachers"]
+               "lesson_days", "lesson_talks", "lesson_notes", "teachers", "lesson_teachers", "welcome", "interviews",
+               "interview_ministers"]
 
 
 def _open(path: Path) -> sqlite3.Connection:

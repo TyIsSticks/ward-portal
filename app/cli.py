@@ -5,13 +5,18 @@
     python -m app.cli list-users
     python -m app.cli create-ward "<name>"
     python -m app.cli list-wards
+    python -m app.cli backup
+    python -m app.cli list-backups
+    python -m app.cli restore-backup <file.zip> [--yes]     (stop the app first)
 """
 import argparse
 import getpass
 import sqlite3
 import sys
 
-from . import auth, db, wards
+from pathlib import Path
+
+from . import auth, backup, db, wards
 
 
 def _prompt_password() -> str:
@@ -39,7 +44,25 @@ def main() -> int:
     cw = sub.add_parser("create-ward")
     cw.add_argument("name")
     sub.add_parser("list-wards")
+    sub.add_parser("backup")
+    sub.add_parser("list-backups")
+    restore = sub.add_parser("restore-backup")
+    restore.add_argument("file")
+    restore.add_argument("--yes", action="store_true", help="don't ask before replacing the data")
     args = parser.parse_args()
+
+    if args.cmd == "restore-backup":   # before db.init(): it shouldn't touch the data it's about to replace
+        if not args.yes and input("This replaces ALL current data with the backup. The app must be stopped. "
+                                  "Type 'yes' to go on: ").strip().lower() != "yes":
+            print("Cancelled.")
+            return 1
+        try:
+            files = backup.restore(Path(args.file))
+        except backup.BackupError as exc:
+            print(exc)
+            return 1
+        print(f"Restored {len(files)} database(s). A copy of the old data was saved as a 'pre-restore' backup.")
+        return 0
 
     db.init()
 
@@ -81,6 +104,11 @@ def main() -> int:
         with db.connect() as conn:
             for w in wards.list_wards(conn):
                 print(f"{w['id']:>3}  {w['name']:<40} {w['users']} users")
+    elif args.cmd == "backup":
+        print(f"Wrote {backup.create('manual')}")
+    elif args.cmd == "list-backups":
+        for b in backup.listing():
+            print(f"{b['name']:<36} {b['size'] / 1024:>9.0f} KB")
     return 0
 
 

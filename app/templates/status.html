@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Status · {{ ward_name }}{% endblock %}
+{% macro checks(items) %}
+<dl class="health">
+  {% for c in items %}
+  <dt>{% if c.href %}<a href="{{ c.href }}">{{ c.label }}</a>{% else %}{{ c.label }}{% endif %}</dt>
+  <dd><span class="badge {{ c.state }}">{{ {"ok": "OK", "warn": "Check", "bad": "Problem", "info": "—"}[c.state] }}</span> {{ c.text }}</dd>
+  {% endfor %}
+</dl>
+{% endmacro %}
+{% block content %}
+<div class="page-head">
+  <div class="grow">
+    <h1>Status</h1>
+    <div class="sub">Things that fail quietly, in one place: stale uploads, bots that stopped posting, backups.</div>
+  </div>
+</div>
+
+<div class="cols">
+  <section class="card">
+    <h2>{{ user.ward.name }}</h2>
+    {{ checks(ward) }}
+  </section>
+  {% if user.is_admin %}
+  <section class="card">
+    <h2>Server</h2>
+    {{ checks(server) }}
+    <div id="public" style="margin-top: 1rem">
+      {% if public_url %}
+      <form method="post" action="/admin/status/check-public" class="row" style="margin: 0">
+        <button class="secondary">Test the public link</button>
+        <span class="muted small">Asks {{ public_url }} for its health page from this server. A failure can also mean the
+          server can’t reach its own public address.</span>
+      </form>
+      {% else %}
+      <p class="muted small">Set <code>PUBLIC_URL</code> in <code>.env</code> to the address people use (your Funnel link)
+        to get a button here that tests it.</p>
+      {% endif %}
+    </div>
+  </section>
+  {% endif %}
+</div>
+
+{% if user.is_admin %}
+<section class="card" id="backups" style="margin-top: 20px">
+  <div class="row spread" style="margin-top: 0">
+    <h2 style="margin: 0">Backups</h2>
+    <form method="post" action="/admin/backups" class="inline"><button>Back up now</button></form>
+  </div>
+  <p class="muted small">A copy of every ward’s data and all accounts is made each night and kept in <code>data/backups</code>
+    ({{ keep["auto"] }} nightly, {{ keep["manual"] }} manual). It’s on the same disk as the portal, so
+    <strong>download one now and then</strong> and keep it somewhere else. Backups hold everything, including
+    interview notes and password hashes: keep them private.</p>
+  {% if backups %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Made</th><th>Kind</th><th>Size</th><th></th></tr></thead>
+    <tbody>
+    {% for b in backups %}
+      <tr><td>{{ b.at.strftime("%a %b %d %Y, %I:%M %p")|replace(" 0", " ") }}</td>
+          <td>{{ {"auto": "Nightly", "manual": "Manual", "pre-restore": "Before a restore"}[b.kind] }}</td>
+          <td class="muted">{{ size(b.size) }}</td>
+          <td class="actions"><a href="/admin/backups/{{ b.name }}">Download</a></td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<p class="muted">No backups yet.</p>{% endif %}
+  <details class="guide">
+    <summary>Restoring a backup</summary>
+    <p class="small">Restoring replaces everything, so it’s done from the server with the portal stopped (not from this page).
+      A copy of what’s being replaced is saved first as a <em>Before a restore</em> backup.</p>
+    <pre class="small">docker compose stop portal
+docker compose run --rm portal python -m app.cli restore-backup /data/backups/&lt;file&gt;.zip
+docker compose start portal</pre>
+    <p class="small">To restore a file you downloaded, copy it into <code>data/backups</code> first.</p>
+  </details>
+</section>
+{% endif %}
+{% endblock %}

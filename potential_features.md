@@ -8,7 +8,9 @@ editing assignments alone isn't the draw. The app's value is everything around i
 companion history, priority tags, the LCR check after approval, the to-do list, phone-friendly
 pages, and not depending on LCR staying up on Sunday (it often fails between about 10am and 2:30pm Mountain).
 
-Already built from this list: **Who ministers to whom** (printable, both organizations side by side).
+Already built from this list: **Who ministers to whom** (printable, both organizations side by side),
+the **move-in welcome checklist** and the **ministering interview tracker** (with notes). Not from this
+list, but built alongside: **nightly backups** and a **status page**.
 
 ## Ideas, best first
 
@@ -31,27 +33,11 @@ Includes a printable sustain/release list for sacrament meeting and to-do items 
 - **Notes:** reuse the "re-import to check" pattern from ministering. Uploading Members with
   Callings confirms "Entered in LCR" and the set-apart flag.
 
-### 3. Move-in welcome checklist
-For each move-in: introduced in sacrament meeting, ministers assigned, calling considered.
-To-do item: "2 move-ins have no ministers yet".
-
-- **Needs:** nothing new; move-ins are already detected and tagged *New move-in*.
-- **Notes:** the new Who ministers to whom data (`ministering.who_ministers`) already answers
-  "do they have ministers?".
-
-### 4. Ministering interview tracker
-Which companionships have had their quarterly interview, by district, with a to-do item near the
-end of each quarter and a printable interview list per district leader.
-
-- **Why:** presidencies report interviews every quarter. LCR only records them after the fact.
-- **Needs:** interview dates (entered here, or parsed from LCR's ministering interviews report;
-  a sample would tell us which is practical).
-
-### 5. Weekly email digest
+### 3. Weekly digest
 The to-do list emailed to each leader, e.g. Saturday night.
 
-- **Needs:** outgoing email (SMTP settings in `.env`), an email address per user, and a scheduler
-  (a cron job running a CLI command fits the current Docker setup).
+- **Needs:** a scheduler (the GroupMe loop already runs one). Posting it to a leaders' GroupMe chat
+  needs no new data or email setup; emailing it needs SMTP settings in `.env` and an email address per user.
 
 ## Considered and skipped
 
