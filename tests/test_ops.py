@@ -53,12 +53,17 @@ def test_only_names_we_made_can_be_fetched(ward):
         assert backup.path_of(bad) is None
 
 
-def test_nightly_backup_runs_once_after_3am(ward):
-    early = datetime(2026, 11, 18, 2, 30)
-    assert backup.run_due(early) is None
-    first = backup.run_due(datetime(2026, 11, 18, 3, 5))
-    assert first is not None and first.name.startswith("auto-")
-    assert backup.run_due(datetime(2026, 11, 18, 9, 0)) is None     # one a day
+def test_nightly_backup_runs_once_after_3am(ward, monkeypatch):
+    # backup.create() names files from the clock, so freeze it to the day under test.
+    clock = {"now": datetime(2026, 11, 18, 3, 5)}
+    monkeypatch.setattr(backup.groupme, "now", lambda: clock["now"])
+    assert backup.run_due(datetime(2026, 11, 18, 2, 30)) is None
+    first = backup.run_due(clock["now"])
+    assert first is not None and first.name.startswith("auto-20261118")
+    clock["now"] = datetime(2026, 11, 18, 9, 0)
+    assert backup.run_due(clock["now"]) is None                      # one a day
+    clock["now"] = datetime(2026, 11, 19, 3, 5)
+    assert backup.run_due(clock["now"]) is not None                  # and again the next day
 
 
 def test_a_failing_backup_is_reported(ward, monkeypatch):
