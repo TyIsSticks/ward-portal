@@ -13,6 +13,21 @@
 </div>
 {% if error %}<div class="flash error" role="alert">{{ error }}</div>{% endif %}
 
+{% if flock %}
+<section class="card" id="flock">
+  <h2>People they minister to</h2>
+  {% for g in flock %}
+  {% if flock|length > 1 %}<p class="muted small">{{ g.ministers|map(attribute="display")|join(" & ") }}</p>{% endif %}
+  <ul>
+    {% for p in g.assigned %}
+    <li>{{ p.display }}{% if not p.active %} <span class="badge moved">Moved out</span>{% endif %}
+      {% if p.tags %}<span class="muted small">⚑ {{ p.tags|join(", ") }}</span>{% endif %}</li>
+    {% endfor %}
+  </ul>
+  {% endfor %}
+</section>
+{% endif %}
+
 {% include "ministering/_interview_history.html" %}
 
 <section class="card">

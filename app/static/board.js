@@ -29,7 +29,7 @@
   const $ = (sel, root = document) => root.querySelector(sel);
   const elDistricts = $("#districts");
   const elPop = $("#popover");
-  let query = "";
+  let query = "", roleFilter = "all";
 
   const person = (pid) => people[pid] || { id: pid, display: "Unknown", name: "Unknown", gender: null, active: true, tags: [] };
   const byName = (a, b) => person(a).name.localeCompare(person(b).name);
@@ -304,11 +304,14 @@
   }
 
   function applySearch() {
-    document.body.classList.toggle("searching", !!query);
+    // Everyone appears twice (as a minister and as someone assigned), so the role filter narrows the hits.
+    const active = !!query || roleFilter !== "all";
+    document.body.classList.toggle("searching", active);
     let first = null;
     for (const el of document.querySelectorAll(".chip")) {
-      const hit = !!query && person(el.dataset.pid).name.toLowerCase().includes(query)
-               || !!query && person(el.dataset.pid).display.toLowerCase().includes(query);
+      const p = person(el.dataset.pid);
+      const hit = active && (roleFilter === "all" || el.dataset.role === roleFilter)
+               && (!query || p.name.toLowerCase().includes(query) || p.display.toLowerCase().includes(query));
       el.classList.toggle("hit", hit);
       if (hit && !first && el.dataset.gkey) first = el;
     }
@@ -579,6 +582,11 @@
     query = search.value.trim().toLowerCase();
     const first = applySearch();
     if (first) first.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+  });
+  $("#search-role").addEventListener("change", (e) => {
+    roleFilter = e.target.value;
+    const first = applySearch();
+    if (first && query) first.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
   });
 
   render();

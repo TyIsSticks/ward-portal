@@ -117,6 +117,24 @@ def history(conn: sqlite3.Connection, minister_ids: list[int], exclude: int | No
     return _attach(conn, rows)
 
 
+def ministering_to(conn: sqlite3.Connection, org: str, minister_ids: list[int]) -> list[dict]:
+    """Who these ministers are assigned to in the current LCR import, to ask about during an interview.
+
+    One entry per companionship that includes any of the ministers: {"ministers": [...], "assigned": [...]},
+    so an interview that spans a split-up companionship shows each group's people separately.
+    """
+    current = m.current_import(conn, org)
+    if current is None or not minister_ids:
+        return []
+    wanted = set(minister_ids)
+    districts = m.structure(conn, current["id"])
+    groups = [g for d in districts for g in d["groups"] if wanted & set(g["ministers"]) and g["assigned"]]
+    everyone = m.people(conn, {p for g in groups for p in g["ministers"] + g["assigned"]})
+    return [{"ministers": [everyone[p] for p in g["ministers"] if p in everyone],
+             "assigned": sorted((everyone[p] for p in g["assigned"] if p in everyone), key=lambda x: x["name"].lower())}
+            for g in groups]
+
+
 def recent(conn: sqlite3.Connection, org: str, limit: int = 12) -> list[dict]:
     return _attach(conn, conn.execute("SELECT * FROM interviews WHERE org = ? ORDER BY held_on DESC, id DESC LIMIT ?",
                                       (org, limit)).fetchall())

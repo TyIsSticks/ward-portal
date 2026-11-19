@@ -190,6 +190,7 @@ def test_interview_pages(client, conn):
     again = client.get(link).text
     assert "Call the Dunns" in again and "Talked about" in again and "Able, Al".replace("Able, Al", "Al Able") in again
     assert "1 of 1 companionships interviewed" in client.get("/ministering/eq/interviews").text
+    assert "People they minister to" in again and "Di Dunn" in again       # who to ask about during the interview
 
     bad = client.post(f"/interviews/{interview_id}", data={"held_on": "nope", "notes": "kept my typing", "m": [p["Able, Al"]]})
     assert bad.status_code == 400 and "Pick the date" in bad.text and "kept my typing" in bad.text

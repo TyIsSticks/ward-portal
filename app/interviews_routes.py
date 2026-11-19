@@ -29,9 +29,11 @@ def tracker(org: str, request: Request, user: dict = leader):
 def _form(request: Request, user: dict, org: str, interview: dict | None, ministers: list[dict],
           error: str | None = None, values: dict | None = None, status_code: int = 200):
     with db.ward_connect(user["ward"]["id"]) as conn:
-        past = iv.history(conn, [p["id"] for p in ministers], exclude=interview["id"] if interview else None)
+        ids = [p["id"] for p in ministers]
+        past = iv.history(conn, ids, exclude=interview["id"] if interview else None)
+        flock = iv.ministering_to(conn, org, ids)
     return render(request, "ministering/interview.html", status_code=status_code, user=user, org=org,
-                  org_name=m.ORGS[org], interview=interview, ministers=ministers, past=past, error=error,
+                  org_name=m.ORGS[org], interview=interview, ministers=ministers, past=past, flock=flock, error=error,
                   values=values or {}, today=date.today(), max_text=iv.MAX_TEXT)
 
 
