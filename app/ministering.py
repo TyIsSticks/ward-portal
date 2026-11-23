@@ -469,7 +469,7 @@ def review(conn, layout: dict, current: dict) -> dict:
 
     {"people": [{person, was, now, kind}], "ministers": [{person, gaining, losing}], "everyone": {id: person}}
     `kind` is "new" (had no ministers), "dropped" (would have none) or "changed". People who moved out
-    are left out of `people` (they can still show as a minister).
+    are included (person["active"] is False): seeing them means the LCR import is out of date.
     """
     old, new = ministers_of(conn, current["id"]), ministers_of(conn, layout["id"])
     old_by, new_by = _assigned_by_minister(old), _assigned_by_minister(new)
@@ -480,7 +480,7 @@ def review(conn, layout: dict, current: dict) -> dict:
     rows = []
     for pid in old.keys() | new.keys():
         person = everyone.get(pid)
-        if person is None or not person["active"] or set(old.get(pid, [])) == set(new.get(pid, [])):
+        if person is None or set(old.get(pid, [])) == set(new.get(pid, [])):
             continue
         was, now = old.get(pid, []), new.get(pid, [])
         rows.append({"person": person, "was": was, "now": now,
@@ -488,8 +488,8 @@ def review(conn, layout: dict, current: dict) -> dict:
     movers = []
     for pid in old_by.keys() | new_by.keys():
         gain, lose = new_by.get(pid, set()) - old_by.get(pid, set()), old_by.get(pid, set()) - new_by.get(pid, set())
-        gain = sorted((x for x in gain if x in everyone and everyone[x]["active"]), key=lambda x: everyone[x]["name"].lower())
-        lose = sorted((x for x in lose if x in everyone and everyone[x]["active"]), key=lambda x: everyone[x]["name"].lower())
+        gain = sorted((x for x in gain if x in everyone), key=lambda x: everyone[x]["name"].lower())
+        lose = sorted((x for x in lose if x in everyone), key=lambda x: everyone[x]["name"].lower())
         if (gain or lose) and pid in everyone:
             movers.append({"person": everyone[pid], "gaining": gain, "losing": lose})
     key = lambda r: r["person"]["name"].lower()

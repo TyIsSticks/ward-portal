@@ -548,7 +548,7 @@ def test_moved_out_people_stay_on_who_ministers(conn):
     assert "Eads, Em" in [r["person"]["name"] for r in rows]
 
 
-def test_review_shows_who_moved_and_hides_moved_out(client, conn):
+def test_review_shows_who_moved_including_moved_out(client, conn):
     _leader(client)
     p = ids(conn)
     m.finish_import(conn, m.match_names(conn, report_of((["Able, Al", "Baker, Bo"], ["Dunn, Di", "Eads, Em"]))), {}, "a", "eq")
@@ -561,14 +561,14 @@ def test_review_shows_who_moved_and_hides_moved_out(client, conn):
 
     r = m.review(conn, m.get_layout(conn, draft), m.current_import(conn, "eq"))
     kinds = {x["person"]["name"]: x["kind"] for x in r["people"]}
-    assert kinds == {"Dunn, Di": "changed", "Ford, Fay": "new"}   # Em is gone, not "loses ministers"
+    assert kinds == {"Dunn, Di": "changed", "Eads, Em": "dropped", "Ford, Fay": "new"}   # Em moved out but is shown
     movers = {x["person"]["name"]: x for x in r["ministers"]}
     assert [r["everyone"][i]["name"] for i in movers["Baker, Bo"]["gaining"]] == ["Ford, Fay"]
-    assert [r["everyone"][i]["name"] for i in movers["Baker, Bo"]["losing"]] == ["Dunn, Di"]
+    assert [r["everyone"][i]["name"] for i in movers["Baker, Bo"]["losing"]] == ["Dunn, Di", "Eads, Em"]
 
     page = client.get(f"/ministering/layouts/{draft}/review").text
     assert "Fall plan" in page and "Al Able &amp; Cy Cole" in page and "Gets ministers" in page
-    assert "Eads, Em" not in page and "Working on it" in page
+    assert "Eads, Em" in page and "Moved out" in page and "Working on it" in page
     assert f"/ministering/layouts/{draft}/review" in client.get("/ministering/eq").text
     # Not available for the current import, or when nothing is imported for the other organization.
     cur = m.current_import(conn, "eq")["id"]

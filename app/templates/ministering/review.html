@@ -38,7 +38,7 @@
     <tbody>
     {% for row in r.people %}
       <tr>
-        <td>{{ row.person.name }}
+        <td>{{ row.person.name }}{% if not row.person.active %} <span class="badge moved">Moved out</span>{% endif %}
           {% if row.kind == "new" %}<span class="badge approved">Gets ministers</span>
           {% elif row.kind == "dropped" %}<span class="badge moved">Loses ministers</span>
           {% else %}<span class="chg-mark">Changed</span>{% endif %}</td>
@@ -72,7 +72,7 @@
   {% else %}<p class="muted">Nobody.</p>{% endif %}
 </section>
 {% endif %}
-<p class="muted small">People who moved out aren’t listed. Anyone you send the link to needs a Leader account to open it.</p>
+<p class="muted small">People marked Moved out are still in the layout. If that’s unexpected, upload a fresh LCR report. Anyone you send the link to needs a Leader account to open it.</p>
 <p class="fcuo">For Church Use Only</p>
 <script>
 document.getElementById("copy-link").addEventListener("click", async (e) => {
