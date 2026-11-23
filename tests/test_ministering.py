@@ -538,13 +538,14 @@ def test_past_imports_can_be_deleted_but_not_the_current_one(conn):
 
 # --- review page and moved-out people -----------------------------------------
 
-def test_moved_out_people_are_not_rows_on_who_ministers(conn):
+def test_moved_out_people_stay_on_who_ministers(conn):
+    # Kept on purpose: a moved-out person still listed means the LCR import is out of date.
     p = ids(conn)
     eq = m.finish_import(conn, m.match_names(conn, report_of((["Able, Al", "Baker, Bo"], ["Dunn, Di", "Eads, Em"]))),
                          {}, "a", "eq")
     conn.execute("UPDATE people SET active = 0 WHERE id = ?", (p["Eads, Em"],))
     rows, _ = m.who_ministers(conn, {"eq": m.get_layout(conn, eq)})
-    assert "Eads, Em" not in [r["person"]["name"] for r in rows] and "Dunn, Di" in [r["person"]["name"] for r in rows]
+    assert "Eads, Em" in [r["person"]["name"] for r in rows]
 
 
 def test_review_shows_who_moved_and_hides_moved_out(client, conn):

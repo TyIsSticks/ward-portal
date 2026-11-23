@@ -434,7 +434,7 @@ def who_ministers(conn, sources: dict[str, dict], include_unassigned: bool = Tru
     `sources` maps org -> layout to show. A row's org is `changed` when the layout gives that person
     different ministers than the current import (so a proposed layout shows what it would change).
     With `include_unassigned`, active adults with no ministers in any source are listed too.
-    People who moved out are never listed as rows (they can still appear as someone's minister).
+    Moved-out people who are still in a layout stay listed on purpose: it shows the LCR import is out of date.
     """
     shown = {org: ministers_of(conn, l["id"]) for org, l in sources.items()}
     current = {}
@@ -446,8 +446,6 @@ def who_ministers(conn, sources: dict[str, dict], include_unassigned: bool = Tru
     everyone = people(conn, ids | losing | {x for m in shown.values() for ms in m.values() for x in ms})
     rows = []
     for pid, person in everyone.items():  # already alphabetical by "Last, First"
-        if not person["active"]:  # moved out: nothing for a reviewer to decide
-            continue
         if pid not in ids | losing and not (include_unassigned and person["active"] and (person["age"] or 18) >= 18):
             continue
         ministers = {org: shown[org].get(pid, []) for org in sources}
