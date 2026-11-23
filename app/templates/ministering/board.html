@@ -12,8 +12,8 @@
     <input id="layout-name" value="{{ layout.name }}" maxlength="80" aria-label="Layout name"
            {% if layout.kind != "draft" %}readonly{% endif %}>
     {% if layout.kind == "draft" %}
-      <select id="status" aria-label="Status">
-        {% for s in statuses %}<option value="{{ s }}" {% if s == layout.status %}selected{% endif %}>{{ s|capitalize }}</option>{% endfor %}
+      <select id="status" aria-label="Status" title="{{ status_help }}">
+        {% for s in statuses %}<option value="{{ s }}" {% if s == layout.status %}selected{% endif %}>{{ status_label(s) }}</option>{% endfor %}
       </select>
       <a id="lcr-check" href="/ministering/layouts/{{ layout.id }}/changes#check"
          class="badge {{ 'verified' if layout.verified_at else 'proposed' }}" {% if layout.status != "approved" %}hidden{% endif %}>
@@ -23,6 +23,7 @@
     {% endif %}
     <span id="save-state" class="muted small" aria-live="polite"></span>
     <span class="spacer"></span>
+    {% if layout.kind == "draft" %}<a href="/ministering/layouts/{{ layout.id }}/review" class="secondary sm">Review</a>{% endif %}
     {% if not layout.is_current %}<a href="/ministering/layouts/{{ layout.id }}/changes" class="btn-cta">Changes for LCR</a>{% endif %}
   </div>
 

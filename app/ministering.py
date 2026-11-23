@@ -27,6 +27,10 @@ def tag_kind(tag: str) -> str:
 
 
 STATUSES = ("draft", "proposed", "approved")
+# What people see; the stored values stay draft / proposed / approved.
+STATUS_LABELS = {"draft": "Working on it", "proposed": "Ready for review", "approved": "Approved"}
+STATUS_HELP = ("Working on it: still being changed. Ready for review: the changes are done, so leaders can look "
+               "it over (Review). Approved: locked. Enter the changes in LCR, then upload a fresh report to check.")
 
 # Elders quorum and Relief Society keep separate assignments in LCR, so each has its own layouts.
 ORGS = {"eq": "Elders Quorum", "rs": "Relief Society"}
@@ -430,6 +434,7 @@ def who_ministers(conn, sources: dict[str, dict], include_unassigned: bool = Tru
     `sources` maps org -> layout to show. A row's org is `changed` when the layout gives that person
     different ministers than the current import (so a proposed layout shows what it would change).
     With `include_unassigned`, active adults with no ministers in any source are listed too.
+    People who moved out are never listed as rows (they can still appear as someone's minister).
     """
     shown = {org: ministers_of(conn, l["id"]) for org, l in sources.items()}
     current = {}
@@ -441,12 +446,56 @@ def who_ministers(conn, sources: dict[str, dict], include_unassigned: bool = Tru
     everyone = people(conn, ids | losing | {x for m in shown.values() for ms in m.values() for x in ms})
     rows = []
     for pid, person in everyone.items():  # already alphabetical by "Last, First"
+        if not person["active"]:  # moved out: nothing for a reviewer to decide
+            continue
         if pid not in ids | losing and not (include_unassigned and person["active"] and (person["age"] or 18) >= 18):
             continue
         ministers = {org: shown[org].get(pid, []) for org in sources}
         rows.append({"person": person, "ministers": ministers,
                      "changed": {org: set(ministers[org]) != set(current[org].get(pid, [])) for org in sources}})
     return rows, everyone
+
+
+# --- Review: where people moved around --------------------------------------
+
+def _assigned_by_minister(ministers: dict[int, list[int]]) -> dict[int, set[int]]:
+    out: dict[int, set[int]] = {}
+    for pid, ms in ministers.items():
+        for x in ms:
+            out.setdefault(x, set()).add(pid)
+    return out
+
+
+def review(conn, layout: dict, current: dict) -> dict:
+    """What a layout changes compared with the current import, by person.
+
+    {"people": [{person, was, now, kind}], "ministers": [{person, gaining, losing}], "everyone": {id: person}}
+    `kind` is "new" (had no ministers), "dropped" (would have none) or "changed". People who moved out
+    are left out of `people` (they can still show as a minister).
+    """
+    old, new = ministers_of(conn, current["id"]), ministers_of(conn, layout["id"])
+    old_by, new_by = _assigned_by_minister(old), _assigned_by_minister(new)
+    ids = set(old) | set(new) | set(old_by) | set(new_by)
+    for m in (old, new):
+        ids |= {x for ms in m.values() for x in ms}
+    everyone = people(conn, ids)
+    rows = []
+    for pid in old.keys() | new.keys():
+        person = everyone.get(pid)
+        if person is None or not person["active"] or set(old.get(pid, [])) == set(new.get(pid, [])):
+            continue
+        was, now = old.get(pid, []), new.get(pid, [])
+        rows.append({"person": person, "was": was, "now": now,
+                     "kind": "new" if not was else "dropped" if not now else "changed"})
+    movers = []
+    for pid in old_by.keys() | new_by.keys():
+        gain, lose = new_by.get(pid, set()) - old_by.get(pid, set()), old_by.get(pid, set()) - new_by.get(pid, set())
+        gain = sorted((x for x in gain if x in everyone and everyone[x]["active"]), key=lambda x: everyone[x]["name"].lower())
+        lose = sorted((x for x in lose if x in everyone and everyone[x]["active"]), key=lambda x: everyone[x]["name"].lower())
+        if (gain or lose) and pid in everyone:
+            movers.append({"person": everyone[pid], "gaining": gain, "losing": lose})
+    key = lambda r: r["person"]["name"].lower()
+    return {"people": sorted(rows, key=key), "ministers": sorted(movers, key=key), "everyone": everyone}
 
 
 # --- History ----------------------------------------------------------------

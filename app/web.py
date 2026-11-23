@@ -6,7 +6,7 @@ from fastapi import Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from . import auth, config, db, wards
+from . import auth, config, db, ministering, wards
 
 BASE = Path(__file__).resolve().parent
 
@@ -16,6 +16,8 @@ templates.env.globals["ward_name"] = config.SITE_NAME
 templates.env.globals["ward_initials"] = wards.initials(config.SITE_NAME)
 # Cache-buster for /static links, so browsers pick up new CSS/JS right after an update.
 templates.env.globals["asset_v"] = str(int(max(f.stat().st_mtime for f in (BASE / "static").iterdir())))
+templates.env.globals["status_label"] = ministering.STATUS_LABELS.get   # draft -> "Working on it"
+templates.env.globals["status_help"] = ministering.STATUS_HELP
 templates.env.globals["month_names"] = [
     "", "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"]

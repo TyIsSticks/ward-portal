@@ -325,7 +325,7 @@
     if (S.layout.kind === "imported") $("#readonly-text").textContent =
       "This is a snapshot imported from LCR, so it can't be edited.";
     else if (S.layout.status === "approved") $("#readonly-text").textContent =
-      "This layout is approved and locked. Set the status back to Draft to edit it, or";
+      "This layout is approved and locked. Set the status back to “Working on it” to edit it, or";
     document.body.classList.toggle("readonly", ro());
   }
 

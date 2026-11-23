@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% set active = "ministering" %}
+{% block title %}Review · {{ layout.name }}{% endblock %}
+{% macro names(ids) -%}
+  {%- set list = [] -%}
+  {%- for pid in ids -%}{%- set _ = list.append(r.everyone[pid].display if pid in r.everyone else "Unknown") -%}{%- endfor -%}
+  {{- list|join(" & ") -}}
+{%- endmacro %}
+{% macro short(ids) -%}
+  {%- set list = [] -%}
+  {%- for pid in ids -%}{%- set _ = list.append(r.everyone[pid].display if pid in r.everyone else "Unknown") -%}{%- endfor -%}
+  {{- list|join(", ") -}}
+{%- endmacro %}
+{% block content %}
+<div class="no-print row spread">
+  <a href="/ministering/{{ layout.org }}">← {{ org_name }} layouts</a>
+  <span class="row" style="margin: 0">
+    <a href="/ministering/layouts/{{ layout.id }}">Open board</a>
+    <a href="/ministering/layouts/{{ layout.id }}/changes">Changes for LCR →</a>
+    <button type="button" class="secondary" id="copy-link">Copy link</button>
+    <button type="button" onclick="window.print()">Print / Save as PDF</button>
+  </span>
+</div>
+<h1>Review <span class="muted">· {{ org_name }}</span></h1>
+<p class="muted"><strong>{{ layout.name }}</strong> <span class="badge {{ layout.status }}">{{ status_label(layout.status) }}</span>
+  compared with <strong>{{ current.name }}</strong> (what’s in LCR now, imported {{ current.created_at[:10] }}).
+  {% if check and check.state == "verified" %}This layout is already verified in LCR.{% endif %}</p>
+
+{% if not r.people and not r.ministers %}
+<section class="card"><p>No differences: this layout gives everyone the same ministers as LCR does now.</p></section>
+{% else %}
+<section class="card">
+  <h2>People getting different ministers <span class="muted small">· {{ r.people|length }}</span></h2>
+  {% if r.people %}
+  <div class="table-wrap">
+  <table class="who">
+    <thead><tr><th>Name</th><th>Now in LCR</th><th>In this layout</th></tr></thead>
+    <tbody>
+    {% for row in r.people %}
+      <tr>
+        <td>{{ row.person.name }}
+          {% if row.kind == "new" %}<span class="badge approved">Gets ministers</span>
+          {% elif row.kind == "dropped" %}<span class="badge moved">Loses ministers</span>
+          {% else %}<span class="chg-mark">Changed</span>{% endif %}</td>
+        <td>{% if row.was %}{{ names(row.was) }}{% else %}<span class="muted">No ministers</span>{% endif %}</td>
+        <td>{% if row.now %}<strong>{{ names(row.now) }}</strong>{% else %}<span class="muted">No ministers</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="muted">Nobody.</p>{% endif %}
+</section>
+
+<section class="card">
+  <h2>Ministers taking on or giving up people <span class="muted small">· {{ r.ministers|length }}</span></h2>
+  {% if r.ministers %}
+  <div class="table-wrap">
+  <table class="who">
+    <thead><tr><th>Minister</th><th>Takes on</th><th>No longer ministers to</th></tr></thead>
+    <tbody>
+    {% for row in r.ministers %}
+      <tr>
+        <td>{{ row.person.name }}{% if not row.person.active %} <span class="badge moved">Moved out</span>{% endif %}</td>
+        <td>{% if row.gaining %}<strong>{{ short(row.gaining) }}</strong>{% else %}<span class="muted">—</span>{% endif %}</td>
+        <td>{% if row.losing %}{{ short(row.losing) }}{% else %}<span class="muted">—</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="muted">Nobody.</p>{% endif %}
+</section>
+{% endif %}
+<p class="muted small">People who moved out aren’t listed. Anyone you send the link to needs a Leader account to open it.</p>
+<p class="fcuo">For Church Use Only</p>
+<script>
+document.getElementById("copy-link").addEventListener("click", async (e) => {
+  try { await navigator.clipboard.writeText(location.href); e.target.textContent = "Link copied"; }
+  catch { prompt("Copy this link:", location.href); }
+});
+</script>
+{% endblock %}

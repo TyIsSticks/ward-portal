@@ -14,13 +14,14 @@
 <div class="no-print row spread">
   <a href="/ministering/layouts/{{ layout.id }}">← Back to board</a>
   <span class="row" style="margin: 0">
+    <a href="/ministering/layouts/{{ layout.id }}/review">Review →</a>
     <a href="/ministering/assignments?{{ layout.org }}={{ layout.id }}">Who ministers to whom →</a>
     <button type="button" onclick="window.print()">Print</button>
   </span>
 </div>
 <h1>Changes for LCR <span class="muted">· {{ org_name }}</span></h1>
 <p class="muted">From <strong>{{ current.name }}</strong> (what’s in LCR now) to <strong>{{ layout.name }}</strong>
-  {% if layout.kind == "draft" %}<span class="badge {{ layout.status }}">{{ layout.status|capitalize }}</span>{% endif %}.
+  {% if layout.kind == "draft" %}<span class="badge {{ layout.status }}">{{ status_label(layout.status) }}</span>{% endif %}.
   Check items off as you enter them in LCR (<em>{{ org_name }} → Ministering → Companionships</em>).</p>
 
 {% if check and check.state == "verified" %}

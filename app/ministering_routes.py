@@ -114,6 +114,21 @@ def changes(layout_id: int, request: Request, user: dict = leader):
                   diff=diff, people=people, org_name=org_name, check=check)
 
 
+@router.get("/ministering/layouts/{layout_id}/review", response_class=HTMLResponse)
+def review(layout_id: int, request: Request, user: dict = leader):
+    with db.ward_connect(user["ward"]["id"]) as conn:
+        layout = _layout_or_404(conn, layout_id)
+        current = m.current_import(conn, layout["org"])
+        if current is None or layout["id"] == current["id"] or layout["kind"] != "draft":
+            flash(request, "error", "Review compares a draft layout with what's in LCR now. "
+                  f"Import the current {m.ORGS[layout['org']]} assignments first, then pick a draft.")
+            return RedirectResponse(f"/ministering/{layout['org']}", status_code=303)
+        result = m.review(conn, layout, current)
+        check = m.lcr_check(conn, layout)
+    return render(request, "ministering/review.html", user=user, layout=layout, current=current,
+                  r=result, org_name=m.ORGS[layout["org"]], check=check)
+
+
 @router.get("/ministering/people", response_class=HTMLResponse)
 def people_page(request: Request, user: dict = leader):
     with db.ward_connect(user["ward"]["id"]) as conn:

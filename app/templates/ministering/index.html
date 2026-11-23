@@ -30,6 +30,9 @@
 {% block main_class %}pull{% endblock %}
 {% block content %}
 {% if layouts %}
+<p class="muted small" style="margin: 0 0 12px"><strong>Working on it</strong>: still being changed.
+  <strong>Ready for review</strong>: the changes are done, so leaders can look them over (use <em>Review</em>).
+  <strong>Approved</strong>: locked. Enter the changes in LCR, then upload a fresh report to check them.</p>
 <div class="lay-grid" style="margin-bottom: 28px">
   {% for l in layouts %}
   <article class="lay">
@@ -40,12 +43,13 @@
     {% elif l.status == "approved" %}
       <span><span class="badge approved">Approved</span> <span class="muted small">· needs LCR check</span></span>
     {% else %}
-      <span><span class="badge {{ l.status }}">{{ l.status|capitalize }}</span></span>
+      <span><span class="badge {{ l.status }}">{{ status_label(l.status) }}</span></span>
     {% endif %}
     <a class="l-name" href="/ministering/layouts/{{ l.id }}">{{ l.name }}</a>
     <div class="muted">{{ l.groups }} groups · {{ "imported" if l.kind == "imported" else "edited" }} {{ l.updated_at[:10] }} by {{ l.created_by }}</div>
     <div class="l-actions">
       {% if l.kind == "draft" %}
+      <a href="/ministering/layouts/{{ l.id }}/review">Review</a>
       <a href="/ministering/layouts/{{ l.id }}/changes">Changes for LCR</a>
       <form method="post" action="/ministering/layouts/{{ l.id }}/delete" data-name="{{ l.name }}" class="inline"
             onsubmit="return confirm('Delete “' + this.dataset.name + '”? This can’t be undone.')">

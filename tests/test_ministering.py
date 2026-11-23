@@ -313,7 +313,7 @@ def test_who_ministers_page(client, conn):
     assert "chg-mark" not in page.split("<table")[1] and "marked New" not in page
 
     page = client.get(f"/ministering/assignments?eq={draft}&rs=none&tags=1&assigned_only=1").text
-    assert "Fall plan (Draft)" in page and "Al Able &amp; Cy Cole" in page and "Relief Society:" not in page
+    assert "Fall plan (Working on it)" in page and "Al Able &amp; Cy Cole" in page and "Relief Society:" not in page
     assert "1 marked New" in page and page.split("<table")[1].count("chg-mark") == 1
     assert "Needs extra care" in page and "No ministers</span>" not in page
     # A layout from the other organization, or one that doesn't exist, falls back to what's in LCR.
@@ -534,3 +534,45 @@ def test_past_imports_can_be_deleted_but_not_the_current_one(conn):
         m.delete_layout(conn, new)
     m.delete_layout(conn, old)
     assert m.get_layout(conn, old) is None and m.get_layout(conn, new)
+
+
+# --- review page and moved-out people -----------------------------------------
+
+def test_moved_out_people_are_not_rows_on_who_ministers(conn):
+    p = ids(conn)
+    eq = m.finish_import(conn, m.match_names(conn, report_of((["Able, Al", "Baker, Bo"], ["Dunn, Di", "Eads, Em"]))),
+                         {}, "a", "eq")
+    conn.execute("UPDATE people SET active = 0 WHERE id = ?", (p["Eads, Em"],))
+    rows, _ = m.who_ministers(conn, {"eq": m.get_layout(conn, eq)})
+    assert "Eads, Em" not in [r["person"]["name"] for r in rows] and "Dunn, Di" in [r["person"]["name"] for r in rows]
+
+
+def test_review_shows_who_moved_and_hides_moved_out(client, conn):
+    _leader(client)
+    p = ids(conn)
+    m.finish_import(conn, m.match_names(conn, report_of((["Able, Al", "Baker, Bo"], ["Dunn, Di", "Eads, Em"]))), {}, "a", "eq")
+    draft = m.create_layout(conn, "eq", "Fall plan", "current", "a")
+    m.save_structure(conn, draft, [{"name": "North", "groups": [
+        {"ministers": [p["Able, Al"], p["Cole, Cy"]], "assigned": [p["Dunn, Di"]]},
+        {"ministers": [p["Baker, Bo"]], "assigned": [p["Ford, Fay"]]}]}], 1)
+    conn.execute("UPDATE people SET active = 0 WHERE id = ?", (p["Eads, Em"],))  # Em moved out
+    conn.commit()
+
+    r = m.review(conn, m.get_layout(conn, draft), m.current_import(conn, "eq"))
+    kinds = {x["person"]["name"]: x["kind"] for x in r["people"]}
+    assert kinds == {"Dunn, Di": "changed", "Ford, Fay": "new"}   # Em is gone, not "loses ministers"
+    movers = {x["person"]["name"]: x for x in r["ministers"]}
+    assert [r["everyone"][i]["name"] for i in movers["Baker, Bo"]["gaining"]] == ["Ford, Fay"]
+    assert [r["everyone"][i]["name"] for i in movers["Baker, Bo"]["losing"]] == ["Dunn, Di"]
+
+    page = client.get(f"/ministering/layouts/{draft}/review").text
+    assert "Fall plan" in page and "Al Able &amp; Cy Cole" in page and "Gets ministers" in page
+    assert "Eads, Em" not in page and "Working on it" in page
+    assert f"/ministering/layouts/{draft}/review" in client.get("/ministering/eq").text
+    # Not available for the current import, or when nothing is imported for the other organization.
+    cur = m.current_import(conn, "eq")["id"]
+    assert "Review compares a draft" in client.get(f"/ministering/layouts/{cur}/review", follow_redirects=True).text
+    rs = m.create_layout(conn, "rs", "Empty", "scratch", "a")
+    conn.commit()
+    assert "Review compares a draft" in client.get(f"/ministering/layouts/{rs}/review", follow_redirects=True).text
+    assert client.get("/ministering/layouts/99999/review").status_code == 404
