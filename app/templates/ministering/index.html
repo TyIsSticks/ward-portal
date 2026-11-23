@@ -30,9 +30,6 @@
 {% block main_class %}pull{% endblock %}
 {% block content %}
 {% if layouts %}
-<p class="muted small" style="margin: 0 0 12px"><strong>Working on it</strong>: still being changed.
-  <strong>Ready for review</strong>: the changes are done, so leaders can look them over (use <em>Review</em>).
-  <strong>Approved</strong>: locked. Enter the changes in LCR, then upload a fresh report to check them.</p>
 <div class="lay-grid" style="margin-bottom: 28px">
   {% for l in layouts %}
   <article class="lay">
@@ -68,6 +65,9 @@
   </article>
   {% endfor %}
 </div>
+<p class="muted small" style="margin: -12px 0 28px"><strong>Working on it</strong>: still being changed.
+  <strong>Ready for review</strong>: the changes are done, so leaders can look them over (use <em>Review</em>).
+  <strong>Approved</strong>: locked. Enter the changes in LCR, then upload a fresh report to check them.</p>
 {% else %}
 <section class="card"><p class="muted">No layouts yet. Import the current {{ org_name }} assignments below, or start one from scratch.</p></section>
 {% endif %}
